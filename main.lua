@@ -4,7 +4,8 @@ if local_player == nil then
 end
 
 local character_id = local_player:get_character_class_id();
-local is_paladin = character_id == 7;  -- Paladin is class 7
+console.print("Character Class ID: " .. character_id);
+local is_paladin = character_id == 7 or character_id == 9;  -- Paladin is class 7 or 9 (added in Season 11)
 if not is_paladin then
     return
 end;
