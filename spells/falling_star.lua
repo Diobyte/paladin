@@ -96,6 +96,8 @@ local function logics(target)
 
     -- Enemy type filter check
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
+    local use_minimum_weight = menu_elements.use_minimum_weight:get()
+    local minimum_weight = math.ceil(menu_elements.minimum_weight:get())
     if enemy_type_filter == 2 then
         -- Boss only
         if not target:is_boss() then
@@ -122,6 +124,15 @@ local function logics(target)
         local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
         if predicted_pos then
             pos = predicted_pos
+        end
+    end
+
+    -- Optional pack-weight gate: require minimum nearby enemies at landing spot
+    if use_minimum_weight and minimum_weight > 0 and enemy_type_filter == 0 then
+        local nearby = my_utility.enemy_count_in_radius(6.0, pos)
+        if nearby < minimum_weight then
+            if debug_enabled then console.print("[FALLING STAR DEBUG] Not enough enemies at land spot: " .. nearby .. " < " .. minimum_weight) end
+            return false, 0
         end
     end
 

@@ -72,20 +72,7 @@ local function logics(target)
     local player = get_local_player()
     if not player then return false, 0 end
     
-    -- Step 3: Range check FIRST - move toward target if out of range
-    -- This happens BEFORE cooldown/resource checks (Spiritborn pattern)
-    local cast_range = menu_elements.cast_range:get()
-    local in_range = my_utility.is_in_range(target, cast_range)
-    
-    if not in_range then
-        -- CENTRALIZED MOVEMENT: Use my_utility.move_to_target()
-        -- This is called regardless of cooldown state - we want to close distance
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Moving toward target (out of range)") end
-        return false, 0
-    end
-    
-    -- Step 4: Now check if spell is actually ready to cast (cooldowns, resources, orbwalker mode)
+    -- Step 3: Check readiness BEFORE movement to avoid pathing while gated by cooldown/resource/mode
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
     
     if not is_logic_allowed then
@@ -93,7 +80,7 @@ local function logics(target)
         return false, 0
     end
     
-    -- Step 5: Resource check (Faith Cost: 28 - expensive spender)
+    -- Step 4: Resource check (Faith Cost: 28 - expensive spender)
     local min_resource = menu_elements.min_resource:get()
     if min_resource > 0 then
         local resource_pct = my_utility.get_resource_pct()
@@ -103,16 +90,27 @@ local function logics(target)
         end
     end
     
+    -- Step 5: Range check AFTER gating - only move when we can actually cast
+    local cast_range = menu_elements.cast_range:get()
+    local in_range = my_utility.is_in_range(target, cast_range)
+    
+    if not in_range then
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Moving toward target (out of range)") end
+        return false, 0
+    end
+    
     -- Step 6: Check if we should cast based on single target / grouped enemy preferences
     local should_cast = false
     local use_single = menu_elements.use_on_single_target:get()
     local prefer_grouped = menu_elements.prefer_grouped_enemies:get()
     
     if prefer_grouped then
-        -- Count enemies near target for ricochet value (shield bounces 3x)
+        -- Count enemies near the CURRENT TARGET for ricochet value (bounces want clustered target)
         local ricochet_range = menu_elements.ricochet_grouping:get()
         local min_enemies = menu_elements.min_enemies_for_aoe:get()
-        local all_units_count = my_utility.enemy_count_in_radius(ricochet_range)
+        local target_pos = target:get_position()
+        local all_units_count = my_utility.enemy_count_in_radius(ricochet_range, target_pos)
 
         if all_units_count >= min_enemies then
             should_cast = true  -- Good ricochet opportunity

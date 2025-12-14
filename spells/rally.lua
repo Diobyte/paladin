@@ -48,16 +48,18 @@ local function logics()
     local player_pos = player:get_position()
     if not player_pos then return false, 0 end
     
-    -- Check for enemies nearby (no need to rally with no targets)
+    local use_for_movespeed = menu_elements.use_for_movespeed:get()
+
+    -- Check for enemies nearby unless we are using Rally purely for mobility
     local nearby = my_utility.enemy_count_in_radius(25.0, player_pos)
-    if nearby == 0 then
+    if (not use_for_movespeed) and nearby == 0 then
         if debug_enabled then console.print("[RALLY DEBUG] No enemies nearby") end
         return false, 0
     end
 
     -- Enemy type filter check
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
-    if enemy_type_filter > 0 then
+    if (not use_for_movespeed) and enemy_type_filter > 0 then
         local enemies = actors_manager.get_enemy_npcs()
         local has_priority_target = false
         local check_range_sqr = 25.0 * 25.0
@@ -79,8 +81,8 @@ local function logics()
                         end
                     end
                 end
-                ::continue_rally::
             end
+            ::continue_rally::
         end
         
         if not has_priority_target then
@@ -90,7 +92,6 @@ local function logics()
     end
 
     -- META BUILD: Rally should be used "as often as possible" for move speed
-    local use_for_movespeed = menu_elements.use_for_movespeed:get()
     
     if not use_for_movespeed then
         -- GENERATOR LOGIC: Only cast when Faith is LOW

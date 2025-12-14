@@ -55,23 +55,22 @@ local function logics(target)
         return false, 0
     end
 
-    -- Clash is a melee skill, check range FIRST
-    local melee_range = my_utility.get_melee_range()
-    local in_range = my_utility.is_in_range(target, melee_range)
-    
-    -- CENTRALIZED MOVEMENT: If out of range, move toward target
-    -- This happens BEFORE cooldown/orbwalker checks
-    if not in_range then
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[CLASH DEBUG] Moving toward target - out of melee range") end
-        return false, 0  -- Don't cast, just move
-    end
-
-    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
+    -- Check readiness BEFORE movement to avoid chasing while gated by cooldown/resource/mode
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
     if not is_logic_allowed then
         if debug_enabled then console.print("[CLASH DEBUG] Spell not allowed (cooldown/mode)") end
         return false, 0
+    end
+
+    -- Clash is a melee skill, check range AFTER gating
+    local melee_range = my_utility.get_melee_range()
+    local in_range = my_utility.is_in_range(target, melee_range)
+    
+    -- CENTRALIZED MOVEMENT: If out of range, move toward target
+    if not in_range then
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[CLASH DEBUG] Moving toward target - out of melee range") end
+        return false, 0  -- Don't cast, just move
     end
 
     -- GENERATOR LOGIC: Only cast when Faith is LOW
@@ -83,9 +82,12 @@ local function logics(target)
         if max_resource > 0 then
             local resource_pct = (current_resource / max_resource) * 100
             local threshold = menu_elements.resource_threshold:get()
+
+            -- Boss Burn Mode: ignore Faith gating on elites/champions/bosses
+            local burn_override = _G.PaladinRotation and _G.PaladinRotation.boss_burn_mode and (target:is_elite() or target:is_champion() or target:is_boss())
             
-            -- Only generate Faith when BELOW threshold
-            if resource_pct >= threshold then
+            -- Only generate Faith when BELOW threshold (unless burn override)
+            if (not burn_override) and resource_pct >= threshold then
                 if debug_enabled then console.print("[CLASH DEBUG] Faith too high: " .. string.format("%.1f", resource_pct) .. "% >= " .. threshold .. "%") end
                 return false, 0  -- Faith is high enough, let spenders handle it
             end

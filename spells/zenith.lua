@@ -60,6 +60,9 @@ local function logics()
     local melee_range = menu_elements.melee_range:get()
     local melee_range_sqr = melee_range * melee_range
     local min_enemies = menu_elements.min_enemies:get()
+    local use_minimum_weight = menu_elements.use_minimum_weight:get()
+    local minimum_weight = math.ceil(menu_elements.minimum_weight:get())
+    local required_enemies = use_minimum_weight and math.max(min_enemies, minimum_weight) or min_enemies
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     local enemies = actors_manager.get_enemy_npcs()
@@ -96,9 +99,12 @@ local function logics()
         if debug_enabled then console.print("[ZENITH DEBUG] No priority target found") end
         return false, 0
     end
+    if enemy_type_filter > 0 and has_priority_target then
+        required_enemies = min_enemies  -- permit single-target recast/ult usage on bosses even with min-weight enabled
+    end
 
-    if near < min_enemies then
-        if debug_enabled then console.print("[ZENITH DEBUG] Not enough enemies: " .. near .. " < " .. min_enemies) end
+    if near < required_enemies then
+        if debug_enabled then console.print("[ZENITH DEBUG] Not enough enemies: " .. near .. " < " .. required_enemies) end
         return false, 0
     end
 

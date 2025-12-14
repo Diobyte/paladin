@@ -59,6 +59,9 @@ local function logics()
     -- Check for nearby enemies using configurable engage range
     local engage_range = menu_elements.engage_range:get()
     local min_enemies = menu_elements.min_enemies:get()
+    local use_minimum_weight = menu_elements.use_minimum_weight:get()
+    local minimum_weight = math.ceil(menu_elements.minimum_weight:get())
+    local required_enemies = use_minimum_weight and math.max(min_enemies, minimum_weight) or min_enemies
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     local enemies = actors_manager.get_enemy_npcs()
@@ -91,14 +94,17 @@ local function logics()
         end
     end
 
-    -- Check enemy type filter
+    -- Check enemy type filter; if a priority target is in range, allow single-target usage even when minimum weight is enabled
     if enemy_type_filter > 0 and not has_priority_target then
         if debug_enabled then console.print("[HEAVENS FURY DEBUG] No priority target found") end
         return false, 0
     end
+    if enemy_type_filter > 0 and has_priority_target then
+        required_enemies = min_enemies  -- let boss/elite casts go through even if minimum weight is enabled
+    end
 
-    if near < min_enemies then
-        if debug_enabled then console.print("[HEAVENS FURY DEBUG] Not enough enemies: " .. near .. " < " .. min_enemies) end
+    if near < required_enemies then
+        if debug_enabled then console.print("[HEAVENS FURY DEBUG] Not enough enemies: " .. near .. " < " .. required_enemies) end
         return false, 0
     end
 

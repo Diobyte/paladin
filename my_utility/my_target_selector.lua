@@ -89,11 +89,8 @@ local function get_target_selector_data(source, list)
 
     local possible_targets_list = list;
     if #possible_targets_list == 0 then
-        return
-        { 
-            is_valid = is_valid;
-        }
-    end;
+        return { is_valid = is_valid }
+    end
 
     local closest_unit = nil;
     local closest_unit_distance = math.huge;
@@ -163,6 +160,7 @@ local function get_target_selector_data(source, list)
 
     -- Cache cursor position outside the loop for performance
     local cursor_pos = get_cursor_position()
+    local cursor_bias_enabled = not (_G.PaladinRotation and _G.PaladinRotation.disable_cursor_priority)
     
     for _, unit in ipairs(possible_targets_list) do
         local unit_position = unit:get_position()
@@ -178,19 +176,24 @@ local function get_target_selector_data(source, list)
         -- update units data
         is_valid = true;  -- Mark as valid since we have at least one unit
         
-        -- Cursor priority: prefer targets very close to cursor, then use distance (use squared distances)
+        -- Cursor priority (can be disabled via menu toggle)
         local cursor_dist_sqr = cursor_pos and unit_position:squared_dist_to_ignore_z(cursor_pos) or math.huge
-        if cursor_dist_sqr <= 1 then
-            -- Very close to cursor - highest priority
-            closest_unit = unit;
-            closest_unit_distance = distance_sqr;
-        elseif cursor_dist_sqr < 4 and closest_unit_distance > 4 then
-            -- Near cursor and current closest is far - take cursor target
-            closest_unit = unit;
-            closest_unit_distance = distance_sqr;
-        elseif distance_sqr < closest_unit_distance then
-            closest_unit = unit;
-            closest_unit_distance = distance_sqr;
+        if cursor_bias_enabled and cursor_pos then
+            if cursor_dist_sqr <= 1 then
+                closest_unit = unit;
+                closest_unit_distance = distance_sqr;
+            elseif cursor_dist_sqr < 4 and closest_unit_distance > 4 then
+                closest_unit = unit;
+                closest_unit_distance = distance_sqr;
+            elseif distance_sqr < closest_unit_distance then
+                closest_unit = unit;
+                closest_unit_distance = distance_sqr;
+            end
+        else
+            if distance_sqr < closest_unit_distance then
+                closest_unit = unit;
+                closest_unit_distance = distance_sqr;
+            end
         end
         
         -- Calculate weighted score for this unit (boss > champion > elite > normal)
@@ -681,6 +684,15 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
     if current_time - last_scan_time >= refresh_rate then
         last_scan_time = current_time
         cached_target_list = target_selector.get_near_target_list(source_pos, scan_radius) or {}
+
+        -- No targets at all: clear cache and exit early
+        if #cached_target_list == 0 then
+            cached_weighted_target = nil
+            if debug_enabled then
+                console.print("[WEIGHTED TARGET DEBUG] No targets found in radius " .. scan_radius)
+            end
+            return nil
+        end
 
         if #cached_target_list < min_targets then
             cached_weighted_target = get_closest_valid_target(cached_target_list, source_pos)

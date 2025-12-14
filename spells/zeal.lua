@@ -92,23 +92,22 @@ local function logics(target)
         end
     end
 
-    -- Zeal is a melee multi-strike skill, check range BEFORE cooldown checks
-    local melee_range = my_utility.get_melee_range()
-    local in_range = my_utility.is_in_range(target, melee_range)
-    
-    -- CENTRALIZED MOVEMENT: If out of range, use my_utility.move_to_target()
-    -- This happens BEFORE cooldown/orbwalker checks - we want to move even if spell is on CD
-    if not in_range then
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[ZEAL DEBUG] Moving toward target - out of melee range") end
-        return false, 0  -- Don't cast, just move
-    end
-    
-    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
+    -- Check readiness BEFORE movement so we do not chase while gated by cooldown/resource/mode
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
     if not is_logic_allowed then
         if debug_enabled then console.print("[ZEAL DEBUG] Spell not allowed (cooldown/mode)") end
         return false, 0
+    end
+
+    -- Zeal is a melee multi-strike skill, check range AFTER gating
+    local melee_range = my_utility.get_melee_range()
+    local in_range = my_utility.is_in_range(target, melee_range)
+    
+    -- CENTRALIZED MOVEMENT: If out of range, use my_utility.move_to_target()
+    if not in_range then
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[ZEAL DEBUG] Moving toward target - out of melee range") end
+        return false, 0  -- Don't cast, just move
     end
     
     -- Check min enemies in melee range (Zeal hits multiple times)

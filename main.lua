@@ -57,6 +57,14 @@ local spell_priority = require("spell_priority")
 local menu = require("menu")
 local my_target_selector = require("my_utility/my_target_selector")
 
+-- Menu helper must exist before any callbacks that read menu state
+local function safe_get_menu_element(element, fallback)
+    if element and type(element.get) == "function" then
+        return element:get()
+    end
+    return fallback
+end
+
 -- GLOBAL STATE FOR LOOTEER COORDINATION
 -- Looteer checks this before looting to avoid conflicts with combat
 -- When in_combat=true or is_casting=true, Looteer should defer looting
@@ -66,6 +74,13 @@ _G.PaladinRotation = {
     last_cast_time = 0,     -- Time of last successful cast
     current_target_id = nil -- ID of current target for coordination
 }
+
+local function update_global_flags_from_menu()
+    if not menu or not menu.menu_elements then return end
+    _G.PaladinRotation.manual_play = safe_get_menu_element(menu.menu_elements.manual_play, false)
+    _G.PaladinRotation.boss_burn_mode = safe_get_menu_element(menu.menu_elements.boss_burn_mode, false)
+    _G.PaladinRotation.disable_cursor_priority = safe_get_menu_element(menu.menu_elements.disable_cursor_priority, false)
+end
 
 local function safe_on_render_menu(cb)
     if type(on_render_menu) == "function" then
@@ -115,99 +130,11 @@ local spells = {
     zenith = require("spells/zenith"),             -- NEW: Zealot Ultimate
 }
 
-local function safe_get_menu_element(element, fallback)
-    if element and type(element.get) == "function" then
-        return element:get()
-    end
-    return fallback
-end
-
 local function dbg(msg)
     local enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
     if enabled and console and type(console.print) == "function" then
         console.print("[Paladin_Rotation] " .. msg)
     end
-end
-
-local function get_best_target(max_range, cluster_radius, prefer_elites)
-    local player = get_local_player()
-    if not player then return nil, 0, false end
-
-    local player_pos = player:get_position()
-    local enemies = actors_manager.get_enemy_npcs()
-
-    local max_range_sqr = max_range * max_range
-    local cluster_radius_sqr = (cluster_radius or 6.0)
-    cluster_radius_sqr = cluster_radius_sqr * cluster_radius_sqr
-
-    local count = 0
-    local has_boss_like = false
-
-    local candidates = {}
-    for _, e in ipairs(enemies) do
-        if e and e:is_enemy() then
-            local pos = e:get_position()
-            if pos then
-                local d = pos:squared_dist_to_ignore_z(player_pos)
-                if d <= max_range_sqr then
-                    count = count + 1
-                    if e:is_boss() or e:is_champion() then
-                        has_boss_like = true
-                    end
-                    table.insert(candidates, { unit = e, pos = pos, dist_sqr = d })
-                end
-            end
-        end
-    end
-
-    if #candidates == 0 then
-        return nil, 0, false
-    end
-
-    local best = nil
-    local best_score = -math.huge
-
-    for i = 1, #candidates do
-        local c = candidates[i]
-        local u = c.unit
-        local score = 0
-
-        -- Prefer higher value targets
-        if u:is_boss() then
-            score = score + 5000
-        elseif u:is_champion() then
-            score = score + 2500
-        elseif u:is_elite() then
-            score = score + 1000
-        end
-
-        -- Cluster score (how many enemies are near this target)
-        local cluster = 0
-        for j = 1, #candidates do
-            if i ~= j then
-                local d2 = candidates[j].pos:squared_dist_to_ignore_z(c.pos)
-                if d2 <= cluster_radius_sqr then
-                    cluster = cluster + 1
-                end
-            end
-        end
-        score = score + (cluster * 50)
-
-        -- Distance bias (slight)
-        score = score - (c.dist_sqr * 0.01)
-
-        -- If enabled, devalue normal mobs so we more consistently snap to elites
-        if prefer_elites and (not u:is_elite()) and (not u:is_champion()) and (not u:is_boss()) then
-            score = score - 300
-        end
-
-        if score > best_score then
-            best_score = score
-            best = u
-        end
-    end
-
-    return best, count, has_boss_like
 end
 
 -- Evaluate all target types for the Druid-style per-spell targeting system
@@ -458,6 +385,8 @@ safe_on_render_menu(function()
         return
     end
 
+    update_global_flags_from_menu()
+
     menu.menu_elements.main_boolean:render("Enable Plugin", "")
     if not safe_get_menu_element(menu.menu_elements.main_boolean, false) then
         menu.menu_elements.main_tree:pop()
@@ -551,6 +480,14 @@ safe_on_render_menu(function()
         if menu.menu_elements.boss_defiance_hp_pct then
             menu.menu_elements.boss_defiance_hp_pct:render("Boss Defiance HP %", "", 2)
         end
+
+        -- QoL toggles
+        if menu.menu_elements.boss_burn_mode then
+            menu.menu_elements.boss_burn_mode:render("Boss Burn Mode", "Ignore generator resource throttles on elites/bosses to keep APM high")
+        end
+        if menu.menu_elements.disable_cursor_priority then
+            menu.menu_elements.disable_cursor_priority:render("Disable Cursor Priority", "Turn off cursor snap targeting (useful for single-target bossing)")
+        end
         
         -- Manual Play Mode
         menu.menu_elements.manual_play:render("Manual Play", "When enabled, disables automatic movement for melee spells - you control positioning manually")
@@ -598,6 +535,9 @@ end)
 local cast_end_time = 0.0
 local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
 -- Movement is now centralized in my_utility.move_to_target()
+
+-- Cache evaluated targets to reduce per-frame work and target thrashing
+local targets_cache = { data = nil, time = 0.0, melee_range = 0.0, scan_radius = 0.0 }
 
 -- TARGET STICKINESS: Prevent oscillation by sticking to a target for a minimum time
 local sticky_target = nil
@@ -772,6 +712,9 @@ safe_on_update(function()
         return
     end
 
+    -- Sync global flags from menu so gameplay reacts immediately to UI changes
+    update_global_flags_from_menu()
+
     -- Check orbwalker mode (matching Druid pattern)
     -- orbwalker mode check is also in is_spell_allowed() but we check here for early exit
     local current_orb_mode = orbwalker.get_orb_mode()
@@ -821,12 +764,30 @@ safe_on_update(function()
     -- =====================================================
     local melee_range = my_utility.get_melee_range()
     local scan_radius = safe_get_menu_element(menu.menu_elements.scan_radius, 15)
+    local scan_refresh_rate = safe_get_menu_element(menu.menu_elements.scan_refresh_rate, 0.2)
     
-    -- DRUID-STYLE TARGETING: Evaluate ALL target types once per tick
-    -- Uses scan_radius to find all potential targets
-    -- Each spell picks its target based on its targeting_mode menu setting
-    -- Then each spell checks if target is within ITS OWN cast_range
-    local evaluated_targets = evaluate_all_targets(player_position, melee_range, scan_radius)
+    -- DRUID-STYLE TARGETING: Evaluate ALL target types once per tick (throttled)
+    -- Reuse the last evaluation if within refresh window and ranges unchanged
+    local should_refresh_targets = false
+    if not targets_cache.data then
+        should_refresh_targets = true
+    else
+        if (current_time - targets_cache.time) >= scan_refresh_rate then
+            should_refresh_targets = true
+        end
+        if targets_cache.melee_range ~= melee_range or targets_cache.scan_radius ~= scan_radius then
+            should_refresh_targets = true
+        end
+    end
+
+    if should_refresh_targets then
+        targets_cache.data = evaluate_all_targets(player_position, melee_range, scan_radius)
+        targets_cache.time = current_time
+        targets_cache.melee_range = melee_range
+        targets_cache.scan_radius = scan_radius
+    end
+
+    local evaluated_targets = targets_cache.data or {}
     
     -- If no targets at all, exit early and update global state
     if not evaluated_targets.closest and not evaluated_targets.best_melee and not evaluated_targets.best_ranged then
@@ -857,8 +818,64 @@ safe_on_update(function()
     _G.PaladinRotation.in_combat = true
     _G.PaladinRotation.is_casting = (current_time < cast_end_time)
     
-    -- Default target for spells without per-spell targeting_mode (uses closest for melee safety)
-    local default_target = evaluated_targets.closest or evaluated_targets.best_melee
+    -- Weighted targeting (optional): prefer clustered/high-value targets when enabled
+    local weighted_target = nil
+    if safe_get_menu_element(menu.menu_elements.weighted_targeting_enabled, false) then
+        local min_targets = safe_get_menu_element(menu.menu_elements.min_targets, 1)
+        local comparison_radius = safe_get_menu_element(menu.menu_elements.comparison_radius, 3.0)
+        local refresh_rate = safe_get_menu_element(menu.menu_elements.scan_refresh_rate, 0.2)
+        local boss_weight = safe_get_menu_element(menu.menu_elements.boss_weight, 50)
+        local elite_weight = safe_get_menu_element(menu.menu_elements.elite_weight, 10)
+        local champion_weight = safe_get_menu_element(menu.menu_elements.champion_weight, 15)
+        local any_weight = safe_get_menu_element(menu.menu_elements.any_weight, 2)
+
+        local custom_buff_weights = safe_get_menu_element(menu.menu_elements.custom_buff_weights_enabled, false)
+        local damage_resistance_provider_weight = custom_buff_weights and safe_get_menu_element(menu.menu_elements.damage_resistance_provider_weight, 30) or 0
+        local damage_resistance_receiver_penalty = custom_buff_weights and safe_get_menu_element(menu.menu_elements.damage_resistance_receiver_penalty, 5) or 0
+        local horde_objective_weight = custom_buff_weights and safe_get_menu_element(menu.menu_elements.horde_objective_weight, 50) or 0
+        local vulnerable_debuff_weight = custom_buff_weights and safe_get_menu_element(menu.menu_elements.vulnerable_debuff_weight, 1) or 0
+
+        local custom_enemy_sliders = safe_get_menu_element(menu.menu_elements.custom_enemy_sliders_enabled, false)
+        local normal_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.normal_target_count, 1) or 1
+        local champion_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.champion_target_count, 5) or 5
+        local elite_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.elite_target_count, 5) or 5
+        local boss_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.boss_target_count, 5) or 5
+
+        local cluster_threshold = min_targets
+        local wt_debug = safe_get_menu_element(menu.menu_elements.weighted_targeting_debug, false)
+
+        weighted_target = my_target_selector.get_weighted_target(
+            player_position,
+            scan_radius,
+            min_targets,
+            comparison_radius,
+            boss_weight,
+            elite_weight,
+            champion_weight,
+            any_weight,
+            refresh_rate,
+            damage_resistance_provider_weight,
+            damage_resistance_receiver_penalty,
+            horde_objective_weight,
+            vulnerable_debuff_weight,
+            cluster_threshold,
+            normal_target_count,
+            champion_target_count,
+            elite_target_count,
+            boss_target_count,
+            wt_debug
+        )
+    end
+
+    -- Inject weighted target into evaluated targets so per-mode selection can prefer it
+    if weighted_target then
+        evaluated_targets.weighted = weighted_target
+        evaluated_targets.best_ranged = weighted_target
+        evaluated_targets.best_melee = evaluated_targets.best_melee or weighted_target
+    end
+
+    -- Default target for spells without per-spell targeting_mode (uses weighted first, then closest for melee safety)
+    local default_target = weighted_target or evaluated_targets.closest or evaluated_targets.best_melee
     
     -- Track current target for Looteer coordination
     if default_target then

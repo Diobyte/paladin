@@ -64,19 +64,19 @@ local function logics(target)
         return false, 0 
     end
 
+    -- Check readiness BEFORE moving so we don't path toward targets while the ultimate is on cooldown
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    if not is_logic_allowed then 
+        if debug_enabled then console.print("[ARBITER DEBUG] Spell not allowed (cooldown/mode)") end
+        return false, 0 
+    end
+
     -- Max range check for leap - move toward target if out of range
     local max_range = menu_elements.max_range:get()
     if not my_utility.is_in_range(target, max_range) then
         my_utility.move_to_target(target:get_position(), target:get_id())
         if debug_enabled then console.print("[ARBITER DEBUG] Moving toward target - out of leap range") end
         return false, 0
-    end
-
-    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
-    if not is_logic_allowed then 
-        if debug_enabled then console.print("[ARBITER DEBUG] Spell not allowed (cooldown/mode)") end
-        return false, 0 
     end
 
     -- Enemy type filter check
@@ -89,6 +89,17 @@ local function logics(target)
     elseif enemy_type_filter == 1 then
         if not (target:is_elite() or target:is_champion() or target:is_boss()) then
             if debug_enabled then console.print("[ARBITER DEBUG] Target not elite+ (filter=Elite+)") end
+            return false, 0
+        end
+    end
+
+    -- Optional minimum weight/count gate (reuse min-weight slider as min enemy count near target)
+    if menu_elements.use_minimum_weight:get() then
+        local required = math.max(1, math.ceil(menu_elements.minimum_weight:get()))
+        local target_pos = target:get_position()
+        local nearby = my_utility.enemy_count_in_radius(max_range, target_pos)
+        if nearby < required then
+            if debug_enabled then console.print("[ARBITER DEBUG] Not enough enemies near target: " .. nearby .. " < " .. required) end
             return false, 0
         end
     end

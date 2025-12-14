@@ -71,6 +71,9 @@ local function logics()
     
     local engage = menu_elements.engage_range:get()
     local min_enemies = menu_elements.min_enemies:get()
+    local use_minimum_weight = menu_elements.use_minimum_weight:get()
+    local minimum_weight = math.ceil(menu_elements.minimum_weight:get())
+    local required_enemies = use_minimum_weight and math.max(min_enemies, minimum_weight) or min_enemies
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     -- Count enemies in range
@@ -112,7 +115,7 @@ local function logics()
         return false, 0
     end
 
-    if near < min_enemies then
+    if near < required_enemies then
         -- CENTRALIZED MOVEMENT: If no enemies in engage range, move toward closest enemy
         -- Find closest enemy (even if outside engage range)
         local closest_enemy = nil

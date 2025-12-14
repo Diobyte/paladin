@@ -6,6 +6,9 @@ local DEFAULT_TTL = 0.2 -- seconds
 
 -- Safe time getter with fallback (matches my_utility pattern)
 local function safe_get_time()
+    if _G and _G.my_utility_safe_get_time then
+        return _G.my_utility_safe_get_time()
+    end
     if type(get_time_since_inject) == "function" then
         return get_time_since_inject()
     end

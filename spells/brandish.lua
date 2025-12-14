@@ -55,28 +55,28 @@ local function logics(target)
         return false, 0
     end
 
-    -- Range check FIRST for melee (Brandish has slightly longer arc range)
-    local cast_range = 4.0
-    local in_range = my_utility.is_in_range(target, cast_range)
-    
-    -- CENTRALIZED MOVEMENT: If out of range, move toward target
-    -- This happens BEFORE cooldown/orbwalker checks
-    if not in_range then
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[BRANDISH DEBUG] Moving toward target - out of range") end
-        return false, 0  -- Don't cast, just move
-    end
-
-    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
+    -- Check readiness BEFORE movement to avoid walking while on cooldown/resource gated
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
     if not is_logic_allowed then
         if debug_enabled then console.print("[BRANDISH DEBUG] Spell not allowed (cooldown/mode)") end
         return false, 0
     end
 
+    -- Range check AFTER gating (Brandish has slightly longer arc range)
+    local cast_range = 4.0
+    local in_range = my_utility.is_in_range(target, cast_range)
+    
+    -- CENTRALIZED MOVEMENT: If out of range, move toward target
+    if not in_range then
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[BRANDISH DEBUG] Moving toward target - out of range") end
+        return false, 0  -- Don't cast, just move
+    end
+
     -- GENERATOR LOGIC: Only cast when Faith is LOW (backup generator)
     local threshold = menu_elements.resource_threshold:get()
-    if threshold > 0 then
+    local burn_override = _G.PaladinRotation and _G.PaladinRotation.boss_burn_mode and (target:is_elite() or target:is_champion() or target:is_boss())
+    if (threshold > 0) and (not burn_override) then
         local resource_pct = my_utility.get_resource_pct()
         if resource_pct and (resource_pct * 100) >= threshold then
             if debug_enabled then console.print("[BRANDISH DEBUG] Faith too high") end

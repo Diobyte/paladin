@@ -65,19 +65,19 @@ local function logics(target)
         return false, 0
     end
 
-    -- Range check - Spear is ranged so we move if out of range
+    -- Check readiness BEFORE movement to avoid walking while on cooldown/resource/mode gate
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[SPEAR DEBUG] Spell not allowed (cooldown/mode)") end
+        return false, 0
+    end
+
+    -- Range check AFTER gating - Spear is ranged so we move if out of range
     local cast_range = menu_elements.cast_range:get()
     if not my_utility.is_in_range(target, cast_range) then
         -- Move toward target if out of range
         my_utility.move_to_target(target:get_position(), target:get_id())
         if debug_enabled then console.print("[SPEAR DEBUG] Moving toward target - out of range") end
-        return false, 0
-    end
-
-    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
-    if not is_logic_allowed then
-        if debug_enabled then console.print("[SPEAR DEBUG] Spell not allowed (cooldown/mode)") end
         return false, 0
     end
 
@@ -98,12 +98,32 @@ local function logics(target)
     local pos = target:get_position()
     if not pos then return false, 0 end
 
-    -- Use prediction for moving targets
+    -- Use prediction for moving targets, but keep the point inside cast range so we do not whiff
     local prediction_time = menu_elements.prediction_time:get()
     if prediction and prediction.get_future_unit_position then
         local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
         if predicted_pos then
             pos = predicted_pos
+        end
+    end
+
+    -- If the predicted point ends outside cast range, walk closer instead of tossing the cast
+    local player = get_local_player()
+    local player_pos = player and player:get_position() or nil
+    if player_pos and pos and player_pos:dist_to(pos) > cast_range then
+        my_utility.move_to_target(pos, target:get_id())
+        if debug_enabled then console.print("[SPEAR DEBUG] Predicted point out of range - moving") end
+        return false, 0
+    end
+
+    -- Optional pack-density gate ("minimum weight" is treated as enemy count in 6m)
+    local use_minimum_weight = menu_elements.use_minimum_weight:get()
+    local minimum_weight = math.ceil(menu_elements.minimum_weight:get())
+    if use_minimum_weight and minimum_weight > 0 and enemy_type_filter == 0 then
+        local nearby = my_utility.enemy_count_in_radius(6.0, pos)
+        if nearby < minimum_weight then
+            if debug_enabled then console.print("[SPEAR DEBUG] Not enough enemies at impact: " .. nearby .. " < " .. minimum_weight) end
+            return false, 0
         end
     end
 

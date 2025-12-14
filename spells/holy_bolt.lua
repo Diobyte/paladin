@@ -86,7 +86,14 @@ local function logics(target)
     local player = get_local_player()
     if not player then return false, 0 end
     
-    -- Range check FIRST for ranged projectile
+    -- Check readiness BEFORE movement so we don't chase while gated by cooldown/resource/mode
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[HOLY BOLT DEBUG] Spell not allowed (cooldown/mode)") end
+        return false, 0
+    end
+
+    -- Range check AFTER gating for ranged projectile
     local cast_range = menu_elements.cast_range:get()
     if not my_utility.is_in_range(target, cast_range) then
         -- CENTRALIZED MOVEMENT: Move toward target
@@ -95,19 +102,13 @@ local function logics(target)
         return false, 0  -- Don't cast, just move
     end
 
-    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
-    if not is_logic_allowed then
-        if debug_enabled then console.print("[HOLY BOLT DEBUG] Spell not allowed (cooldown/mode)") end
-        return false, 0
-    end
-
     -- JUDGEMENT BUILD MODE (Captain America): Always cast to apply Judgement
     -- GENERATOR MODE: Only cast when Faith is LOW
     local judgement_mode = menu_elements.use_for_judgement:get()
     if not judgement_mode then
+        local burn_override = _G.PaladinRotation and _G.PaladinRotation.boss_burn_mode and (target:is_elite() or target:is_champion() or target:is_boss())
         local threshold = menu_elements.resource_threshold:get()
-        if threshold > 0 then
+        if (threshold > 0) and (not burn_override) then
             local resource_pct = my_utility.get_resource_pct()
             if resource_pct and (resource_pct * 100) >= threshold then
                 if debug_enabled then console.print("[HOLY BOLT DEBUG] Faith too high") end
@@ -142,7 +143,11 @@ local function logics(target)
             end
         end
 
-        if cast_spell.position(spell_id, tpos, 0.0) then
+        local cast_range = menu_elements.cast_range:get()
+        local player_pos = player and player:get_position() or nil
+        local in_range = player_pos and tpos and player_pos:squared_dist_to_ignore_z(tpos) <= (cast_range * cast_range)
+
+        if in_range and cast_spell.position(spell_id, tpos, 0.0) then
             local current_time = my_utility.safe_get_time()
             next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
             if debug_enabled then
@@ -150,6 +155,10 @@ local function logics(target)
                 console.print("[HOLY BOLT DEBUG] Cast successful (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
             end
             return true
+        elseif (not in_range) then
+            -- Keep advancing if prediction is out of range
+            my_utility.move_to_target(tpos, target:get_id())
+            if debug_enabled then console.print("[HOLY BOLT DEBUG] Predicted position out of range - moving") end
         end
     end
 

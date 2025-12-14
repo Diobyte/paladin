@@ -61,6 +61,9 @@ local function logics()
     -- Count nearby enemies (Condemn has configurable pull radius)
     local condemn_range = menu_elements.pull_range:get()
     local min_enemies = menu_elements.min_enemies:get()
+    local use_minimum_weight = menu_elements.use_minimum_weight:get()
+    local minimum_weight = math.ceil(menu_elements.minimum_weight:get())
+    local required_enemies = use_minimum_weight and math.max(min_enemies, minimum_weight) or min_enemies
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     local enemies = actors_manager.get_enemy_npcs()
@@ -98,9 +101,12 @@ local function logics()
         if debug_enabled then console.print("[CONDEMN DEBUG] No priority target found") end
         return false, 0
     end
+    if enemy_type_filter > 0 and has_priority_target then
+        required_enemies = min_enemies  -- allow single-target Arbiter trigger on bosses/elites even when minimum weight is set
+    end
 
-    if near < min_enemies then
-        if debug_enabled then console.print("[CONDEMN DEBUG] Not enough enemies: " .. near .. " < " .. min_enemies) end
+    if near < required_enemies then
+        if debug_enabled then console.print("[CONDEMN DEBUG] Not enough enemies: " .. near .. " < " .. required_enemies) end
         return false, 0
     end
 

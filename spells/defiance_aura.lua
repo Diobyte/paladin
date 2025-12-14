@@ -42,14 +42,21 @@ local function has_defiance_buff()
                 if buff.get_remaining_time then
                     local remaining = buff:get_remaining_time()
                     if remaining and remaining > 0 then
-                        -- Try to match by name patterns (using buff:name() per API examples)
-                        local name = buff.name and buff:name() or ""
-                        if name and type(name) == "string" then
-                            local name_lower = name:lower()
-                            for _, pattern in ipairs(buff_name_patterns) do
-                                if name_lower:find(pattern) then
-                                    return true, remaining
-                                end
+                        -- Try to match by name patterns (use documented get_name())
+                        local name = ""
+                        if buff.get_name then
+                            local ok_name, buff_name = pcall(function() return buff:get_name() end)
+                            if ok_name and buff_name then
+                                name = tostring(buff_name)
+                            end
+                        elseif buff.name then
+                            name = tostring(buff.name)
+                        end
+
+                        local name_lower = name:lower()
+                        for _, pattern in ipairs(buff_name_patterns) do
+                            if name_lower:find(pattern) then
+                                return true, remaining
                             end
                         end
                     end
@@ -67,8 +74,6 @@ local menu_elements = {
     recast_interval = slider_float:new(2.0, 60.0, AURA_DURATION - BUFFER_TIME - 1.0, get_hash("paladin_rotation_defiance_recast")),  -- Recast earlier for safety
     combat_only = checkbox:new(true, get_hash("paladin_rotation_defiance_combat_only")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_defiance_enemy_type")),
-    use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_defiance_use_min_weight")),
-    minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_defiance_min_weight")),
     debug_mode = checkbox:new(false, get_hash("paladin_rotation_defiance_debug_mode")),
 }
 
@@ -83,10 +88,6 @@ local function menu()
             menu_elements.combat_only:render("Combat Only", "Only use Defiance Aura in combat")
             menu_elements.recast_interval:render("Recast Interval", "Time between recasts (seconds)", 1)
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
-            menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
-            if menu_elements.use_minimum_weight:get() then
-                menu_elements.minimum_weight:render("Minimum Weight", "", 1)
-            end
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
         end
         menu_elements.tree_tab:pop()

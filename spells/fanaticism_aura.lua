@@ -15,8 +15,6 @@ local menu_elements = {
     recast_interval = slider_float:new(2.0, 60.0, AURA_DURATION - BUFFER_TIME - 1.0, get_hash("paladin_rotation_fanaticism_recast")),  -- Recast earlier for safety
     combat_only = checkbox:new(true, get_hash("paladin_rotation_fanaticism_combat_only")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_fanaticism_enemy_type")),
-    use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_fanaticism_use_min_weight")),
-    minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_fanaticism_min_weight")),
     debug_mode = checkbox:new(false, get_hash("paladin_rotation_fanaticism_debug_mode")),
 }
 
@@ -105,10 +103,6 @@ local function menu()
             menu_elements.recast_interval:render("Recast Interval", "Time between recasts (seconds). Set to 0 to only recast when aura expires.", 1)
             
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
-            menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
-            if menu_elements.use_minimum_weight:get() then
-                menu_elements.minimum_weight:render("Minimum Weight", "", 1)
-            end
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
 
             -- Display aura status

@@ -33,9 +33,6 @@ local menu_elements =
     -- Movement happens when target is outside a spell's specific range
     scan_radius = slider_int:new(5, 30, 15, get_hash("paladin_rotation_scan_radius_v2")),
     
-    -- Legacy setting - kept for backwards compatibility
-    max_targeting_range = slider_int:new(5, 30, 15, get_hash("paladin_rotation_max_targeting_range")),
-    
     prefer_elites       = checkbox:new(true, get_hash("paladin_rotation_prefer_elites")),
     treat_elite_as_boss = checkbox:new(true, get_hash("paladin_rotation_treat_elite_as_boss")),
     cluster_radius      = slider_float:new(2.0, 15.0, 6.0, get_hash("paladin_rotation_cluster_radius")),
@@ -44,6 +41,11 @@ local menu_elements =
     rally_resource_pct  = slider_float:new(0.0, 1.0, 0.40, get_hash("paladin_rotation_rally_resource_pct")),
     holy_bolt_resource_pct = slider_float:new(0.0, 1.0, 0.35, get_hash("paladin_rotation_holy_bolt_resource_pct")),
     boss_defiance_hp_pct = slider_float:new(0.0, 1.0, 0.50, get_hash("paladin_rotation_boss_defiance_hp_pct")),
+
+    -- Quality-of-life toggles
+    -- QoL toggles
+    boss_burn_mode = checkbox:new(false, get_hash("paladin_rotation_boss_burn_mode")),
+    disable_cursor_priority = checkbox:new(false, get_hash("paladin_rotation_disable_cursor_priority")),
 
     -- =====================================================
     -- DEBUG SETTINGS

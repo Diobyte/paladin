@@ -86,7 +86,8 @@ local function logics(target)
     -- GENERATOR LOGIC: Only use for Faith generation when Faith is LOW
     -- If threshold is 0, always allow (pure gap closer mode)
     local threshold = menu_elements.resource_threshold:get()
-    if threshold > 0 then
+    local burn_override = _G.PaladinRotation and _G.PaladinRotation.boss_burn_mode and (target:is_elite() or target:is_champion() or target:is_boss())
+    if (threshold > 0) and (not burn_override) then
         local resource_pct = my_utility.get_resource_pct()
         if resource_pct and (resource_pct * 100) >= threshold then
             if debug_enabled then console.print("[ADVANCE DEBUG] Faith too high: " .. string.format("%.0f%%", resource_pct * 100) .. " >= " .. threshold .. "%") end

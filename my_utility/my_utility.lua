@@ -3,7 +3,7 @@ local plugin_label = "BASE_PALADIN_PLUGIN_"
 local mount_buff_name = "Generic_SetCannotBeAddedToAITargetList"
 local mount_buff_name_hash_c = 1923
 
-local shrine_conduit_buff_name = "Shine_Conduit"
+local shrine_conduit_buff_name = "Shrine_Conduit"
 local shrine_conduit_buff_name_hash_c = 421661
 
 -- Skin name patterns for infernal horde objectives (like Druid script)
@@ -49,6 +49,21 @@ local spell_delays = {
     cast_fail_delay = 0.15, -- delay after a failed cast before retry (prevents spam)
 }
 
+-- Safe time helper (centralized)
+local function safe_get_time()
+    if type(get_time_since_inject) == "function" then
+        return get_time_since_inject()
+    end
+    -- Fallback: use get_gametime() which is documented in the API
+    if type(get_gametime) == "function" then
+        return get_gametime()
+    end
+    return 0
+end
+
+-- Expose for other modules (avoids circular requires)
+_G.my_utility_safe_get_time = safe_get_time
+
 -- =====================================================
 -- GLOBAL MOVEMENT STATE (Spiritborn/Druid Pattern)
 -- Centralized movement tracking prevents oscillation from
@@ -70,6 +85,14 @@ end
 -- No throttling needed because request_move handles it internally
 -- Returns true always (movement was requested or already in progress)
 local function move_to_target(target_pos, optional_target_id)
+    if not target_pos then
+        return false
+    end
+    -- Respect manual play: allow user to control movement fully
+    if _G.PaladinRotation and _G.PaladinRotation.manual_play then
+        return false
+    end
+
     -- Use request_move directly - it's designed to be called every frame
     -- Per API: "pathfinder.request_move only sends command if player isn't already moving"
     if pathfinder and pathfinder.request_move then
@@ -112,17 +135,6 @@ local targeting_mode_description =
     "       Closest Target (in sight): Closest with visibility check      \n" ..
     "       Best Cursor Target: Best weighted target near cursor      \n" ..
     "       Closest Cursor Target: Closest enemy to cursor position      \n"
-
-local function safe_get_time()
-    if type(get_time_since_inject) == "function" then
-        return get_time_since_inject()
-    end
-    -- Fallback: use get_gametime() which is documented in the API
-    if type(get_gametime) == "function" then
-        return get_gametime()
-    end
-    return 0
-end
 
 local function is_auto_play_enabled()
     -- Safely detect if auto_play is toggled on; avoid crashing when objective enums are absent
@@ -230,12 +242,26 @@ local function is_action_allowed()
     local local_player_buffs = local_player:get_buffs()
     
     for _, buff in ipairs(local_player_buffs or {}) do
-        if buff.name_hash == mount_buff_name_hash_c then
-            is_mounted = true
-            break
+        local name_hash = buff.name_hash
+        local buff_name = ""
+        if buff.get_name then
+            local ok, name = pcall(function() return buff:get_name() end)
+            if ok and name then buff_name = tostring(name) end
+        elseif buff.name then
+            buff_name = tostring(buff.name)
         end
-        if buff.name_hash == shrine_conduit_buff_name_hash_c then
+        local normalized_name = buff_name:lower()
+
+        if name_hash == mount_buff_name_hash_c or normalized_name:find("mount") or normalized_name:find("horse") then
+            is_mounted = true
+        end
+
+        -- Conduit shrine detection (typo-safe)
+        if name_hash == shrine_conduit_buff_name_hash_c or normalized_name:find("conduit") then
             is_shrine_conduit = true
+        end
+
+        if is_mounted and is_shrine_conduit then
             break
         end
     end
@@ -260,8 +286,8 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false
     end
 
-    -- Check spell cooldown (documented API)
-    if not utility.is_spell_ready(spell_id) then
+    -- Check spell cooldown with safe wrapper (avoids hard dependency on global utility)
+    if not is_spell_ready(spell_id) then
         if debug_mode then console.print("[is_spell_allowed] spell not ready (cooldown)") end
         return false
     end
@@ -294,11 +320,24 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
     end
 
     -- Orbwalker mode check (matching Spiritborn pattern)
-    local current_orb_mode = orbwalker.get_orb_mode()
+    local current_orb_mode = nil
+    if orbwalker and orbwalker.get_orb_mode then
+        local ok_mode, mode_val = pcall(function() return orbwalker.get_orb_mode() end)
+        if ok_mode then current_orb_mode = mode_val end
+    end
+
+    -- If orbwalker is unavailable, do not block casting
+    if current_orb_mode == nil then
+        if debug_mode then console.print("[is_spell_allowed] orbwalker missing; allowing cast") end
+        return true
+    end
 
     if current_orb_mode == orb_mode.none then
-        if debug_mode then console.print("[is_spell_allowed] orb_mode is none") end
-        return false
+        -- Allow manual play mode to cast even when orbwalker is idle
+        if not (_G.PaladinRotation and _G.PaladinRotation.manual_play) then
+            if debug_mode then console.print("[is_spell_allowed] orb_mode is none") end
+            return false
+        end
     end
 
     local is_current_orb_mode_pvp = current_orb_mode == orb_mode.pvp
@@ -315,10 +354,25 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
 end
 
 local function is_spell_ready(spell_id)
-    if utility and type(utility.is_spell_ready) == "function" then
-        return utility.is_spell_ready(spell_id)
+    -- Prefer the documented API: player:is_spell_ready(spell_id)
+    local player = get_local_player and get_local_player() or nil
+    if player and type(player.is_spell_ready) == "function" then
+        local ok, ready = pcall(function() return player:is_spell_ready(spell_id) end)
+        if ok then
+            return ready
+        end
     end
-    return false
+
+    -- Fallback to utility module if present
+    if utility and type(utility.is_spell_ready) == "function" then
+        local ok, ready = pcall(function() return utility.is_spell_ready(spell_id) end)
+        if ok then
+            return ready
+        end
+    end
+
+    -- Default to true so rotations can proceed even if readiness APIs are unavailable
+    return true
 end
 
 local function is_spell_affordable(spell_id)
