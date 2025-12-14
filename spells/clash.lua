@@ -9,13 +9,13 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_clash_enabled")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.15, get_hash("paladin_rotation_clash_min_cd")),
-    use_as_filler_only = checkbox:new(true, get_hash("paladin_rotation_clash_filler_only")),
-    resource_threshold = slider_int:new(0, 100, 30, get_hash("paladin_rotation_clash_resource_threshold")),
+    use_as_filler_only = checkbox:new(false, get_hash("paladin_rotation_clash_filler_only")),
+    resource_threshold = slider_int:new(0, 100, 80, get_hash("paladin_rotation_clash_resource_threshold")),
 }
 
 -- Clash spell ID (estimated based on Paladin skill patterns)
 -- Basic skills typically have IDs in the 2100000-2200000 range
-local spell_id = 2097456  -- Clash spell ID
+local spell_id = 2097465  -- Clash spell ID
 
 local next_time_allowed_cast = 0.0
 
@@ -45,16 +45,25 @@ local function logics(target)
         return false, 0
     end
 
-    -- Check filler condition (like barb's bash)
-    if menu_elements.use_as_filler_only:get() then
-        local player = get_local_player()
-        if player then
-            local current_resource = player:get_primary_resource_current()
-            local max_resource = player:get_primary_resource_max()
-            if max_resource > 0 then
-                local resource_pct = (current_resource / max_resource) * 100
-                local threshold = menu_elements.resource_threshold:get()
-                
+    -- Resource generation logic:
+    -- If "filler only" is OFF: Always use when Faith is below threshold (generate resource)
+    -- If "filler only" is ON: Only use when very low on Faith
+    local player = get_local_player()
+    if player then
+        local current_resource = player:get_primary_resource_current()
+        local max_resource = player:get_primary_resource_max()
+        if max_resource > 0 then
+            local resource_pct = (current_resource / max_resource) * 100
+            local threshold = menu_elements.resource_threshold:get()
+            
+            if menu_elements.use_as_filler_only:get() then
+                -- Filler mode: only use when BELOW threshold
+                if resource_pct >= threshold then
+                    return false, 0
+                end
+            else
+                -- Generator mode: use when below threshold to build up Faith
+                -- Once at/above threshold, let blessed_hammer spend it
                 if resource_pct >= threshold then
                     return false, 0
                 end

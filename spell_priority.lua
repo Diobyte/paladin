@@ -24,30 +24,32 @@ local spell_priority = {
     "heavens_fury",         -- AoE around player + seeking beams
     "zenith",               -- Zealot Ultimate - melee AoE cleave
     
-    -- Priority 3: CORE SPAM SKILL - Blessed Hammer (THE MAIN SKILL)
+    -- Priority 3: Resource Generation (generate Faith before spending)
+    -- Basic skill to build Faith for core skill spam
+    "clash",                -- Shield bash (Faith generator, requires shield) - use to build resource
+    
+    -- Priority 4: CORE SPAM SKILL - Blessed Hammer (THE MAIN SKILL)
     -- This is the heart of Hammerkuna - spam constantly
     "blessed_hammer",
     "blessed_shield",       -- Alternative core: bouncing shield (requires shield)
     
-    -- Priority 4: Mobility/Gap closer (use for engaging or repositioning)
+    -- Priority 5: Mobility/Gap closer (use for engaging or repositioning)
     "falling_star",         -- Leap AoE - main mobility skill
     "shield_charge",        -- Charge through enemies
     "advance",              -- Lunge forward
     
-    -- Priority 5: Burst abilities (use between hammer spam when available)
+    -- Priority 6: Burst abilities (use between hammer spam when available)
     "spear_of_the_heavens", -- Ranged AoE knockdown
     "condemn",              -- Pull enemies in + stun
     "divine_lance",         -- Melee impale
     "brandish",             -- Melee cleave
     "consecration",         -- Ground heal + damage
     
-    -- Priority 6: Utility buffs
+    -- Priority 7: Utility buffs
     "rally",                -- Group buff
     
-    -- Priority 7: Basic attacks / Resource generators (LAST RESORT)
-    -- Only use these if out of resource or nothing else available
+    -- Priority 8: Backup Resource generators (fallbacks)
     "zeal",                 -- Melee multi-strike (Faith generator)
-    "clash",                -- Shield bash (Faith generator, requires shield)
     "holy_bolt",            -- Ranged projectile (Faith generator)
 }
 

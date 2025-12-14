@@ -46,7 +46,7 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, target_pos) - dashes to location
     },
     clash = {
-        spell_id = 2097456,  -- Clash - Shield Bash basic skill
+        spell_id = 2097465,  -- Clash - Shield Bash basic skill
         category = "basic",
         cast_type = "target",    -- Melee shield bash at target
         damage_type = "physical",
