@@ -37,11 +37,12 @@ if not local_player then
     return
 end
 
-local character_id = local_player:get_character_class_id()
-local is_paladin = character_id == 7 -- Paladin class ID
--- Uncomment below to restrict plugin to Paladin only:
-if not is_paladin then
-    return
+local character_id = local_player:get_character_class_id() or -1
+local is_paladin = character_id == 7 -- Paladin class ID (Season 11 target)
+
+-- If class ID mismatches, log and continue (some clients use different IDs). This prevents a silent early return.
+if not is_paladin and console and console.print then
+    console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7); continuing load for debugging")
 end
 
 -- Orbwalker settings (like druid/barb) - take control of movement

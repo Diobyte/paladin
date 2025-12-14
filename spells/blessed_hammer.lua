@@ -16,8 +16,9 @@ local menu_elements = {
     min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),  -- 0 = spam freely (meta)
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_enemy_type")),
+    -- Optional pack-size gate to avoid wasting casts on single stragglers
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_use_min_weight")),
-    minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_blessed_hammer_min_weight")),
+    minimum_weight = slider_float:new(1.0, 15.0, 3.0, get_hash("paladin_rotation_blessed_hammer_min_weight")),
 }
 
 local spell_id = spell_data.blessed_hammer.spell_id
@@ -34,9 +35,9 @@ local function menu()
             menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this % (0 = spam freely)")
             menu_elements.min_enemies:render("Min Enemies to Cast", "Minimum number of enemies nearby to cast")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
-            menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
+            menu_elements.use_minimum_weight:render("Require Pack Size", "Only cast when at least N enemies are in range")
             if menu_elements.use_minimum_weight:get() then
-                menu_elements.minimum_weight:render("Minimum Weight", "", 1)
+                menu_elements.minimum_weight:render("Minimum Pack Size", "Minimum enemies in range before casting", 1)
             end
         end
         menu_elements.tree_tab:pop()
@@ -71,9 +72,9 @@ local function logics()
     
     local engage = menu_elements.engage_range:get()
     local min_enemies = menu_elements.min_enemies:get()
-    local use_minimum_weight = menu_elements.use_minimum_weight:get()
-    local minimum_weight = math.ceil(menu_elements.minimum_weight:get())
-    local required_enemies = use_minimum_weight and math.max(min_enemies, minimum_weight) or min_enemies
+    local use_pack_gate = menu_elements.use_minimum_weight:get()
+    local min_pack_size = math.ceil(menu_elements.minimum_weight:get())
+    local required_enemies = use_pack_gate and math.max(min_enemies, min_pack_size) or min_enemies
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     -- Count enemies in range
