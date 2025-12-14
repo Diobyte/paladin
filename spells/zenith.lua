@@ -54,17 +54,32 @@ local function logics()
     local melee_range = 6.0
     local melee_range_sqr = melee_range * melee_range
     local min_enemies = menu_elements.min_enemies:get()
+    local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
     local near = 0
+    local has_priority_target = false
 
     for _, e in ipairs(enemies) do
         if e and e:is_enemy() then
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= melee_range_sqr then
                 near = near + 1
+                -- Check for priority targets based on filter
+                if enemy_type_filter == 2 then
+                    if e:is_boss() then has_priority_target = true end
+                elseif enemy_type_filter == 1 then
+                    if e:is_elite() or e:is_champion() or e:is_boss() then has_priority_target = true end
+                else
+                    has_priority_target = true
+                end
             end
         end
+    end
+
+    -- Check enemy type filter
+    if enemy_type_filter > 0 and not has_priority_target then
+        return false, 0
     end
 
     if near < min_enemies then

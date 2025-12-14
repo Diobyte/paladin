@@ -1,17 +1,19 @@
 -- Fanaticism Aura - Aura Skill
 -- Offensive aura granting increased Attack Speed to you and nearby allies.
+-- META: "Activate Fanaticism Aura as often as possible" (maxroll.gg)
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
 -- Constants
 local AURA_DURATION = 12.0  -- Default duration in seconds
-local BUFFER_TIME = 0.5      -- Buffer time to recast before aura expires
+local BUFFER_TIME = 1.0      -- Buffer time to recast before aura expires (increased for safety)
+local FANATICISM_BUFF_HASH = nil  -- Will be populated if we can detect the buff
 
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_fanaticism_enabled")),
-    recast_interval = slider_float:new(2.0, 60.0, AURA_DURATION, get_hash("paladin_rotation_fanaticism_recast")),
+    recast_interval = slider_float:new(2.0, 60.0, AURA_DURATION - BUFFER_TIME, get_hash("paladin_rotation_fanaticism_recast")),
     combat_only = checkbox:new(true, get_hash("paladin_rotation_fanaticism_combat_only")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_fanaticism_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_fanaticism_use_min_weight")),
@@ -21,6 +23,27 @@ local menu_elements = {
 local next_time_allowed_cast = 0.0
 local last_cast_time = 0.0
 local is_aura_active = false
+
+-- Check if player has fanaticism buff active
+local function has_fanaticism_buff()
+    local player = get_local_player()
+    if not player then return false end
+    
+    local buffs = player:get_buffs()
+    if not buffs then return false end
+    
+    -- Check for fanaticism-related buff names/hashes
+    -- The buff might be named differently, check common patterns
+    for _, buff in ipairs(buffs) do
+        local name = buff:get_name() or ""
+        -- Look for fanaticism or attack speed related buffs
+        if name:lower():find("fanatic") or name:lower():find("attack_speed") then
+            return true, buff:get_remaining_time()
+        end
+    end
+    
+    return false, 0
+end
 
 local function safe_menu_text(value)
     if menu_elements.tree_tab and type(menu_elements.tree_tab.text) == "function" then
@@ -111,12 +134,20 @@ local function logics()
     local now = my_utility.safe_get_time()
     local time_since_cast = now - last_cast_time
     
-    -- Check if we need to recast
+    -- First, try to detect actual buff on player (more reliable)
+    local has_buff, buff_remaining = has_fanaticism_buff()
+    if has_buff and buff_remaining > BUFFER_TIME then
+        is_aura_active = true
+        return false, 0  -- Buff is still active
+    end
+    
+    -- Check if we need to recast based on timing (fallback)
     local recast_interval = menu_elements.recast_interval:get()
     local should_recast = recast_interval > 0 and time_since_cast >= recast_interval
     local is_expiring = time_since_cast >= (AURA_DURATION - BUFFER_TIME)
     
-    if not should_recast and not is_expiring then
+    -- If buff detection didn't find anything but timing says we're fine, trust timing
+    if not should_recast and not is_expiring and last_cast_time > 0 then
         is_aura_active = true
         return false, 0
     end
@@ -147,5 +178,5 @@ return {
     is_aura_active = function() return is_aura_active end,
     get_remaining_duration = function() 
         return math.max(0, AURA_DURATION - (my_utility.safe_get_time() - last_cast_time)) 
-    end
+    end,
 }

@@ -37,7 +37,15 @@ local function logics(target)
         return false, 0 
     end
 
-    if not target or not target:is_enemy() then
+    if not target then
+        return false, 0
+    end
+    
+    local is_target_enemy = false
+    local ok, res = pcall(function() return target:is_enemy() end)
+    is_target_enemy = ok and res or false
+    
+    if not is_target_enemy then
         return false, 0
     end
 
@@ -69,7 +77,7 @@ local function logics(target)
     end
 
     -- Fallback to position cast with prediction (for Divine Javelin upgrade - ranged throw)
-    local cast_pos = target:get_position()
+    cast_pos = target:get_position()
     local prediction_time = menu_elements.prediction_time:get()
     if prediction and prediction.get_future_unit_position then
         local predicted_pos = prediction.get_future_unit_position(target, prediction_time)

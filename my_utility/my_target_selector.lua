@@ -121,13 +121,13 @@ local function get_target_selector_data(source, list)
         local current_health = unit:get_current_health()
 
         -- update units data
+        is_valid = true;  -- Mark as valid since we have at least one unit
         if unit_position:dist_to(cursor_pos) <= 1 then
             closest_unit = unit;
             closest_unit_distance = distance_sqr;
         elseif distance_sqr < closest_unit_distance then
             closest_unit = unit;
             closest_unit_distance = distance_sqr;
-            is_valid = true;
         elseif unit_position:dist_to(cursor_pos) < 2 then
             closest_unit = unit;
             closest_unit_distance = distance_sqr;

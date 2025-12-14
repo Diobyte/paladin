@@ -44,8 +44,38 @@ local function logics(target)
         return false, 0 
     end
 
-    if not target or not target:is_enemy() then
+    if not target then
         return false, 0
+    end
+    
+    local is_target_enemy = false
+    local ok, res = pcall(function() return target:is_enemy() end)
+    is_target_enemy = ok and res or false
+    
+    if not is_target_enemy then
+        return false, 0
+    end
+
+    -- Enemy type filter check
+    local enemy_type_filter = menu_elements.enemy_type_filter:get()
+    if enemy_type_filter == 2 then
+        -- Boss only
+        local is_boss = false
+        local ok_boss, res_boss = pcall(function() return target:is_boss() end)
+        is_boss = ok_boss and res_boss or false
+        if not is_boss then
+            return false, 0
+        end
+    elseif enemy_type_filter == 1 then
+        -- Elite/Champion/Boss
+        local is_priority = false
+        local ok_elite, res_elite = pcall(function() return target:is_elite() end)
+        local ok_champ, res_champ = pcall(function() return target:is_champion() end)
+        local ok_boss, res_boss = pcall(function() return target:is_boss() end)
+        is_priority = (ok_elite and res_elite) or (ok_champ and res_champ) or (ok_boss and res_boss)
+        if not is_priority then
+            return false, 0
+        end
     end
 
     local pos = target:get_position()

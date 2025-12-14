@@ -25,9 +25,10 @@ function M.get_buffs(obj, ttl)
     if entry and (now - entry.t) <= expire then
         return entry.buffs
     end
-    local buffs = obj:get_buffs()
-    cache[key] = { t = now, buffs = buffs }
-    return buffs
+    local ok, buffs = pcall(function() return obj:get_buffs() end)
+    if not ok then buffs = {} end
+    cache[key] = { t = now, buffs = buffs or {} }
+    return buffs or {}
 end
 
 function M.clear()

@@ -2,6 +2,7 @@
 -- Faith Cost: 10 | Lucky Hit: 24%
 -- Throw a Blessed Hammer that spirals out, dealing 115% damage.
 -- Holy Damage
+-- META: "Spam Blessed Hammer to deal damage" - this is THE main skill (maxroll.gg)
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -9,9 +10,9 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
-    min_cooldown = slider_float:new(0.0, 1.0, 0.1, get_hash("paladin_rotation_blessed_hammer_min_cd")),
+    min_cooldown = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_blessed_hammer_min_cd")),  -- Reduced for max spam
     engage_range = slider_float:new(2.0, 25.0, 12.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),
-    min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),
+    min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),  -- 0 = spam freely (meta)
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_use_min_weight")),

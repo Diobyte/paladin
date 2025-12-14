@@ -10,7 +10,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_clash_enabled")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.10, get_hash("paladin_rotation_clash_min_cd")),
-    resource_threshold = slider_int:new(0, 100, 30, get_hash("paladin_rotation_clash_resource_threshold")),
+    resource_threshold = slider_int:new(0, 100, 20, get_hash("paladin_rotation_clash_resource_threshold")),
 }
 
 local spell_id = spell_data.clash.spell_id
@@ -36,7 +36,15 @@ local function logics(target)
         return false, 0 
     end
 
-    if not target or not target:is_enemy() then
+    if not target then
+        return false, 0
+    end
+    
+    local is_target_enemy = false
+    local ok, res = pcall(function() return target:is_enemy() end)
+    is_target_enemy = ok and res or false
+    
+    if not is_target_enemy then
         return false, 0
     end
 

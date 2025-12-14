@@ -2,6 +2,7 @@
 -- Faith Cost: 20 | Lucky Hit: 3%
 -- Strike enemies with blinding speed, dealing 80% damage followed by 3 additional strikes dealing 20% damage each.
 -- Physical Damage
+-- META NOTE: With Red Sermon unique, Zeal costs LIFE instead of Faith!
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -10,8 +11,9 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_zeal_enabled")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_zeal_min_cd")),
-    min_resource = slider_int:new(0, 100, 20, get_hash("paladin_rotation_zeal_min_resource")),
+    min_resource = slider_int:new(0, 100, 10, get_hash("paladin_rotation_zeal_min_resource")),
     min_enemies = slider_int:new(1, 10, 1, get_hash("paladin_rotation_zeal_min_enemies")),
+    use_life_mode = checkbox:new(false, get_hash("paladin_rotation_zeal_life_mode")),
 }
 
 local spell_id = spell_data.zeal.spell_id
@@ -19,10 +21,13 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Zeal") then
-        menu_elements.main_boolean:render("Enable", "Core Skill - Costs 20 Faith")
+        menu_elements.main_boolean:render("Enable", "Core Skill - Fast 360 melee combo (Cost: 20 Faith or Life)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.min_resource:render("Min Faith %", "Only cast when Faith above this %")
+            menu_elements.use_life_mode:render("Red Sermon Mode", "Using Red Sermon unique (costs Life instead of Faith)")
+            if not menu_elements.use_life_mode:get() then
+                menu_elements.min_resource:render("Min Faith %", "Only cast when Faith above this %")
+            end
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies in melee range")
         end
         menu_elements.tree_tab:pop()
@@ -37,13 +42,28 @@ local function logics(target)
         return false, 0 
     end
 
-    if not target or not target:is_enemy() then
+    if not target then
+        return false, 0
+    end
+    
+    local is_target_enemy = false
+    local ok, res = pcall(function() return target:is_enemy() end)
+    is_target_enemy = ok and res or false
+    
+    if not is_target_enemy then
         return false, 0
     end
 
-    -- Zeal is a Core SPENDER (Faith Cost: 20) - need enough Faith to cast
     local player = get_local_player()
-    if player then
+    if not player then
+        return false, 0
+    end
+    
+    -- Resource check depends on build mode
+    local use_life_mode = menu_elements.use_life_mode:get()
+    
+    if not use_life_mode then
+        -- Standard Faith cost mode
         local current_resource = player:get_primary_resource_current()
         local max_resource = player:get_primary_resource_max()
         if max_resource > 0 then
@@ -55,10 +75,17 @@ local function logics(target)
                 return false, 0
             end
         end
+    else
+        -- Red Sermon mode - costs Life instead
+        -- Just check we have some health (>20% to be safe)
+        local health_pct = my_utility.get_health_pct()
+        if health_pct and health_pct < 0.20 then
+            return false, 0
+        end
     end
 
     -- Zeal is a melee multi-strike skill, check range
-    local player_pos = player and player:get_position() or nil
+    local player_pos = player:get_position()
     local target_pos = target:get_position()
     
     if player_pos and target_pos then

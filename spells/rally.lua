@@ -9,7 +9,8 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_rally_enabled")),
     recast_interval = slider_float:new(0.5, 30.0, 4.0, get_hash("paladin_rotation_rally_min_cd")),
-    resource_threshold = slider_int:new(0, 100, 40, get_hash("paladin_rotation_rally_resource_threshold")),
+    resource_threshold = slider_int:new(0, 100, 60, get_hash("paladin_rotation_rally_resource_threshold")),
+    use_for_movespeed = checkbox:new(true, get_hash("paladin_rotation_rally_use_movespeed")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_rally_enemy_type")),
 }
 
@@ -21,7 +22,8 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Generate 22 Faith + 20% Move Speed for 8s (3 charges)")
         if menu_elements.main_boolean:get() then
             menu_elements.recast_interval:render("Recast Interval", "Time between uses", 2)
-            menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (0 = always use for move speed)")
+            menu_elements.use_for_movespeed:render("Use for Move Speed", "Always use Rally for move speed buff (meta recommends)")
+            menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (ignored if Move Speed mode enabled)")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
         end
         menu_elements.tree_tab:pop()
@@ -36,11 +38,30 @@ local function logics()
         return false, 0 
     end
 
-    -- GENERATOR LOGIC: Only cast when Faith is LOW (or threshold is 0 for move speed build)
-    local threshold = menu_elements.resource_threshold:get()
-    if threshold > 0 then
-        local player = get_local_player()
-        if player then
+    local player = get_local_player()
+    if not player then
+        return false, 0
+    end
+    
+    local player_pos = player:get_position()
+    if not player_pos then
+        return false, 0
+    end
+    
+    -- Check for enemies nearby (no need to rally with no targets)
+    local nearby = my_utility.enemy_count_in_radius(25.0, player_pos)
+    if nearby == 0 then
+        return false, 0
+    end
+
+    -- META BUILD: Rally should be used "as often as possible" for move speed
+    -- If move speed mode is enabled, always cast when available (still need enemies though)
+    local use_for_movespeed = menu_elements.use_for_movespeed:get()
+    
+    if not use_for_movespeed then
+        -- GENERATOR LOGIC: Only cast when Faith is LOW
+        local threshold = menu_elements.resource_threshold:get()
+        if threshold > 0 then
             local current_resource = player:get_primary_resource_current()
             local max_resource = player:get_primary_resource_max()
             if max_resource > 0 then

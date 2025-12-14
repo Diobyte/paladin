@@ -41,7 +41,15 @@ local function logics(target)
         return false, 0 
     end
 
-    if not target or not target:is_enemy() then
+    if not target then
+        return false, 0
+    end
+    
+    local is_target_enemy = false
+    local ok, res = pcall(function() return target:is_enemy() end)
+    is_target_enemy = ok and res or false
+    
+    if not is_target_enemy then
         return false, 0
     end
 

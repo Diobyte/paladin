@@ -382,9 +382,10 @@ local spell_ranges = {
 -- These control how often each spell can be CHECKED for casting
 -- Lower values = more frequent checks = higher priority in practice
 --
--- MAX DPS OPTIMIZATION:
+-- META OPTIMIZATION (Hammerdin from maxroll.gg):
 -- - Core spam (blessed_hammer) has SHORT ICD so it casts frequently
--- - Burst abilities have MODERATE ICD so they weave in without blocking spam
+-- - Arbiter triggers (falling_star, condemn) have SHORT ICD for max uptime
+-- - Rally used often for move speed buff
 -- - Generators have SHORT ICD but their logics() blocks when Faith is high
 local spell_internal_cooldowns = {
     -- CORE SPAM - Very short ICD for maximum spam rate
@@ -409,17 +410,17 @@ local spell_internal_cooldowns = {
     holy_light_aura = 0.50,
     
     -- BURST COOLDOWNS - These have game cooldowns (12-18s)
-    -- ICD just prevents spam-checking, actual CD is in-game
-    -- Lower ICD = faster reaction when off cooldown
-    falling_star = 0.30,        -- Mobility burst - react fast
+    -- ARBITER TRIGGERS (falling_star, condemn) - LOW ICD for max uptime!
+    -- These are CRITICAL for Hammerdin to stay in Arbiter form
+    falling_star = 0.20,        -- ARBITER TRIGGER - react fast
     spear_of_the_heavens = 0.30, -- Ranged burst
-    condemn = 0.40,             -- Pull/stun setup
-    consecration = 0.50,        -- Ground effect, less urgent
+    condemn = 0.20,             -- ARBITER TRIGGER - react fast
+    consecration = 0.40,        -- Ground effect, less urgent
     
     -- GENERATORS - Short ICD, but logics() has resource threshold
-    -- They only cast when Faith is LOW (below threshold)
+    -- Rally moved to buff tier - very short ICD for maximum uptime
+    rally = 0.15,      -- Meta: Use as often as possible! Very short ICD
     clash = 0.15,      -- Shield bash - fast generator
-    rally = 0.50,      -- Has charges, check less often
     advance = 0.25,    -- Gap closer + gen
     holy_bolt = 0.15,  -- Ranged filler
     brandish = 0.15,   -- Melee arc filler
@@ -587,6 +588,7 @@ safe_on_update(function()
     -- Helper function to check AoE conditions for buff/debuff spells
     local function check_aoe_conditions(spell_menu_elements, area_analysis)
         if not spell_menu_elements then return true end
+        if not area_analysis then return true end
         
         -- Check enemy type filter first
         local enemy_type_filter = spell_menu_elements.enemy_type_filter and spell_menu_elements.enemy_type_filter:get() or 0
@@ -594,10 +596,10 @@ safe_on_update(function()
         -- Filter: 0 = Any, 1 = Elite/Champ/Boss, 2 = Boss
         if enemy_type_filter == 2 then
             -- Boss only
-            return area_analysis.num_bosses > 0
+            return (area_analysis.num_bosses or 0) > 0
         elseif enemy_type_filter == 1 then
             -- Elite/Champ/Boss
-            return area_analysis.num_elites > 0 or area_analysis.num_champions > 0 or area_analysis.num_bosses > 0
+            return (area_analysis.num_elites or 0) > 0 or (area_analysis.num_champions or 0) > 0 or (area_analysis.num_bosses or 0) > 0
         end
         
         -- Filter is "Any" - check minimum targets in area if enabled
@@ -606,7 +608,7 @@ safe_on_update(function()
         end
         
         local minimum_targets = spell_menu_elements.minimum_weight and spell_menu_elements.minimum_weight:get() or 1
-        return area_analysis.total_target_count >= minimum_targets
+        return (area_analysis.total_target_count or 0) >= minimum_targets
     end
 
     -- Define spell parameters for consistent argument passing based on spell type
@@ -753,5 +755,5 @@ safe_on_update(function()
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1")
+    console.print("Paladin_Rotation | Version 1.1 (Season 11 Meta Optimized)")
 end

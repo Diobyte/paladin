@@ -90,11 +90,13 @@ local function logics(target)
 
     local player = get_local_player()
     local player_pos = player and player:get_position() or nil
-    if player_pos then
-        local tpos = target:get_position()
-        if not tpos then
-            return false, 0
-        end
+    if not player_pos then
+        return false, 0
+    end
+    
+    local tpos = target:get_position()
+    if not tpos then
+        return false, 0
     end
 
     local now = my_utility.safe_get_time()
