@@ -50,12 +50,12 @@ end
 -- These MUST be called unconditionally at the top level, before any logic
 -- set_block_movement(true): We handle all movement in spell logics, not orbwalker
 -- set_clear_toggle(true): Allow the clear mode toggle to work
-if orbwalker and orbwalker.set_block_movement then
-    pcall(function() orbwalker.set_block_movement(true) end)
-end
-if orbwalker and orbwalker.set_clear_toggle then
-    pcall(function() orbwalker.set_clear_toggle(true) end)
-end
+-- if orbwalker and orbwalker.set_block_movement then
+--     pcall(function() orbwalker.set_block_movement(true) end)
+-- end
+-- if orbwalker and orbwalker.set_clear_toggle then
+--     pcall(function() orbwalker.set_clear_toggle(true) end)
+-- end
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -1064,6 +1064,20 @@ safe_on_render(function()
     local pos2d = graphics.w2s(player:get_position())
     if not pos2d or pos2d:is_zero() then return end
 
+    local function make_vec2_safe(px, py)
+        -- Try callable vec2(x, y)
+        if type(vec2) == "function" then
+            local ok, v = pcall(vec2, px, py)
+            if ok and v then return v end
+        end
+        -- Try table constructor vec2.new(x, y)
+        if vec2 and type(vec2) == "table" and type(vec2.new) == "function" then
+            local ok, v = pcall(vec2.new, px, py)
+            if ok and v then return v end
+        end
+        return nil
+    end
+
     local lines = {}
     local mode = "nil"
     if orbwalker and orbwalker.get_orb_mode then
@@ -1094,8 +1108,10 @@ safe_on_render(function()
     local y = pos2d.y - 120
     local line_height = 16
     for i, text in ipairs(lines) do
-        -- vec2 constructor is vec2(x, y) per API
-        graphics.text_2d(text, vec2(x, y + (i - 1) * line_height), 16, color_white(220))
+        local p = make_vec2_safe(x, y + (i - 1) * line_height)
+        if p then
+            graphics.text_2d(text, p, 16, color_white(220))
+        end
     end
 end)
 
