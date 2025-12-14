@@ -15,10 +15,7 @@ local menu_elements = {
 }
 
 local spell_id = spell_data.clash.spell_id
-
 local next_time_allowed_cast = 0.0
-local next_time_allowed_move = 0.0
-local move_delay = 0.5  -- Delay between movement commands (match druid script)
 
 local function menu()
     if menu_elements.tree_tab:push("Clash") then
@@ -66,20 +63,17 @@ local function logics(target)
     local in_range = my_utility.is_in_range(target, melee_range)
     
     if not in_range then
-        -- Out of range - move toward target with throttling (Druid pattern)
-        local current_time = get_time_since_inject()
-        if current_time >= next_time_allowed_move then
-            local target_pos = target:get_position()
-            pathfinder.force_move_raw(target_pos)
-            next_time_allowed_move = current_time + move_delay
-        end
+        -- Out of range - move toward target (Spiritborn pattern)
+        local target_pos = target:get_position()
+        pathfinder.request_move(target_pos)
         return false
     end
 
     if cast_spell.target(target, spell_id, 0.0, false) then
         local current_time = get_time_since_inject()
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Clash - Target: " .. target:get_skin_name())
+        local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+        console.print("Cast Clash - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
         return true
     end
 

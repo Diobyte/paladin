@@ -49,7 +49,7 @@ local function menu()
             menu_elements.cast_range:render("Cast Range", "Maximum distance to target for casting", 1)
             menu_elements.use_for_judgement:render("Judgement Build (Captain America)", "Always use to apply Judgement before Blessed Shield (ignore resource threshold)")
             if not menu_elements.use_for_judgement:get() then
-                menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (set 0 for always)"))
+                menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (set 0 for always)")
             end
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
         end
@@ -94,7 +94,8 @@ local function logics(target)
     if cast_spell.target(target, spell_id, 0.0, false) then
         local current_time = get_time_since_inject()
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Holy Bolt - Target: " .. target:get_skin_name())
+        local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+        console.print("Cast Holy Bolt - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
         return true
     end
 
@@ -112,7 +113,8 @@ local function logics(target)
         if cast_spell.position(spell_id, tpos, 0.0) then
             local current_time = get_time_since_inject()
             next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-            console.print("Cast Holy Bolt (position) - Target: " .. target:get_skin_name())
+            local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+            console.print("Cast Holy Bolt (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
             return true
         end
     end

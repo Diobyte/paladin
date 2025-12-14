@@ -690,5 +690,5 @@ safe_on_update(function()
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.3 (Per-Spell Targeting System - Dec 2025)")
+    console.print("Paladin_Rotation | Version 1.4 (Bug Fixes & Spiritborn Patterns - Dec 2025)")
 end

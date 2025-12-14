@@ -179,25 +179,28 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false
     end
 
-    -- Druid pattern: use utility API calls directly
+    -- Check spell cooldown (documented API)
     if not utility.is_spell_ready(spell_id) then
         return false
     end
 
-    if not utility.is_spell_affordable(spell_id) then
-        return false
-    end
-
-    if not utility.can_cast_spell(spell_id) then
-        return false
-    end
-
-    -- Evade abort (Druid pattern)
+    -- Check resource availability (documented API: player:has_enough_resources_for_spell)
     local local_player = get_local_player()
     if local_player then
-        local player_position = local_player:get_position()
-        if evade.is_dangerous_position(player_position) then
+        -- Use pcall for safety in case method doesn't exist
+        local ok, has_resources = pcall(function()
+            return local_player:has_enough_resources_for_spell(spell_id)
+        end)
+        if ok and not has_resources then
             return false
+        end
+        
+        -- Evade abort (check if player is in dangerous position)
+        local player_position = local_player:get_position()
+        if player_position and evade and evade.is_dangerous_position then
+            if evade.is_dangerous_position(player_position) then
+                return false
+            end
         end
     end
 
@@ -205,7 +208,7 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return true
     end
 
-    -- Orbwalker mode check (matching Druid pattern exactly)
+    -- Orbwalker mode check (matching Spiritborn pattern)
     local current_orb_mode = orbwalker.get_orb_mode()
 
     if current_orb_mode == orb_mode.none then
@@ -622,25 +625,26 @@ local my_utility = {
     get_resource_pct = get_resource_pct,
     get_health_pct = get_health_pct,
     enemy_count_in_radius = enemy_count_in_radius,
+    enemy_count_in_range = enemy_count_in_radius,  -- Alias for backward compatibility
     is_target_within_angle = is_target_within_angle,
     generate_points_around_target = generate_points_around_target,
     get_best_point = get_best_point,
     should_pop_cds = should_pop_cds,
     horde_objectives = horde_objectives,
-    -- Targeting modes (like Druid script - 8 modes)
+    -- Targeting modes (like Spiritborn script - 8 modes)
     targeting_modes = targeting_modes,
     get_target_by_mode = get_target_by_mode,
     get_target_by_mode_legacy = get_target_by_mode_legacy,  -- For backward compatibility
     enemy_count_by_type = enemy_count_by_type,
-    -- Movement utilities (like Druid script)
+    -- Movement utilities (like Spiritborn script)
     get_melee_range = get_melee_range,
     is_in_range = is_in_range,
     spell_delays = spell_delays,
-    -- Buff utilities (like Druid script)
+    -- Buff utilities (like Spiritborn script)
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,
     buff_stack_count = buff_stack_count,
-    -- Activation filters (like Druid script)
+    -- Activation filters (like Spiritborn script)
     activation_filters = activation_filters,
     evaluation_range_description = evaluation_range_description,
     targeting_mode_description = targeting_mode_description,

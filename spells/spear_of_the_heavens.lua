@@ -83,7 +83,8 @@ local function logics(target)
     if cast_spell.position(spell_id, pos, 0.0) then
         local current_time = get_time_since_inject()
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Spear of the Heavens - Target: " .. target:get_skin_name())
+        local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+        console.print("Cast Spear of the Heavens - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
         return true
     end
 
