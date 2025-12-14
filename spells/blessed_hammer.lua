@@ -106,7 +106,9 @@ local function logics(target)
     -- Count enemies in range
     -- OPTIMIZATION: Use cached valid enemies from main.lua if available to avoid re-scanning
     local enemies_list = {}
-    if _G.PaladinRotation and _G.PaladinRotation.valid_enemies then
+    local use_valid_enemies = _G.PaladinRotation and _G.PaladinRotation.valid_enemies and #_G.PaladinRotation.valid_enemies > 0
+    
+    if use_valid_enemies then
         -- Use the pre-filtered list from main.lua (already filtered by range, dead, immune, floor)
         -- We just need to check the specific engage range for this spell
         for _, data in ipairs(_G.PaladinRotation.valid_enemies) do
@@ -136,9 +138,8 @@ local function logics(target)
         if e and e:is_enemy() then
             -- Filter out dead, immune, and untargetable enemies (if not already filtered)
             -- Note: valid_enemies from main.lua are already filtered for dead/immune/untargetable
-            local is_pre_filtered = (_G.PaladinRotation and _G.PaladinRotation.valid_enemies)
             
-            if not is_pre_filtered then
+            if not use_valid_enemies then
                 if e:is_dead() or e:is_immune() or e:is_untargetable() then
                     goto continue
                 end
@@ -147,7 +148,7 @@ local function logics(target)
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_sqr then
                 -- Elevation check (if not already filtered)
-                if not is_pre_filtered then
+                if not use_valid_enemies then
                     if math.abs(player_pos:z() - pos:z()) > floor_height_threshold then
                         goto continue
                     end

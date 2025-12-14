@@ -80,7 +80,9 @@ local function logics(target)
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     local enemies_list = {}
-    if _G.PaladinRotation and _G.PaladinRotation.valid_enemies then
+    local use_valid_enemies = _G.PaladinRotation and _G.PaladinRotation.valid_enemies and #_G.PaladinRotation.valid_enemies > 0
+
+    if use_valid_enemies then
         -- Use the pre-filtered list from main.lua
         for _, data in ipairs(_G.PaladinRotation.valid_enemies) do
             table.insert(enemies_list, data.unit)
@@ -96,7 +98,7 @@ local function logics(target)
     for _, e in ipairs(enemies_list) do
         if e and e:is_enemy() then
             -- Filter out dead, immune, and untargetable enemies (if not already filtered)
-            if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+            if not use_valid_enemies then
                 if e:is_dead() or e:is_immune() or e:is_untargetable() then
                     goto continue
                 end
@@ -105,7 +107,7 @@ local function logics(target)
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= condemn_range_sqr then
                 -- Elevation check (if not already filtered)
-                if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                if not use_valid_enemies then
                     if math.abs(player_pos:z() - pos:z()) > 5.0 then
                         goto continue
                     end

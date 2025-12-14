@@ -90,7 +90,9 @@ local function logics(target)
             local enemy_type_filter = menu_elements.enemy_type_filter:get()
             
             local enemies_list = {}
-            if _G.PaladinRotation and _G.PaladinRotation.valid_enemies then
+            local use_valid_enemies = _G.PaladinRotation and _G.PaladinRotation.valid_enemies and #_G.PaladinRotation.valid_enemies > 0
+
+            if use_valid_enemies then
                 for _, data in ipairs(_G.PaladinRotation.valid_enemies) do
                     table.insert(enemies_list, data.unit)
                 end
@@ -105,7 +107,7 @@ local function logics(target)
             for _, e in ipairs(enemies_list) do
                 if e and e:is_enemy() then
                     -- Filter out dead, immune, and untargetable targets
-                    if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                    if not use_valid_enemies then
                         if e:is_dead() or e:is_immune() or e:is_untargetable() then
                             goto continue_consecration
                         end

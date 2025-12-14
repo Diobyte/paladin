@@ -530,6 +530,7 @@ safe_on_update(function()
     -- This prevents the script from casting spells when the user is just standing still
     -- Also ensures we don't run if orbwalker is completely missing/nil (safety check)
     if current_orb_mode == orb_mode.none and not my_utility.is_auto_play_enabled() then
+        -- console.print("Paladin Rotation: Idle (Orb Mode: None, Auto Play: Off)")
         return
     end
 
@@ -624,7 +625,8 @@ safe_on_update(function()
                 dbg("No valid targets found - check elevation/visibility settings")
             end
         end
-        return
+        -- REMOVED EARLY RETURN: Allow self-cast spells (like Blessed Hammer/Buffs) to run even if no primary target is selected
+        -- return
     end
     
     -- Debug: Log when targets ARE found
@@ -761,6 +763,10 @@ safe_on_update(function()
         local spell_equipped = spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id]
         local should_process = spell_equipped or (bypass_equipped and spell and spell_data[spell_name])
         
+        if not should_process then
+             -- console.print("Skipping " .. spell_name .. " (Equipped: " .. tostring(spell_equipped) .. ", Bypass: " .. tostring(bypass_equipped) .. ")")
+        end
+
         if should_process then
             if debug_enabled and spell_data[spell_name] then
                 if not spell_equipped then
