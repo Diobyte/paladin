@@ -289,6 +289,28 @@ local function is_action_allowed()
     return true
 end
 
+local function is_spell_ready(spell_id)
+    -- Prefer the documented API: player:is_spell_ready(spell_id)
+    local player = get_local_player and get_local_player() or nil
+    if player and type(player.is_spell_ready) == "function" then
+        local ok, ready = pcall(function() return player:is_spell_ready(spell_id) end)
+        if ok then
+            return ready
+        end
+    end
+
+    -- Fallback to utility module if present
+    if utility and type(utility.is_spell_ready) == "function" then
+        local ok, ready = pcall(function() return utility.is_spell_ready(spell_id) end)
+        if ok then
+            return ready
+        end
+    end
+
+    -- Default to true so rotations can proceed even if readiness APIs are unavailable
+    return true
+end
+
 local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spell_id, debug_mode)
     if not spell_enable_check then
         if debug_mode then console.print("[is_spell_allowed] spell_enable_check is false") end
@@ -350,28 +372,6 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
     -- Allow all active orbwalker modes (pvp, clear, flee) by default; do not block casting
     -- This avoids the script stalling when the orbwalker is in a non-standard mode
     if debug_mode then console.print("[is_spell_allowed] ALLOWED") end
-    return true
-end
-
-local function is_spell_ready(spell_id)
-    -- Prefer the documented API: player:is_spell_ready(spell_id)
-    local player = get_local_player and get_local_player() or nil
-    if player and type(player.is_spell_ready) == "function" then
-        local ok, ready = pcall(function() return player:is_spell_ready(spell_id) end)
-        if ok then
-            return ready
-        end
-    end
-
-    -- Fallback to utility module if present
-    if utility and type(utility.is_spell_ready) == "function" then
-        local ok, ready = pcall(function() return utility.is_spell_ready(spell_id) end)
-        if ok then
-            return ready
-        end
-    end
-
-    -- Default to true so rotations can proceed even if readiness APIs are unavailable
     return true
 end
 
