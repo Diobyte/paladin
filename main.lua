@@ -82,7 +82,9 @@ end
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
-local spell_priority = require("spell_priority")
+local spell_priority_module = require("spell_priority")
+local spell_priority = spell_priority_module.spells
+local spell_internal_cooldowns = spell_priority_module.cooldowns
 local menu = require("menu")
 local my_target_selector = require("my_utility/my_target_selector")
 
@@ -387,43 +389,7 @@ local last_cast_target = nil  -- Track target we last successfully cast at
 local last_spell_cast_name = nil  -- Track which spell cast last
 local spell_cast_counts = {}       -- Count of casts per spell (for weighted fairness)
 
--- Internal cooldowns (minimum time between casts of same spell)
--- These control how often each spell can be CHECKED for casting
-local spell_internal_cooldowns = {
-    -- CORE SPAM
-    blessed_hammer = 0.08,
-    
-    -- ALTERNATIVE CORE SPENDERS
-    blessed_shield = 0.12,
-    zeal = 0.10,
-    divine_lance = 0.12,
-    
-    -- ULTIMATES
-    arbiter_of_justice = 0.20,
-    heavens_fury = 0.20,
-    zenith = 0.20,
-    
-    -- AURAS
-    fanaticism_aura = 0.50,
-    defiance_aura = 0.50,
-    holy_light_aura = 0.50,
-    
-    -- BURST COOLDOWNS
-    falling_star = 0.10,
-    spear_of_the_heavens = 0.20,
-    condemn = 0.10,
-    consecration = 0.30,
-    
-    -- GENERATORS
-    rally = 0.10,
-    clash = 0.10,
-    advance = 0.15,
-    holy_bolt = 0.10,
-    brandish = 0.10,
-    
-    -- MOBILITY
-    shield_charge = 0.40,
-}
+-- Internal cooldowns are now loaded from spell_priority.lua
 
 -- =====================================================
 -- USE_ABILITY FUNCTION (Druid Pattern)
@@ -437,8 +403,9 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
     if not spell.menu_elements or not spell.menu_elements.main_boolean then
         -- Self-cast spells without main_boolean (shouldn't happen)
         if debug_enabled then dbg(spell_name .. ": no main_boolean, trying logics()") end
-        if spell.logics() then
-            return true
+        if type(spell.logics) == "function" then
+             local ok, success = pcall(spell.logics)
+             if ok and success then return true end
         end
         return false
     end
@@ -889,7 +856,7 @@ safe_on_render(function()
     if not pos2d or pos2d:is_zero() then return end
 
     local function make_vec2_safe(px, py)
-        if vec2 then return vec2(px, py) end
+        if vec2 and vec2.new then return vec2.new(px, py) end
         return nil
     end
 

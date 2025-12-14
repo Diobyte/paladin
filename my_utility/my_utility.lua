@@ -289,6 +289,17 @@ local function is_action_allowed()
     return true
 end
 
+-- Check if PvP is active (based on orbwalker mode)
+local function is_pvp_active()
+    if orbwalker and orbwalker.get_orb_mode then
+        local ok, mode = pcall(function() return orbwalker.get_orb_mode() end)
+        if ok and mode == orb_mode.pvp then
+            return true
+        end
+    end
+    return false
+end
+
 local function is_spell_ready(spell_id)
     -- Prefer the documented API: player:is_spell_ready(spell_id)
     local player = get_local_player and get_local_player() or nil
@@ -453,8 +464,8 @@ end
 
 local function is_target_within_angle(origin, reference, target, max_angle)
     -- Compute direction vectors using coordinates (Lua 5.1 friendly)
-    local v1 = vec3(reference:x() - origin:x(), reference:y() - origin:y(), reference:z() - origin:z()):normalize()
-    local v2 = vec3(target:x() - origin:x(), target:y() - origin:y(), target:z() - origin:z()):normalize()
+    local v1 = vec3.new(reference:x() - origin:x(), reference:y() - origin:y(), reference:z() - origin:z()):normalize()
+    local v2 = vec3.new(target:x() - origin:x(), target:y() - origin:y(), target:z() - origin:z()):normalize()
 
     -- Fallback for zero-length vectors
     if not v1 or not v2 then return true end
@@ -474,7 +485,7 @@ local function generate_points_around_target(target_position, radius, num_points
         local angle = (i - 1) * (2 * math.pi / num_points)
         local x = target_position:x() + radius * math.cos(angle)
         local y = target_position:y() + radius * math.sin(angle)
-        table.insert(points, vec3(x, y, target_position:z()))
+        table.insert(points, vec3.new(x, y, target_position:z()))
     end
     return points
 end
@@ -804,6 +815,7 @@ local my_utility = {
     is_stuck = is_stuck,
     clear_move_state = clear_move_state,
     was_movement_requested_recently = was_movement_requested_recently,
+    is_pvp_active = is_pvp_active,
     -- Buff utilities (like Spiritborn script)
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,

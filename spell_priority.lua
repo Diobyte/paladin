@@ -84,4 +84,43 @@ local spell_priority = {
     "shield_charge",        -- Valor (CD: 10s) - Gap closer with DR
 }
 
-return spell_priority
+local spell_internal_cooldowns = {
+    -- CORE SPAM
+    blessed_hammer = 0.08,
+    
+    -- ALTERNATIVE CORE SPENDERS
+    blessed_shield = 0.12,
+    zeal = 0.10,
+    divine_lance = 0.12,
+    
+    -- ULTIMATES
+    arbiter_of_justice = 0.20,
+    heavens_fury = 0.20,
+    zenith = 0.20,
+    
+    -- AURAS
+    fanaticism_aura = 0.50,
+    defiance_aura = 0.50,
+    holy_light_aura = 0.50,
+    
+    -- BURST COOLDOWNS
+    falling_star = 0.10,
+    spear_of_the_heavens = 0.20,
+    condemn = 0.10,
+    consecration = 0.30,
+    
+    -- GENERATORS
+    rally = 0.10,
+    clash = 0.10,
+    advance = 0.15,
+    holy_bolt = 0.10,
+    brandish = 0.10,
+    
+    -- MOBILITY
+    shield_charge = 0.40,
+}
+
+return {
+    spells = spell_priority,
+    cooldowns = spell_internal_cooldowns
+}
