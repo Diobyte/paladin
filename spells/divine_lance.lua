@@ -53,8 +53,8 @@ local function logics(best_target, area_analysis)
         end
     end
 
-    if cast_spell and type(cast_spell.targeted) == "function" then
-        if cast_spell.targeted(spell_id, target, 0.0) then
+    if cast_spell and type(cast_spell.target) == "function" then
+        if cast_spell.target(target, spell_id, 0.0, false) then
             next_time_allowed_cast = now + menu_elements.min_cooldown:get()
             return true
         end

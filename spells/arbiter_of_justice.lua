@@ -5,7 +5,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_arbiter_enabled")),
     min_cooldown = slider_float:new(0.2, 10.0, 0.8, get_hash("paladin_rotation_arbiter_min_cd")),
-    enemy_type_filter = combo_box:new(0, {"All", "Elite+", "Boss"}, get_hash("paladin_rotation_arbiter_enemy_type")),
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_arbiter_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_arbiter_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_arbiter_min_weight")),
 }
@@ -41,8 +41,8 @@ local function logics(best_target, area_analysis)
     -- AoE Logic Check
     if area_analysis then
         local enemy_type_filter = menu_elements.enemy_type_filter:get()
-        if enemy_type_filter == 3 and area_analysis.num_bosses == 0 then return false end
-        if enemy_type_filter == 2 and (area_analysis.num_elites == 0 and area_analysis.num_bosses == 0) then return false end
+        -- 0: All, 1: Elite+, 2: Boss
+        if enemy_type_filter == 2 and area_analysis.num_bosses == 0 then return false end
         if enemy_type_filter == 1 and (area_analysis.num_elites == 0 and area_analysis.num_champions == 0 and area_analysis.num_bosses == 0) then return false end
         
         if menu_elements.use_minimum_weight:get() then
@@ -57,8 +57,8 @@ local function logics(best_target, area_analysis)
         return false
     end
 
-    if cast_spell and type(cast_spell.targeted) == "function" then
-        if cast_spell.targeted(spell_id, target, 0.05) then
+    if cast_spell and type(cast_spell.target) == "function" then
+        if cast_spell.target(target, spell_id, 0.05, false) then
             next_time_allowed_cast = now + menu_elements.min_cooldown:get()
             return true
         end

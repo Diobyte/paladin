@@ -61,6 +61,21 @@ local function enemy_count_in_radius(radius, origin)
     return count
 end
 
+local function is_target_within_angle(origin, reference, target, max_angle)
+    -- Compute direction vectors using coordinates (Lua 5.1 friendly)
+    local v1 = vec3.new(reference:x() - origin:x(), reference:y() - origin:y(), reference:z() - origin:z()):normalize()
+    local v2 = vec3.new(target:x() - origin:x(), target:y() - origin:y(), target:z() - origin:z()):normalize()
+
+    -- Fallback for zero-length vectors
+    if not v1 or not v2 then return true end
+
+    local dot = v1:dot_product(v2)
+    -- Clamp to valid range to avoid NaNs due to precision
+    if dot > 1 then dot = 1 elseif dot < -1 then dot = -1 end
+    local angle = math.deg(math.acos(dot))
+    return angle <= max_angle
+end
+
 local my_utility = {
     safe_get_time = safe_get_time,
     is_spell_ready = is_spell_ready,
@@ -68,6 +83,7 @@ local my_utility = {
     get_resource_pct = get_resource_pct,
     get_health_pct = get_health_pct,
     enemy_count_in_radius = enemy_count_in_radius,
+    is_target_within_angle = is_target_within_angle,
 }
 
 return my_utility

@@ -433,13 +433,10 @@ safe_on_update(function()
         -- Check enemy type filter first
         local enemy_type_filter = spell_menu_elements.enemy_type_filter and spell_menu_elements.enemy_type_filter:get() or 0
         
-        -- Filter: 0 = Any, 1 = Elite/Champ/Boss, 2 = Elite/Boss, 3 = Boss
-        if enemy_type_filter == 3 then
+        -- Filter: 0 = Any, 1 = Elite/Champ/Boss, 2 = Boss
+        if enemy_type_filter == 2 then
             -- Boss only
             return area_analysis.num_bosses > 0
-        elseif enemy_type_filter == 2 then
-            -- Elite/Boss
-            return area_analysis.num_elites > 0 or area_analysis.num_bosses > 0
         elseif enemy_type_filter == 1 then
             -- Elite/Champ/Boss
             return area_analysis.num_elites > 0 or area_analysis.num_champions > 0 or area_analysis.num_bosses > 0

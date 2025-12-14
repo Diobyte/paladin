@@ -10,7 +10,7 @@ local menu_elements = {
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_fanaticism_enabled")),
     recast_interval = slider_float:new(2.0, 60.0, AURA_DURATION, get_hash("paladin_rotation_fanaticism_recast")),
     combat_only = checkbox:new(true, get_hash("paladin_rotation_fanaticism_combat_only")),
-    enemy_type_filter = combo_box:new(0, {"All", "Elite+", "Boss"}, get_hash("paladin_rotation_fanaticism_enemy_type")),
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_fanaticism_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_fanaticism_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_fanaticism_min_weight")),
 }
