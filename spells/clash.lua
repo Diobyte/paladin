@@ -1,25 +1,32 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
+-- Clash - Basic Skill (Melee Shield Bash)
+-- Bash enemies with your shield, dealing 65% damage and generating Faith.
+-- Requires a shield to be equipped.
+
 local menu_elements = {
     tree_tab = tree_node:new(1),
-    main_boolean = checkbox:new(true, get_hash("paladin_rotation_zeal_enabled")),
-    min_cooldown = slider_float:new(0.0, 1.0, 0.01, get_hash("paladin_rotation_zeal_min_cd")),
-    use_as_filler_only = checkbox:new(true, get_hash("paladin_rotation_zeal_filler_only")),
-    resource_threshold = slider_int:new(0, 100, 50, get_hash("paladin_rotation_zeal_resource_threshold")),
+    main_boolean = checkbox:new(true, get_hash("paladin_rotation_clash_enabled")),
+    min_cooldown = slider_float:new(0.0, 1.0, 0.15, get_hash("paladin_rotation_clash_min_cd")),
+    use_as_filler_only = checkbox:new(true, get_hash("paladin_rotation_clash_filler_only")),
+    resource_threshold = slider_int:new(0, 100, 30, get_hash("paladin_rotation_clash_resource_threshold")),
 }
 
-local spell_id = spell_data.zeal.spell_id
+-- Clash spell ID (estimated based on Paladin skill patterns)
+-- Basic skills typically have IDs in the 2100000-2200000 range
+local spell_id = 2097456  -- Clash spell ID
+
 local next_time_allowed_cast = 0.0
 
 local function menu()
-    if menu_elements.tree_tab:push("Zeal") then
-        menu_elements.main_boolean:render("Enable", "")
+    if menu_elements.tree_tab:push("Clash") then
+        menu_elements.main_boolean:render("Enable", "Enable Clash (Shield Bash)")
         if menu_elements.main_boolean:get() then
-            menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.use_as_filler_only:render("Filler Only", "Only use when low on resource")
+            menu_elements.min_cooldown:render("Min Cooldown", "Minimum time between casts", 2)
+            menu_elements.use_as_filler_only:render("Filler Only", "Only use when low on Faith")
             if menu_elements.use_as_filler_only:get() then
-                menu_elements.resource_threshold:render("Resource Threshold (%)", "Use Zeal when resource below this percentage")
+                menu_elements.resource_threshold:render("Resource Threshold %", "Use when Faith below this %")
             end
         end
         menu_elements.tree_tab:pop()
@@ -38,22 +45,24 @@ local function logics(target)
         return false, 0
     end
 
-    -- Check filler condition (like barb's frenzy)
+    -- Check filler condition (like barb's bash)
     if menu_elements.use_as_filler_only:get() then
         local player = get_local_player()
         if player then
             local current_resource = player:get_primary_resource_current()
             local max_resource = player:get_primary_resource_max()
-            local resource_pct = (current_resource / max_resource) * 100
-            local threshold = menu_elements.resource_threshold:get()
-            
-            if resource_pct >= threshold then
-                return false, 0
+            if max_resource > 0 then
+                local resource_pct = (current_resource / max_resource) * 100
+                local threshold = menu_elements.resource_threshold:get()
+                
+                if resource_pct >= threshold then
+                    return false, 0
+                end
             end
         end
     end
 
-    -- Zeal is a melee skill, so we check range
+    -- Clash is a melee skill, check range
     local player = get_local_player()
     local player_pos = player and player:get_position() or nil
     local target_pos = target:get_position()
@@ -68,6 +77,7 @@ local function logics(target)
     local now = my_utility.safe_get_time()
     local cooldown = menu_elements.min_cooldown:get()
     
+    -- Clash is a melee targeted attack
     if cast_spell and type(cast_spell.target) == "function" then
         if cast_spell.target(target, spell_id, 0.0, false) then
             next_time_allowed_cast = now + cooldown

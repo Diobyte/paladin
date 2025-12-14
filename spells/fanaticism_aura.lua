@@ -82,7 +82,7 @@ local function is_in_combat()
     return my_utility.enemy_count_in_radius(30.0, player:get_position()) > 0
 end
 
-local function logics(area_analysis)
+local function logics()
     local spell_id = spell_data.fanaticism_aura.spell_id
     
     if not menu_elements.main_boolean:get() then 
@@ -99,27 +99,8 @@ local function logics(area_analysis)
         return false, 0
     end
     
-    -- Area analysis check (like other aura spells)
-    if area_analysis then
-        local enemy_type_filter = menu_elements.enemy_type_filter:get()
-        -- 0: All, 1: Elite+, 2: Boss
-        if enemy_type_filter == 2 and area_analysis.num_bosses == 0 then 
-            is_aura_active = false
-            return false, 0 
-        end
-        if enemy_type_filter == 1 and (area_analysis.num_elites == 0 and area_analysis.num_champions == 0 and area_analysis.num_bosses == 0) then 
-            is_aura_active = false
-            return false, 0 
-        end
-        
-        if menu_elements.use_minimum_weight:get() then
-            if area_analysis.total_target_count < menu_elements.minimum_weight:get() then
-                is_aura_active = false
-                return false, 0
-            end
-        end
-    elseif not is_in_combat() then
-        -- Fallback to is_in_combat check if no area_analysis provided
+    -- Combat only check
+    if not is_in_combat() then
         is_aura_active = false
         return false, 0
     end
@@ -148,12 +129,6 @@ local function logics(area_analysis)
             last_cast_time = now
             next_time_allowed_cast = now + 1.0  -- Small cooldown between attempts
             is_aura_active = true
-            
-            -- Print debug message if console is available
-            if console and type(console.print) == "function" then
-                console.print("Paladin_Rotation | Fanaticism Aura cast at " .. os.date("%H:%M:%S"))
-            end
-            
             return true, 1.0
         end
     end

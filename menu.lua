@@ -3,8 +3,6 @@ local menu_elements =
     main_boolean        = checkbox:new(true, get_hash("paladin_rotation_main_boolean")),
     main_tree           = tree_node:new(0),
 
-    oath_selector       = combo_box:new(0, get_hash("paladin_rotation_oath_selector")),
-
     settings_tree       = tree_node:new(1),
     max_targeting_range = slider_int:new(5, 60, 30, get_hash("paladin_rotation_max_targeting_range")),
     prefer_elites       = checkbox:new(true, get_hash("paladin_rotation_prefer_elites")),
@@ -20,6 +18,7 @@ local menu_elements =
     debug_tree          = tree_node:new(1),
     enable_debug        = checkbox:new(false, get_hash("paladin_rotation_enable_debug")),
     melee_debug_mode    = checkbox:new(false, get_hash("paladin_rotation_melee_debug_mode")),
+    bypass_equipped_check = checkbox:new(false, get_hash("paladin_rotation_bypass_equipped_check")),
 
     -- Manual Play Mode (like barb)
     manual_play         = checkbox:new(false, get_hash("paladin_rotation_manual_play")),

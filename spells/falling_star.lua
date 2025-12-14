@@ -30,7 +30,7 @@ local function menu()
     end
 end
 
-local function logics(best_target, area_analysis)
+local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
@@ -38,25 +38,6 @@ local function logics(best_target, area_analysis)
         return false, 0 
     end
 
-    -- AoE Logic Check
-    if area_analysis then
-        local enemy_type_filter = menu_elements.enemy_type_filter:get()
-        -- 0: All, 1: Elite+, 2: Boss
-        if enemy_type_filter == 2 and area_analysis.num_bosses == 0 then 
-            return false, 0 
-        end
-        if enemy_type_filter == 1 and (area_analysis.num_elites == 0 and area_analysis.num_champions == 0 and area_analysis.num_bosses == 0) then 
-            return false, 0 
-        end
-        
-        if menu_elements.use_minimum_weight:get() then
-            if area_analysis.total_target_count < menu_elements.minimum_weight:get() then
-                return false, 0
-            end
-        end
-    end
-
-    local target = best_target
     if not target or not target:is_enemy() then
         return false, 0
     end
@@ -66,23 +47,12 @@ local function logics(best_target, area_analysis)
         return false, 0 
     end
     
-    -- Use prediction for AoE placement (like sorc meteor)
+    -- Use prediction for AoE placement
     local prediction_time = menu_elements.prediction_time:get()
     if prediction and prediction.get_future_unit_position then
         local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
         if predicted_pos then
             pos = predicted_pos
-        end
-    end
-
-    -- Try to find optimal position for AoE (like sorc)
-    if my_utility.get_best_point then
-        local player_pos = get_player_position and get_player_position() or nil
-        if player_pos then
-            local best_point_data = my_utility.get_best_point(pos, 4.0, {target})
-            if best_point_data and best_point_data.hits >= 1 then
-                pos = best_point_data.point
-            end
         end
     end
 
@@ -92,7 +62,6 @@ local function logics(best_target, area_analysis)
     if cast_spell and type(cast_spell.position) == "function" then
         if cast_spell.position(spell_id, pos, 0.05) then
             next_time_allowed_cast = now + cooldown
-            _G.paladin_rotation_last_falling_star_time = now
             return true, cooldown
         end
     end

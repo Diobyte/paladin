@@ -28,7 +28,7 @@ local function menu()
     end
 end
 
-local function logics(best_target, area_analysis)
+local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
@@ -36,25 +36,22 @@ local function logics(best_target, area_analysis)
         return false, 0 
     end
 
-    local target = best_target
     if not target or not target:is_enemy() then
         return false, 0
     end
 
     -- Enemy type filter check (like barb's charge)
-    if area_analysis then
-        local enemy_type_filter = menu_elements.enemy_type_filter:get()
-        -- 0: All, 1: Elite+, 2: Boss
-        if enemy_type_filter == 2 then
-            -- Boss only - check if target is boss
-            if not target:is_boss() then
-                return false, 0
-            end
-        elseif enemy_type_filter == 1 then
-            -- Elite+ - check if target is elite, champion, or boss
-            if not (target:is_elite() or target:is_champion() or target:is_boss()) then
-                return false, 0
-            end
+    local enemy_type_filter = menu_elements.enemy_type_filter:get()
+    -- 0: All, 1: Elite+, 2: Boss
+    if enemy_type_filter == 2 then
+        -- Boss only - check if target is boss
+        if not target:is_boss() then
+            return false, 0
+        end
+    elseif enemy_type_filter == 1 then
+        -- Elite+ - check if target is elite, champion, or boss
+        if not (target:is_elite() or target:is_champion() or target:is_boss()) then
+            return false, 0
         end
     end
 

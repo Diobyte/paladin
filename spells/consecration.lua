@@ -39,7 +39,7 @@ local function menu()
     end
 end
 
-local function logics(best_target, area_analysis)
+local function logics()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     

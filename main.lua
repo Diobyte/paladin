@@ -5,14 +5,15 @@ if package and package.loaded then
     package.loaded["my_utility/spell_data"] = nil
     package.loaded["spells/holy_bolt"] = nil
     package.loaded["spells/blessed_hammer"] = nil
+    package.loaded["spells/blessed_shield"] = nil
     package.loaded["spells/falling_star"] = nil
     package.loaded["spells/arbiter_of_justice"] = nil
     package.loaded["spells/rally"] = nil
     package.loaded["spells/defiance_aura"] = nil
     package.loaded["spells/fanaticism_aura"] = nil
     package.loaded["spells/holy_light_aura"] = nil
-    package.loaded["spells/evade"] = nil
     package.loaded["spells/zeal"] = nil
+    package.loaded["spells/clash"] = nil
     package.loaded["spells/shield_charge"] = nil
     package.loaded["spells/spear_of_the_heavens"] = nil
     package.loaded["spells/divine_lance"] = nil
@@ -71,10 +72,12 @@ local spells = {
     -- Basic Skills (Resource Generators)
     holy_bolt = require("spells/holy_bolt"),
     zeal = require("spells/zeal"),
-    advance = require("spells/advance"),           -- NEW: Lunge mobility/generator
+    advance = require("spells/advance"),           -- Lunge mobility/generator
+    clash = require("spells/clash"),               -- Shield bash generator
     
     -- Core Skills (Main Damage)
     blessed_hammer = require("spells/blessed_hammer"),
+    blessed_shield = require("spells/blessed_shield"), -- Bouncing shield throw
     divine_lance = require("spells/divine_lance"),
     brandish = require("spells/brandish"),
     
@@ -86,7 +89,6 @@ local spells = {
     -- Valor Skills (Utility/Mobility)
     shield_charge = require("spells/shield_charge"),
     rally = require("spells/rally"),
-    evade = require("spells/evade"),
     
     -- Justice Skills (Damage/Control)
     spear_of_the_heavens = require("spells/spear_of_the_heavens"),
@@ -277,9 +279,6 @@ safe_on_render_menu(function()
         
         menu.menu_elements.combo_enemy_count:render("Combo Enemy Count", "", 0)
         menu.menu_elements.combo_window:render("Combo Window", "", 2)
-        if menu.menu_elements.evade_min_delay then
-            menu.menu_elements.evade_min_delay:render("Evade Min Delay", "", 2)
-        end
         menu.menu_elements.rally_resource_pct:render("Rally Resource %", "", 2)
         if menu.menu_elements.holy_bolt_resource_pct then
             menu.menu_elements.holy_bolt_resource_pct:render("Holy Bolt Resource %", "", 2)
@@ -297,10 +296,10 @@ safe_on_render_menu(function()
     -- Debug Options
     menu.menu_elements.enable_debug:render("Debug", "")
     menu.menu_elements.melee_debug_mode:render("Melee Debug Mode", "Enable detailed console logging for melee spell movement and casting decisions")
+    menu.menu_elements.bypass_equipped_check:render("Bypass Equipped Check", "DEBUG: Skip checking if spell is equipped - helps identify spell ID issues")
 
     -- Get equipped spells
     local equipped_spells = get_equipped_spell_ids()
-    table.insert(equipped_spells, spell_data.evade.spell_id) -- add evade to the list
 
     -- Create a lookup table for equipped spells
     local equipped_lookup = {}
@@ -328,12 +327,6 @@ safe_on_render_menu(function()
         menu.menu_elements.inactive_spells_tree:pop()
     end
 
-    if menu.menu_elements.main_tree:push("Oath Selector") then
-        local oath_options = {"None", "Oath of the Zealot", "Oath of the Protector", "Oath of the Avenger", "Oath of the Light"}
-        menu.menu_elements.oath_selector:render("Active Oath", oath_options, "")
-        menu.menu_elements.main_tree:pop()
-    end
-
     menu.menu_elements.main_tree:pop()
 end)
 
@@ -344,10 +337,13 @@ local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
 -- Spell classification for targeting (melee vs ranged)
 local spell_classification = {
     zeal = "melee",
+    clash = "melee",           -- Shield bash - melee
     brandish = "melee",
     shield_charge = "gap_closer",
+    advance = "gap_closer",    -- Lunge forward
     holy_bolt = "ranged",
     blessed_hammer = "ranged_aoe",
+    blessed_shield = "ranged", -- Bouncing shield - ranged
     falling_star = "ranged_aoe",
     arbiter_of_justice = "ranged_aoe",
     spear_of_the_heavens = "ranged",
@@ -356,16 +352,18 @@ local spell_classification = {
     defiance_aura = "buff",
     fanaticism_aura = "buff",
     holy_light_aura = "buff",
-    evade = "mobility",
 }
 
 -- Spell range configuration
 local spell_ranges = {
     zeal = 3.5,
+    clash = 3.5,               -- Shield bash - melee range
     brandish = 4.0,
     shield_charge = 15.0,
+    advance = 10.0,            -- Lunge range
     holy_bolt = 12.0,
     blessed_hammer = 12.0,
+    blessed_shield = 12.0,     -- Shield throw range
     falling_star = 15.0,
     arbiter_of_justice = 12.0,
     spear_of_the_heavens = 12.0,
@@ -373,21 +371,43 @@ local spell_ranges = {
 }
 
 -- Internal cooldowns (minimum time between casts of same spell)
+-- Blessed Hammer should have very short cooldown to spam
+-- Other spells have longer cooldowns to let hammer spam between uses
 local spell_internal_cooldowns = {
-    zeal = 0.0,
-    brandish = 0.1,
-    shield_charge = 0.5,
-    holy_bolt = 0.05,
-    blessed_hammer = 0.1,
-    falling_star = 0.6,
-    arbiter_of_justice = 0.8,
-    spear_of_the_heavens = 0.3,
-    divine_lance = 0.2,
-    rally = 4.0,
-    defiance_aura = 5.0,
-    fanaticism_aura = 5.0,
-    holy_light_aura = 5.0,
-    evade = 0.15,
+    -- Core spam skill - match animation time so other spells can interleave
+    -- After casting hammer, other priority spells get checked before next hammer
+    blessed_hammer = 0.15,
+    blessed_shield = 0.25,  -- Bouncing shield, slightly longer
+    
+    -- Ultimates - use when available (game handles actual CD)
+    -- Short internal CD so they cast ASAP when available
+    arbiter_of_justice = 0.3,
+    heavens_fury = 0.3,
+    zenith = 0.3,
+    
+    -- Auras - check frequently, their logics() handles duration
+    -- They only cast when buff expires (handled in spell logic)
+    fanaticism_aura = 0.5,
+    defiance_aura = 0.5,
+    holy_light_aura = 0.5,
+    rally = 1.0,
+    
+    -- Burst abilities - moderate cooldowns to fit between hammer spam
+    falling_star = 1.5,
+    spear_of_the_heavens = 1.0,
+    condemn = 2.0,
+    divine_lance = 0.6,
+    brandish = 0.4,
+    consecration = 2.0,
+    
+    -- Mobility - use sparingly
+    shield_charge = 1.5,
+    advance = 0.8,
+    
+    -- Basic attacks - short cooldowns (fillers)
+    zeal = 0.2,
+    holy_bolt = 0.2,
+    clash = 0.2,  -- Shield bash generator
 }
 
 safe_on_update(function()
@@ -572,46 +592,49 @@ safe_on_update(function()
     end
 
     -- Define spell parameters for consistent argument passing based on spell type
+    -- Simplified to match sorc/barb pattern - just pass target for targeted spells
     local spell_params = {
-        holy_bolt = { args = {best_target}, classification = "ranged" },
-        blessed_hammer = { args = {best_target}, classification = "ranged_aoe" },
-        falling_star = { args = {best_target}, classification = "ranged_aoe" },
-        arbiter_of_justice = { args = {best_target}, classification = "ranged_aoe" },
-        rally = { args = {}, classification = "buff", custom_check = function()
-            if spells.rally and spells.rally.menu_elements then
-                return check_aoe_conditions(spells.rally.menu_elements, area_analysis)
-            end
-            return true
-        end },
-        defiance_aura = { args = {}, classification = "buff", custom_check = function()
-            if spells.defiance_aura and spells.defiance_aura.menu_elements then
-                return check_aoe_conditions(spells.defiance_aura.menu_elements, area_analysis)
-            end
-            return true
-        end },
-        fanaticism_aura = { args = {}, classification = "buff", custom_check = function()
-            if spells.fanaticism_aura and spells.fanaticism_aura.menu_elements then
-                return check_aoe_conditions(spells.fanaticism_aura.menu_elements, area_analysis)
-            end
-            return true
-        end },
-        holy_light_aura = { args = {}, classification = "buff", custom_check = function()
-            if spells.holy_light_aura and spells.holy_light_aura.menu_elements then
-                return check_aoe_conditions(spells.holy_light_aura.menu_elements, area_analysis)
-            end
-            return true
-        end },
-        evade = { args = {best_target}, classification = "mobility" },
-        zeal = { args = {best_target}, classification = "melee" },
-        shield_charge = { args = {best_target}, classification = "gap_closer" },
-        spear_of_the_heavens = { args = {best_target}, classification = "ranged" },
-        divine_lance = { args = {best_target}, classification = "ranged" },
-        brandish = { args = {best_target}, classification = "melee" },
+        -- Core damage (highest priority for Hammerkuna)
+        blessed_hammer = { args = {} },
+        blessed_shield = { args = {best_target} },  -- Bouncing shield throw
+        
+        -- Targeted spells
+        holy_bolt = { args = {best_target} },
+        falling_star = { args = {best_target} },
+        arbiter_of_justice = { args = {best_target} },
+        spear_of_the_heavens = { args = {best_target} },
+        divine_lance = { args = {best_target} },
+        brandish = { args = {best_target} },
+        advance = { args = {best_target} },
+        shield_charge = { args = {best_target} },
+        zeal = { args = {best_target} },
+        clash = { args = {best_target} },  -- Shield bash generator
+        
+        -- Self-cast spells (auras, buffs, AoE around player)
+        heavens_fury = { args = {} },
+        zenith = { args = {} },
+        condemn = { args = {} },
+        consecration = { args = {} },
+        rally = { args = {} },
+        defiance_aura = { args = {} },
+        fanaticism_aura = { args = {} },
+        holy_light_aura = { args = {} },
     }
 
     -- Get equipped spells for spell casting logic
     local equipped_spells = get_equipped_spell_ids()
-    table.insert(equipped_spells, spell_data.evade.spell_id) -- add evade to the list
+
+    -- Debug: Print equipped spell IDs once
+    if menu.menu_elements.enable_debug:get() then
+        if not _G.paladin_equipped_printed or (current_time - _G.paladin_equipped_printed) > 10.0 then
+            _G.paladin_equipped_printed = current_time
+            local ids_str = ""
+            for i, sid in ipairs(equipped_spells) do
+                ids_str = ids_str .. tostring(sid) .. ", "
+            end
+            dbg("Equipped spell IDs: " .. ids_str)
+        end
+    end
 
     -- Create a lookup table for equipped spells
     local equipped_lookup = {}
@@ -620,116 +643,93 @@ safe_on_update(function()
     end
 
     -- Loop through spells in priority order defined in spell_priority.lua
+    local bypass_equipped = menu.menu_elements.bypass_equipped_check:get()
+    
     for _, spell_name in ipairs(spell_priority) do
         local spell = spells[spell_name]
-        -- Only process spells that are equipped
-        if spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id] then
-            local params = spell_params[spell_name]
-            if params then
-                -- Check internal cooldown for this spell (like barb)
-                local internal_cooldown = spell_internal_cooldowns[spell_name] or 0
-                if internal_cooldown > 0 then
-                    local last_cast_time = spell_last_cast_times[spell_name] or 0
-                    local time_since_last_cast = current_time - last_cast_time
-                    if time_since_last_cast < internal_cooldown then
-                        -- Spell is still on internal cooldown, skip it
-                        goto continue
-                    end
+        -- Only process spells that are equipped (or bypass if debug enabled)
+        local spell_equipped = spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id]
+        local should_process = spell_equipped or (bypass_equipped and spell and spell_data[spell_name])
+        
+        if menu.menu_elements.enable_debug:get() and spell_data[spell_name] then
+            if not spell_equipped then
+                -- Only log once per second to avoid spam
+                if not _G.paladin_last_equip_debug or (current_time - _G.paladin_last_equip_debug) > 2.0 then
+                    dbg(spell_name .. " not equipped (spell_id: " .. tostring(spell_data[spell_name].spell_id) .. ")" .. (bypass_equipped and " [BYPASSED]" or ""))
                 end
-
-                -- Check any custom pre-conditions if defined
-                local should_cast = true
-                if params.custom_check ~= nil then
-                    should_cast = params.custom_check()
-                end
-
-                if should_cast then
-                    local args = params.args or {}
-                    local casting_target = best_target
-                    
-                    -- Melee range check with movement handling (like barb)
-                    local is_melee = params.classification == "melee"
-                    local spell_range = spell_ranges[spell_name] or (is_melee and melee_range or ranged_range)
-                    
-                    if is_melee and casting_target then
-                        local target_position = casting_target:get_position()
-                        local distance = player_position:dist_to(target_position)
-                        
-                        if distance > spell_range then
-                            -- Target is out of range for melee spell
-                            local manual_play_enabled = menu.menu_elements.manual_play:get()
-                            
-                            if manual_play_enabled then
-                                -- Manual play mode: skip spell and let user control movement
-                                if menu.menu_elements.melee_debug_mode:get() then
-                                    dbg(spell_name .. " skipped (Manual Play) - target distance: " .. string.format("%.2f", distance) .. " > " .. string.format("%.2f", spell_range))
-                                end
-                                goto continue
-                            else
-                                -- Auto movement mode: move towards the movement target
-                                if current_time >= next_move_time then
-                                    if pathfinder and pathfinder.request_move then
-                                        pathfinder.request_move(best_target_position)
-                                        next_move_time = current_time + 0.1  -- Prevent movement spam
-                                    end
-                                    
-                                    if menu.menu_elements.melee_debug_mode:get() then
-                                        dbg(spell_name .. " moving to target - distance: " .. string.format("%.2f", distance) .. " > " .. string.format("%.2f", spell_range))
-                                    end
-                                end
-                                -- Skip casting this out-of-range spell and check the next one
-                                goto continue
-                            end
-                        end
-                        
-                        if menu.menu_elements.melee_debug_mode:get() then
-                            dbg(spell_name .. " in range - distance: " .. string.format("%.2f", distance) .. " <= " .. string.format("%.2f", spell_range))
-                        end
-                    end
-                    
-                    -- Call spell's logics function with appropriate arguments
-                    local cast_successful = false
-                    local cooldown = 0.05  -- Default cooldown
-                    
-                    if #args == 0 then
-                        local result1, result2 = spell.logics(area_analysis)
-                        cast_successful = result1
-                        if result2 then cooldown = result2 end
-                    elseif #args == 1 then
-                        local result1, result2 = spell.logics(args[1], area_analysis)
-                        cast_successful = result1
-                        if result2 then cooldown = result2 end
-                    end
-
-                    if cast_successful then
-                        -- Use the returned cooldown or internal cooldown, whichever is larger
-                        local actual_cooldown = math.max(cooldown, internal_cooldown)
-                        cast_end_time = current_time + actual_cooldown
-                        -- Update internal cooldown tracking for this spell (like barb)
-                        spell_last_cast_times[spell_name] = current_time
-                        
-                        if menu.menu_elements.enable_debug:get() then
-                            dbg("Cast " .. spell_name .. " - setting cast_end_time for " .. string.format("%.2f", actual_cooldown) .. "s")
-                        end
-                        return
-                    end
-                end
-                
-                ::continue::
             end
+        end
+        
+        if should_process then
+            local params = spell_params[spell_name]
+            if not params then
+                if menu.menu_elements.enable_debug:get() then
+                    dbg(spell_name .. " has no params in spell_params table!")
+                end
+                goto continue
+            end
+            
+            -- Check internal cooldown for this spell
+            local internal_cooldown = spell_internal_cooldowns[spell_name] or 0
+            if internal_cooldown > 0 then
+                local last_cast_time = spell_last_cast_times[spell_name] or 0
+                local time_since_last_cast = current_time - last_cast_time
+                if time_since_last_cast < internal_cooldown then
+                    -- Spell is still on internal cooldown, skip it
+                    goto continue
+                end
+            end
+            
+            -- Call spell's logics function with appropriate arguments (like sorc pattern)
+            local args = params.args or {}
+            local cast_successful, cooldown
+            
+            if #args == 0 then
+                cast_successful, cooldown = spell.logics()
+            elseif #args == 1 then
+                cast_successful, cooldown = spell.logics(args[1])
+            else
+                cast_successful, cooldown = spell.logics(args[1], args[2])
+            end
+            
+            cooldown = cooldown or 0.1  -- Default cooldown if not returned
+
+            if cast_successful then
+                -- Set cast_end_time to a SHORT animation lock (like sorc/barb)
+                -- This prevents animation canceling, NOT spell rotation
+                -- The actual per-spell cooldown is handled by spell_last_cast_times
+                local animation_lock = cooldown or 0.05  -- Short animation lock
+                cast_end_time = current_time + animation_lock
+                
+                -- Update internal cooldown tracking for this spell
+                spell_last_cast_times[spell_name] = current_time
+                
+                if menu.menu_elements.enable_debug:get() then
+                    dbg("Cast " .. spell_name .. " - animation lock " .. string.format("%.2f", animation_lock) .. "s")
+                end
+                return
+            else
+                if menu.menu_elements.enable_debug:get() then
+                    -- Rate limit failed cast messages
+                    if not _G.paladin_last_fail_debug or not _G.paladin_last_fail_debug[spell_name] or (current_time - _G.paladin_last_fail_debug[spell_name]) > 1.0 then
+                        _G.paladin_last_fail_debug = _G.paladin_last_fail_debug or {}
+                        _G.paladin_last_fail_debug[spell_name] = current_time
+                        dbg(spell_name .. " logics returned false")
+                    end
+                end
+            end
+            
+            ::continue::
         end
     end
     
     -- Auto play engage far away monsters (like sorc)
     local is_auto_play = my_utility.is_auto_play_enabled()
     if is_auto_play and movement_target then
-        local is_dangerous_evade_position = evade and evade.is_dangerous_position and evade.is_dangerous_position(player_position)
-        if not is_dangerous_evade_position then
-            local movement_target_position = movement_target:get_position()
-            local move_pos = movement_target_position:get_extended(player_position, 3.0)
-            if pathfinder and pathfinder.request_move then
-                pathfinder.request_move(move_pos)
-            end
+        local movement_target_position = movement_target:get_position()
+        local move_pos = movement_target_position:get_extended(player_position, 3.0)
+        if pathfinder and pathfinder.request_move then
+            pathfinder.request_move(move_pos)
         end
     end
 end)

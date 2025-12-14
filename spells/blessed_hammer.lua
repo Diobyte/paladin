@@ -6,7 +6,7 @@ local menu_elements = {
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.1, get_hash("paladin_rotation_blessed_hammer_min_cd")),
     engage_range = slider_float:new(2.0, 25.0, 12.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),
-    min_enemies = slider_int:new(1, 15, 3, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
+    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_blessed_hammer_min_weight")),
@@ -32,30 +32,12 @@ local function menu()
     end
 end
 
-local function logics(best_target, area_analysis)
+local function logics()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
     if not is_logic_allowed then 
         return false, 0 
-    end
-
-    -- AoE Logic Check (like barb's hammer of ancients)
-    if area_analysis then
-        local enemy_type_filter = menu_elements.enemy_type_filter:get()
-        -- 0: All, 1: Elite+, 2: Boss
-        if enemy_type_filter == 2 and area_analysis.num_bosses == 0 then 
-            return false, 0 
-        end
-        if enemy_type_filter == 1 and (area_analysis.num_elites == 0 and area_analysis.num_champions == 0 and area_analysis.num_bosses == 0) then 
-            return false, 0 
-        end
-        
-        if menu_elements.use_minimum_weight:get() then
-            if area_analysis.total_target_count < menu_elements.minimum_weight:get() then
-                return false, 0
-            end
-        end
     end
 
     local player = get_local_player()
@@ -88,22 +70,11 @@ local function logics(best_target, area_analysis)
     local now = my_utility.safe_get_time()
     local cooldown = menu_elements.min_cooldown:get()
 
-    -- Try casting at self (AoE around player)
+    -- Cast at self (AoE spiral around player) - this is how Blessed Hammer works
     if cast_spell and type(cast_spell.self) == "function" then
         if cast_spell.self(spell_id, 0.0) then
             next_time_allowed_cast = now + cooldown
             return true, cooldown
-        end
-    end
-
-    -- Fallback to targeting
-    local target = best_target
-    if target and target:is_enemy() then
-        if cast_spell and type(cast_spell.target) == "function" then
-            if cast_spell.target(target, spell_id, 0.0, false) then
-                next_time_allowed_cast = now + cooldown
-                return true, cooldown
-            end
         end
     end
 

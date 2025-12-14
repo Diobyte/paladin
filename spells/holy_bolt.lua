@@ -42,7 +42,7 @@ local function menu()
     end
 end
 
-local function logics(best_target, area_analysis)
+local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
@@ -50,9 +50,7 @@ local function logics(best_target, area_analysis)
         return false, 0 
     end
 
-    local target = best_target
     if not target then
-        dbg("no target")
         return false, 0
     end
 
@@ -63,7 +61,6 @@ local function logics(best_target, area_analysis)
     end
 
     if not is_target_enemy then
-        dbg("target not enemy")
         return false, 0
     end
 
@@ -72,7 +69,6 @@ local function logics(best_target, area_analysis)
     if player_pos then
         local tpos = target:get_position()
         if not tpos then
-            dbg("target has no position")
             return false, 0
         end
     end

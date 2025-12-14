@@ -1,57 +1,54 @@
--- To modify spell priority, edit the spell_priority table below.
--- The table is sorted from highest priority to lowest priority.
--- The priority is used to determine which spell to cast when multiple spells are valid to cast.
+-- Paladin Rotation Priority - Hammerkuna Build (D4 Season 11)
 --
--- Paladin Rotation Logic (Season 11):
--- 1. Ultimate abilities - high damage, long cooldowns, save for big packs/elites
--- 2. Justice abilities - crowd control and burst damage
--- 3. Auras - maintained buffs, only recast when duration expires (handled by spell logic)
--- 4. Core damage - main damage output
--- 5. Gap closers - for engaging distant enemies
--- 6. Defensive - healing/damage reduction
--- 7. Basic attacks - resource generators/fillers
+-- HAMMERKUNA BUILD ROTATION:
+-- The core mechanic is SPAM Blessed Hammer constantly while weaving in other abilities.
+-- Blessed Hammer creates spiraling hammers around you that deal massive AoE damage.
+-- Falling Star provides mobility and burst AoE.
+-- Auras provide passive buffs (only recast when expired - handled by spell logic).
 --
--- Targeting Types (see spell_data.lua):
--- cast_spell.self()     - Self-cast spells (auras, AoE around player)
--- cast_spell.target()   - Direct target (melee, homing projectiles)
--- cast_spell.position() - Ground position (AoE, skillshots, charges)
+-- KEY INSIGHT: Unlike other builds where you prioritize cooldowns first,
+-- Hammerkuna wants to SPAM blessed_hammer as the primary damage dealer.
+-- Other spells should only cast when their conditions are met AND not block hammer spam.
 
 local spell_priority = {
-    -- Priority 1: Ultimate abilities (powerful cooldowns)
-    -- Judicator Ultimate
-    "arbiter_of_justice",   -- cast_spell.target() - seeking AoE damage
-    "heavens_fury",         -- cast_spell.self()   - AoE around player + seeking beams
-    -- Zealot Ultimate
-    "zenith",               -- cast_spell.self()   - melee AoE cleave + knockdown
+    -- Priority 1: Auras (buff maintenance)
+    -- These only cast when buff expires (handled in spell logic)
+    -- Check them first so buffs stay active
+    "fanaticism_aura",      -- Attack speed/damage buff
+    "defiance_aura",        -- Damage reduction buff  
+    "holy_light_aura",      -- Healing buff
     
-    -- Priority 2: Justice abilities (burst damage + crowd control)
-    "falling_star",         -- cast_spell.position() - leap AoE
-    "spear_of_the_heavens", -- cast_spell.position() - ranged AoE knockdown
-    "condemn",              -- cast_spell.self()   - pull enemies in + stun
+    -- Priority 2: Ultimate abilities (use when available on tough packs)
+    -- These have game-enforced cooldowns, so safe to check
+    "arbiter_of_justice",   -- Judicator Ultimate
+    "heavens_fury",         -- AoE around player + seeking beams
+    "zenith",               -- Zealot Ultimate - melee AoE cleave
     
-    -- Priority 3: Core damage skills
-    "divine_lance",         -- cast_spell.target() - melee impale
-    "blessed_hammer",       -- cast_spell.self()   - spiral AoE
-    "brandish",             -- cast_spell.target() - melee cleave
+    -- Priority 3: CORE SPAM SKILL - Blessed Hammer (THE MAIN SKILL)
+    -- This is the heart of Hammerkuna - spam constantly
+    "blessed_hammer",
+    "blessed_shield",       -- Alternative core: bouncing shield (requires shield)
     
-    -- Priority 4: Gap closers / Mobility (for engaging)
-    "shield_charge",        -- cast_spell.position() - channeled charge
-    "advance",              -- cast_spell.position() - lunge forward
-    "evade",                -- cast_spell.position() - dodge roll (defensive)
+    -- Priority 4: Mobility/Gap closer (use for engaging or repositioning)
+    "falling_star",         -- Leap AoE - main mobility skill
+    "shield_charge",        -- Charge through enemies
+    "advance",              -- Lunge forward
     
-    -- Priority 5: Defensive / Healing
-    "consecration",         -- cast_spell.self() - ground heal + damage
+    -- Priority 5: Burst abilities (use between hammer spam when available)
+    "spear_of_the_heavens", -- Ranged AoE knockdown
+    "condemn",              -- Pull enemies in + stun
+    "divine_lance",         -- Melee impale
+    "brandish",             -- Melee cleave
+    "consecration",         -- Ground heal + damage
     
-    -- Priority 6: Auras (buff maintenance - spell logic handles recast timing)
-    -- These will only cast when their duration is expiring
-    "fanaticism_aura",      -- cast_spell.self() - attack speed/damage buff
-    "defiance_aura",        -- cast_spell.self() - damage reduction buff
-    "holy_light_aura",      -- cast_spell.self() - healing buff
-    "rally",                -- cast_spell.self() - utility buff
+    -- Priority 6: Utility buffs
+    "rally",                -- Group buff
     
-    -- Priority 7: Basic attacks / Filler / Resource generator (lowest priority)
-    "zeal",                 -- cast_spell.target() - melee multi-strike (Faith generator)
-    "holy_bolt",            -- cast_spell.target() - ranged projectile (Faith generator)
+    -- Priority 7: Basic attacks / Resource generators (LAST RESORT)
+    -- Only use these if out of resource or nothing else available
+    "zeal",                 -- Melee multi-strike (Faith generator)
+    "clash",                -- Shield bash (Faith generator, requires shield)
+    "holy_bolt",            -- Ranged projectile (Faith generator)
 }
 
 return spell_priority

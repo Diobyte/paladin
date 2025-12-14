@@ -36,7 +36,7 @@ local function menu()
     end
 end
 
-local function logics(best_target, area_analysis)
+local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
@@ -44,7 +44,6 @@ local function logics(best_target, area_analysis)
         return false, 0 
     end
 
-    local target = best_target
     if not target or not target:is_enemy() then
         return false, 0
     end

@@ -45,6 +45,15 @@ local spell_data = {
         is_mobility = true,
         -- Targeting: cast_spell.position(spell_id, target_pos) - dashes to location
     },
+    clash = {
+        spell_id = 2097456,  -- Clash - Shield Bash basic skill
+        category = "basic",
+        cast_type = "target",    -- Melee shield bash at target
+        damage_type = "physical",
+        description = "Bash enemies with your shield, dealing 65% damage. Generates Faith. Requires shield.",
+        requires_shield = true,
+        -- Targeting: cast_spell.target(target, spell_id) - requires melee range
+    },
     
     -- =====================================================
     -- CORE SKILLS (Main Damage Spenders)
@@ -58,6 +67,16 @@ local spell_data = {
         faith_cost = 10,
         description = "Throw a Blessed Hammer that spirals out, 115% damage",
         -- Targeting: cast_spell.self(spell_id) - hammers spiral from player position
+    },
+    blessed_shield = {
+        spell_id = 2082021,  -- Blessed Shield - Bouncing shield throw
+        category = "core",
+        cast_type = "target",    -- Throw shield at target, bounces to others
+        damage_type = "holy",
+        faith_cost = 15,
+        description = "Throw your shield dealing 110% damage. Bounces between 3 enemies within 12 yards. Requires shield.",
+        requires_shield = true,
+        -- Targeting: cast_spell.target(target, spell_id) - ranged bouncing projectile
     },
     divine_lance = {
         spell_id = 2120228,  -- Verified: wowhead.com/diablo-4/skill/divine-lance-2120228
