@@ -327,9 +327,10 @@ end
 local function get_melee_range()
     local melee_range = 2
 
-    if is_buff_active(spell_data.ravager.spell_id, spell_data.ravager.buff_ids.dash) then
-        melee_range = 7
-    end
+    -- Paladin does not have a dash buff that increases melee range like Spiritborn's Ravager
+    -- if is_buff_active(spell_data.shield_charge.spell_id, spell_data.shield_charge.buff_ids.dash) then
+    --     melee_range = 7
+    -- end
 
     return melee_range
 end
@@ -383,7 +384,7 @@ local activation_filters = {
 local targeting_mode_description =
     "       Ranged Target: Targets the most valuable enemy within max range (set in settings)     \n" ..
     "       Ranged Target (in sight): Targets the most valuable visible enemy within max range     \n" ..
-    "       Melee Target: Targets the most valuable enemy within melee range (influenced by ravager buff)     \n" ..
+    "       Melee Target: Targets the most valuable enemy within melee range     \n" ..
     "       Melee Target (in sight): Targets the most valuable visible enemy within melee range     \n" ..
     "       Closest Target: Targets the closest enemy to the player      \n" ..
     "       Closest Target (in sight): Targets the closest visible enemy to the player      \n" ..

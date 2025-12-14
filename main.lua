@@ -100,6 +100,44 @@ local spells =
     purify = require("spells/purify"),
 }
 
+-- Targets
+local best_ranged_target = nil
+local best_ranged_target_visible = nil
+local best_melee_target = nil
+local best_melee_target_visible = nil
+local closest_target = nil
+local closest_target_visible = nil
+local best_cursor_target = nil
+local closest_cursor_target = nil
+local closest_cursor_target_angle = 0
+-- Targetting scores
+local ranged_max_score = 0
+local ranged_max_score_visible = 0
+local melee_max_score = 0
+local melee_max_score_visible = 0
+local cursor_max_score = 0
+
+-- Targetting settings
+local max_targeting_range = menu.menu_elements.max_targeting_range:get()
+local collision_table = { true, 1 } -- collision width
+local floor_table = { true, 5.0 }   -- floor height
+local angle_table = { false, 90.0 } -- max angle
+
+-- Cache for heavy function results
+local next_target_update_time = 0.0 -- Time of next target evaluation
+local next_cast_time = 0.0          -- Time of next possible cast
+local targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
+
+-- Default enemy weights for different enemy types
+local normal_monster_value = 2
+local elite_value = 10
+local champion_value = 15
+local boss_value = 50
+local damage_resistance_value = 25
+
+local target_selector_data_all = nil
+local target_selector_data_visible = nil
+
 safe_on_render_menu(function()
     if not menu.menu_elements.main_tree:push("Paladin [Dirty] v1.5.6") then
         return;
@@ -205,126 +243,6 @@ safe_on_render_menu(function()
 
     menu.menu_elements.main_tree:pop();
 end)
-
-local function use_ability(spell_name, delay_after_cast)
-    local spell = spells[spell_name]
-    if not (spell and spell.menu_elements.main_boolean:get()) then
-        return false
-    end
-
-    local target_unit = nil
-    if spell.menu_elements.targeting_mode then
-        local targeting_mode = spell.menu_elements.targeting_mode:get()
-        target_unit = ({
-            [0] = best_ranged_target,
-            [1] = best_ranged_target_visible,
-            [2] = best_melee_target,
-            [3] = best_melee_target_visible,
-            [4] = closest_target,
-            [5] = closest_target_visible,
-            [6] = best_cursor_target,
-            [7] = closest_cursor_target
-        })[targeting_mode]
-    end
-
-    --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
-    if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
-        next_cast_time = get_time_since_inject() + delay_after_cast
-        return true
-    end
-
-    return false
-end
-
-safe_on_update(function()
-    local current_time = get_time_since_inject()
-    local local_player = get_local_player()
-    if not local_player or menu.menu_elements.main_boolean:get() == false or current_time < next_cast_time then
-        return
-    end
-
-    if not my_utility.is_action_allowed() then
-        return;
-    end
-
-    -- Update targets if needed
-    if current_time >= next_target_update_time then
-        update_targets()
-        next_target_update_time = current_time + targeting_refresh_interval
-    end
-
-    -- Get the best target based on current orbwalker mode
-    local best_target = nil
-    if orbwalker.get_orb_mode() == orb_mode.pvp then
-        best_target = best_ranged_target
-    elseif orbwalker.get_orb_mode() == orb_mode.clear then
-        best_target = best_melee_target
-    elseif orbwalker.get_orb_mode() == orb_mode.flee then
-        best_target = closest_target
-    end
-
-    if not best_target then
-        return
-    end
-
-    -- Cast spells in priority order
-    for _, spell_name in ipairs(spell_priority) do
-        local spell = spells[spell_name]
-        if spell then
-            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
-                return
-            end
-        end
-    end
-end)
-
--- Targets
-local best_ranged_target = nil
-local best_ranged_target_visible = nil
-local best_melee_target = nil
-local best_melee_target_visible = nil
-local closest_target = nil
-local closest_target_visible = nil
-local best_cursor_target = nil
-local closest_cursor_target = nil
-local closest_cursor_target_angle = 0
--- Targetting scores
-local ranged_max_score = 0
-local ranged_max_score_visible = 0
-local melee_max_score = 0
-local melee_max_score_visible = 0
-local cursor_max_score = 0
-
--- Targetting settings
-local max_targeting_range = menu.menu_elements.max_targeting_range:get()
-local collision_table = { true, 1 } -- collision width
-local floor_table = { true, 5.0 }   -- floor height
-local angle_table = { false, 90.0 } -- max angle
-
--- Cache for heavy function results
-local next_target_update_time = 0.0 -- Time of next target evaluation
-local next_cast_time = 0.0          -- Time of next possible cast
-local targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
-
--- Default enemy weights for different enemy types
-local normal_monster_value = 2
-local elite_value = 10
-local champion_value = 15
-local boss_value = 50
-local damage_resistance_value = 25
-
-local target_selector_data_all = nil
-
-local function update_targets()
-    -- Get all enemies
-    target_selector_data_all = actors_manager.get_enemy_npcs()
-    
-    -- Evaluate targets
-    best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score, melee_max_score, cursor_max_score, closest_cursor_target_angle = evaluate_targets(target_selector_data_all, 5.0) -- melee range 5.0
-    
-    -- Also set closest_target
-    closest_target = my_target_selector.get_target_closer(get_player_position(), max_targeting_range)
-end
 
 local function evaluate_targets(target_list, melee_range)
     local best_ranged_target = nil
@@ -433,6 +351,105 @@ local function evaluate_targets(target_list, melee_range)
     return best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score,
         melee_max_score, cursor_max_score, closest_cursor_target_angle
 end
+
+safe_on_update(function()
+    local current_time = get_time_since_inject()
+    local local_player = get_local_player()
+    if not local_player or menu.menu_elements.main_boolean:get() == false or current_time < next_cast_time then
+        return
+    end
+
+    if not my_utility.is_action_allowed() then
+        return;
+    end
+
+    -- Out of combat evade
+    if spells.evade and spells.evade.menu_elements.use_out_of_combat:get() then
+        spells.evade.out_of_combat()
+    end
+
+    targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
+    -- Only update targets if targeting_refresh_interval has expired
+    if current_time >= next_target_update_time then
+        local player_position = get_player_position()
+        max_targeting_range = menu.menu_elements.max_targeting_range:get()
+
+        local entity_list_visible, entity_list = my_target_selector.get_target_list(
+            player_position,
+            max_targeting_range,
+            collision_table,
+            floor_table,
+            angle_table)
+
+        target_selector_data_all = my_target_selector.get_target_selector_data(
+            player_position,
+            entity_list)
+
+        target_selector_data_visible = my_target_selector.get_target_selector_data(
+            player_position,
+            entity_list_visible)
+
+        if not target_selector_data_all or not target_selector_data_all.is_valid then
+            return
+        end
+
+        -- Reset targets
+        best_ranged_target = nil
+        best_melee_target = nil
+        closest_target = nil
+        best_ranged_target_visible = nil
+        best_melee_target_visible = nil
+        closest_target_visible = nil
+        best_cursor_target = nil
+        closest_cursor_target = nil
+        closest_cursor_target_angle = 0
+        local melee_range = my_utility.get_melee_range()
+
+        -- Update enemy weights, use custom weights if enabled
+        if menu.menu_elements.custom_enemy_weights:get() then
+            normal_monster_value = menu.menu_elements.enemy_weight_normal:get()
+            elite_value = menu.menu_elements.enemy_weight_elite:get()
+            champion_value = menu.menu_elements.enemy_weight_champion:get()
+            boss_value = menu.menu_elements.enemy_weight_boss:get()
+            damage_resistance_value = menu.menu_elements.enemy_weight_damage_resistance:get()
+        else
+            normal_monster_value = 2
+            elite_value = 10
+            champion_value = 15
+            boss_value = 50
+            damage_resistance_value = 25
+        end
+
+        -- Check all targets within max range
+        if target_selector_data_all and target_selector_data_all.is_valid then
+            best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score, melee_max_score, cursor_max_score, closest_cursor_target_angle = evaluate_targets(
+                target_selector_data_all.list,
+                melee_range)
+            closest_target = target_selector_data_all.closest_unit
+        end
+
+        -- Check visible targets within max range
+        if target_selector_data_visible and target_selector_data_visible.is_valid then
+            best_ranged_target_visible, best_melee_target_visible, _, _, ranged_max_score_visible, melee_max_score_visible, _ = evaluate_targets(
+                target_selector_data_visible.list,
+                melee_range)
+            closest_target_visible = target_selector_data_visible.closest_unit
+        end
+
+        -- Update next target update time
+        next_target_update_time = current_time + targeting_refresh_interval
+    end
+
+    -- Ability usage - uses spell_priority to determine the order of spells
+    for _, spell_name in ipairs(spell_priority) do
+        local spell = spells[spell_name]
+        if spell then
+            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+                return
+            end
+        end
+    end
+end)
 
 local function use_ability(spell_name, delay_after_cast)
     local spell = spells[spell_name]
