@@ -1149,8 +1149,13 @@ local function get_best_targets(source, melee_range, max_range, cursor_pos, weig
     targets.best_cursor = get_best(cursor_candidates, false)
     
     -- Fallbacks
-    if not targets.best_melee then targets.best_melee = targets.best_ranged or targets.closest end
-    if not targets.best_melee_visible then targets.best_melee_visible = targets.best_ranged_visible or targets.closest_visible end
+    if not targets.best_melee then 
+        -- Prefer visible ranged, then any ranged, then visible closest, then closest
+        targets.best_melee = targets.best_ranged_visible or targets.best_ranged or targets.closest_visible or targets.closest 
+    end
+    if not targets.best_melee_visible then 
+        targets.best_melee_visible = targets.best_ranged_visible or targets.closest_visible 
+    end
     
     return targets
 end

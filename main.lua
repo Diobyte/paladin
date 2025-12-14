@@ -122,6 +122,13 @@ local function safe_on_update(cb)
     return false
 end
 
+local function safe_on_render(cb)
+    if type(on_render) == "function" then
+        return on_render(cb)
+    end
+    return false
+end
+
 local spells = {
     -- Basic Skills (Resource Generators)
     holy_bolt = require("spells/holy_bolt"),
@@ -539,10 +546,10 @@ safe_on_update(function()
     -- Perform class check once when player is available
     if not is_paladin_checked then
         local character_id = player:get_character_class_id() or -1
-        -- Paladin/Spiritborn is class ID 7
-        is_paladin_class = (character_id == 7)
+        -- Paladin/Spiritborn is class ID 7 or 9
+        is_paladin_class = (character_id == 7 or character_id == 9)
         if not is_paladin_class and console and console.print then
-            console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7); continuing load for debugging")
+            console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7 or 9); continuing load for debugging")
         end
         is_paladin_checked = true
     end
@@ -571,6 +578,10 @@ safe_on_update(function()
         if targets_cache.melee_range ~= melee_range or targets_cache.scan_radius ~= scan_radius then
             should_refresh_targets = true
         end
+        -- Invalidate cache if player moved significantly (> 2 units)
+        if targets_cache.player_pos and player_position:dist_to(targets_cache.player_pos) > 2.0 then
+            should_refresh_targets = true
+        end
     end
 
     if should_refresh_targets then
@@ -578,6 +589,7 @@ safe_on_update(function()
         targets_cache.time = current_time
         targets_cache.melee_range = melee_range
         targets_cache.scan_radius = scan_radius
+        targets_cache.player_pos = player_position
         
         -- Update global valid enemies list for other modules to use
         if targets_cache.data and targets_cache.data.valid_enemies then
