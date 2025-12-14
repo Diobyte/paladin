@@ -119,11 +119,6 @@ local function logics()
     if debug_enabled then console.print("[CONDEMN DEBUG] Cast failed") end
     return false, 0
 end
-        return true
-    end
-
-    return false
-end
 
 return {
     menu = menu,
