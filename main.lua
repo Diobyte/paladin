@@ -575,26 +575,27 @@ safe_on_update(function()
     local boss_or_elite_focus = best_target ~= nil and (is_boss or is_champion or (treat_elite_as_boss and is_elite))
 
     -- Perform area analysis once per update for AoE spell conditions
-    local normal_target_count, elite_target_count, champion_target_count, boss_target_count
+    -- Note: Reuse target count values from weighted targeting block above if available
+    local area_normal_count, area_elite_count, area_champion_count, area_boss_count
     if menu.menu_elements.custom_enemy_sliders_enabled:get() then
-        normal_target_count = menu.menu_elements.normal_target_count:get()
-        elite_target_count = menu.menu_elements.elite_target_count:get()
-        champion_target_count = menu.menu_elements.champion_target_count:get()
-        boss_target_count = menu.menu_elements.boss_target_count:get()
+        area_normal_count = menu.menu_elements.normal_target_count:get()
+        area_elite_count = menu.menu_elements.elite_target_count:get()
+        area_champion_count = menu.menu_elements.champion_target_count:get()
+        area_boss_count = menu.menu_elements.boss_target_count:get()
     else
-        normal_target_count = 1
-        elite_target_count = 5
-        champion_target_count = 5
-        boss_target_count = 5
+        area_normal_count = 1
+        area_elite_count = 5
+        area_champion_count = 5
+        area_boss_count = 5
     end
     
     local area_analysis = my_target_selector.analyze_target_area(
         player_position,
         menu.menu_elements.scan_radius:get(),
-        normal_target_count,
-        elite_target_count,
-        champion_target_count,
-        boss_target_count
+        area_normal_count,
+        area_elite_count,
+        area_champion_count,
+        area_boss_count
     )
 
     -- Helper function to check AoE conditions for buff/debuff spells

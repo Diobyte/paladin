@@ -89,17 +89,9 @@ local function logics(target)
     local now = my_utility.safe_get_time()
     local cooldown = menu_elements.min_cooldown:get()
 
-    -- Advance lunges to target position
+    -- Advance lunges to target position (position-type spell per spell_data.lua)
     if cast_spell and type(cast_spell.position) == "function" then
         if cast_spell.position(spell_id, target_pos, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
-    end
-    
-    -- Fallback to target cast
-    if cast_spell and type(cast_spell.target) == "function" then
-        if cast_spell.target(target, spell_id, 0.0, false) then
             next_time_allowed_cast = now + cooldown
             return true, cooldown
         end

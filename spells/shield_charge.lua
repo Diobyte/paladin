@@ -57,13 +57,18 @@ local function logics(target)
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     -- 0: All, 1: Elite+, 2: Boss
     if enemy_type_filter == 2 then
-        -- Boss only - check if target is boss
-        if not target:is_boss() then
+        -- Boss only - check if target is boss (with pcall protection)
+        local ok_boss, is_boss = pcall(function() return target:is_boss() end)
+        if not (ok_boss and is_boss) then
             return false, 0
         end
     elseif enemy_type_filter == 1 then
-        -- Elite+ - check if target is elite, champion, or boss
-        if not (target:is_elite() or target:is_champion() or target:is_boss()) then
+        -- Elite+ - check if target is elite, champion, or boss (with pcall protection)
+        local ok_elite, is_elite = pcall(function() return target:is_elite() end)
+        local ok_champ, is_champ = pcall(function() return target:is_champion() end)
+        local ok_boss, is_boss = pcall(function() return target:is_boss() end)
+        local is_priority = (ok_elite and is_elite) or (ok_champ and is_champ) or (ok_boss and is_boss)
+        if not is_priority then
             return false, 0
         end
     end

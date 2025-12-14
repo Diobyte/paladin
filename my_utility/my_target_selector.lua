@@ -110,7 +110,8 @@ local function get_target_selector_data(source, list)
     local highest_max_health_boss = {};
     local highest_max_health_boss_health = 0.0;
 
-    local weighted_target = {};
+    local weighted_target = nil;
+    local weighted_target_score = -math.huge;
 
     for _, unit in ipairs(possible_targets_list) do
         local unit_position = unit:get_position()
@@ -122,15 +123,39 @@ local function get_target_selector_data(source, list)
 
         -- update units data
         is_valid = true;  -- Mark as valid since we have at least one unit
-        if unit_position:dist_to(cursor_pos) <= 1 then
+        
+        -- Cursor priority: prefer targets very close to cursor, then use distance
+        local cursor_dist = unit_position:dist_to(cursor_pos)
+        if cursor_dist <= 1 then
+            -- Very close to cursor - highest priority
+            closest_unit = unit;
+            closest_unit_distance = distance_sqr;
+        elseif cursor_dist < 2 and closest_unit_distance > 4 then
+            -- Near cursor and current closest is far - take cursor target
             closest_unit = unit;
             closest_unit_distance = distance_sqr;
         elseif distance_sqr < closest_unit_distance then
             closest_unit = unit;
             closest_unit_distance = distance_sqr;
-        elseif unit_position:dist_to(cursor_pos) < 2 then
-            closest_unit = unit;
-            closest_unit_distance = distance_sqr;
+        end
+        
+        -- Calculate weighted score for this unit (boss > champion > elite > normal)
+        local unit_score = 0
+        if unit:is_boss() then
+            unit_score = 5000
+        elseif unit:is_champion() then
+            unit_score = 2500
+        elseif unit:is_elite() then
+            unit_score = 1000
+        else
+            unit_score = 100
+        end
+        -- Distance penalty (closer is better)
+        unit_score = unit_score - (distance_sqr * 0.01)
+        
+        if unit_score > weighted_target_score then
+            weighted_target = unit
+            weighted_target_score = unit_score
         end
 
         if current_health < lowest_current_health_unit_health then
