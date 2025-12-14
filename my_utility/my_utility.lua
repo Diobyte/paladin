@@ -132,6 +132,13 @@ local function clear_move_state()
     current_move_target_id = nil
 end
 
+-- Check if movement was requested recently (to prevent overriding spell movement)
+local function was_movement_requested_recently(threshold)
+    threshold = threshold or 0.1
+    local current_time = safe_get_time()
+    return (current_time - last_move_time) < threshold
+end
+
 local evaluation_range_description = "\n      Range to check for enemies around the player      \n\n"
 
 local targeting_mode_description =
@@ -796,6 +803,7 @@ local my_utility = {
     move_to_target = move_to_target,
     is_stuck = is_stuck,
     clear_move_state = clear_move_state,
+    was_movement_requested_recently = was_movement_requested_recently,
     -- Buff utilities (like Spiritborn script)
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,

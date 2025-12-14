@@ -951,7 +951,6 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
             console.print("[WEIGHTED TARGET DEBUG] FAILED: No valid clusters after filtering")
             console.print("[WEIGHTED TARGET DEBUG] === TARGET SELECTION FAILED ===")
         end
-    end
     
     -- Validate cached target before returning (can die/move between refreshes)
     if cached_weighted_target and not is_cached_target_valid(cached_weighted_target, source_pos, scan_radius) then

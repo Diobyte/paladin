@@ -823,7 +823,8 @@ safe_on_update(function()
     
     -- MOVEMENT HANDLING: Auto Play / Botting Support
     -- If auto-play is enabled and we haven't cast a spell (and aren't in danger), move to target
-    if my_utility.is_auto_play_enabled() then
+    -- CRITICAL FIX: Check if a spell already requested movement (e.g. Zeal out of range) to prevent override
+    if my_utility.is_auto_play_enabled() and not my_utility.was_movement_requested_recently(0.1) then
         local player_pos = player:get_position()
         local is_dangerous = false
         if evade and evade.is_dangerous_position then
