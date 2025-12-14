@@ -9,6 +9,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_clash_enabled")),
+    targeting_mode = combo_box:new(4, get_hash("paladin_rotation_clash_targeting_mode")),  -- Default: 4 = Closest Target
     min_cooldown = slider_float:new(0.0, 1.0, 0.08, get_hash("paladin_rotation_clash_min_cd")),  -- Fast generator
     resource_threshold = slider_int:new(0, 100, 30, get_hash("paladin_rotation_clash_resource_threshold")),  -- Only gen when Faith below 30%
 }
@@ -23,6 +24,7 @@ local function menu()
     if menu_elements.tree_tab:push("Clash") then
         menu_elements.main_boolean:render("Enable", "Basic Generator - 115% damage (Generate 20 Faith)")
         if menu_elements.main_boolean:get() then
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "Minimum time between casts", 2)
             menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (lower = more spender uptime)")
         end

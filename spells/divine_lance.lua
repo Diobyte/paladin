@@ -9,6 +9,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_divine_lance_enabled")),
+    targeting_mode = combo_box:new(4, get_hash("paladin_rotation_divine_lance_targeting_mode")),  -- Default: 4 = Closest Target
     min_cooldown = slider_float:new(0.0, 5.0, 0.15, get_hash("paladin_rotation_divine_lance_min_cd")),  -- Fast spender
     cast_range = slider_float:new(3.0, 10.0, 5.0, get_hash("paladin_rotation_divine_lance_cast_range")),  -- Melee impale range
     min_resource = slider_int:new(0, 100, 20, get_hash("paladin_rotation_divine_lance_min_resource")),  -- Only need some Faith
@@ -24,6 +25,7 @@ local function menu()
     if menu_elements.tree_tab:push("Divine Lance") then
         menu_elements.main_boolean:render("Enable", "Core Skill - Stab 2x for 90% each (Faith Cost: 25)")
         if menu_elements.main_boolean:get() then
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.cast_range:render("Cast Range", "Range to cast impale", 1)
             menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this %")

@@ -20,15 +20,18 @@ local horde_objectives = {
     "BSK_skeleton_boss"
 }
 
--- Targeting modes for flexible target selection (like Druid script)
--- Each spell can specify which targeting mode to use
+-- Targeting modes for flexible target selection (matching Druid script exactly)
+-- Each spell can specify which targeting mode to use via menu combo_box
+-- The main.lua evaluates ALL these target types and passes the correct one based on spell's mode
 local targeting_modes = {
-    "Weighted Target",           -- 0: Use weighted targeting system (boss > elite > champion > normal)
-    "Closest Target",            -- 1: Target closest enemy
-    "Lowest Health Target",      -- 2: Target with lowest current HP
-    "Highest Health Target",     -- 3: Target with highest current HP  
-    "Cursor Target",             -- 4: Target closest to cursor
-    "Best Cluster Target",       -- 5: Target in best cluster for AoE
+    "Ranged Target",              -- 0: Best weighted target for ranged spells (10+ range)
+    "Ranged Target (in sight)",   -- 1: Same as 0 but with visibility/collision check
+    "Melee Target",               -- 2: Best weighted target for melee spells (melee range)
+    "Melee Target (in sight)",    -- 3: Same as 2 but with visibility check
+    "Closest Target",             -- 4: Closest enemy by distance
+    "Closest Target (in sight)",  -- 5: Closest with visibility check
+    "Best Cursor Target",         -- 6: Best weighted target near cursor
+    "Closest Cursor Target",      -- 7: Closest enemy to cursor position
 }
 
 -- Activation filters for offensive skills (like Druid script)
@@ -48,12 +51,14 @@ local spell_delays = {
 local evaluation_range_description = "\n      Range to check for enemies around the player      \n\n"
 
 local targeting_mode_description =
-    "       Weighted Target: Targets the most valuable enemy based on type and weights     \n" ..
-    "       Closest Target: Targets the closest enemy to the player      \n" ..
-    "       Lowest Health Target: Targets the enemy with lowest HP      \n" ..
-    "       Highest Health Target: Targets the enemy with highest HP      \n" ..
-    "       Cursor Target: Targets the enemy nearest to the cursor      \n" ..
-    "       Best Cluster Target: Targets the best cluster for AoE      \n"
+    "       Ranged Target: Best weighted target for ranged spells      \n" ..
+    "       Ranged Target (in sight): Ranged with visibility check      \n" ..
+    "       Melee Target: Best weighted target for melee spells      \n" ..
+    "       Melee Target (in sight): Melee with visibility check      \n" ..
+    "       Closest Target: Target closest enemy by distance (fixes group targeting!)      \n" ..
+    "       Closest Target (in sight): Closest with visibility check      \n" ..
+    "       Best Cursor Target: Best weighted target near cursor      \n" ..
+    "       Closest Cursor Target: Closest enemy to cursor position      \n"
 
 local function safe_get_time()
     if type(get_time_since_inject) == "function" then
@@ -464,9 +469,30 @@ local function enemy_count_by_type(radius, origin)
     return all_count, normal_count, elite_count, champion_count, boss_count
 end
 
--- Get target based on targeting mode
--- mode: 0=weighted, 1=closest, 2=lowest_hp, 3=highest_hp, 4=cursor, 5=cluster
-local function get_target_by_mode(mode, range, weighted_target)
+-- Get target based on targeting mode (matching Druid's 8-mode system)
+-- mode: 0=ranged, 1=ranged_visible, 2=melee, 3=melee_visible, 4=closest, 5=closest_visible, 6=best_cursor, 7=closest_cursor
+-- This function is called from main.lua with pre-evaluated targets for efficiency
+local function get_target_by_mode(mode, targets)
+    -- targets is a table with pre-evaluated targets from main.lua:
+    -- {best_ranged, best_ranged_visible, best_melee, best_melee_visible, closest, closest_visible, best_cursor, closest_cursor}
+    if not targets then return nil end
+    
+    if mode == 0 then return targets.best_ranged end
+    if mode == 1 then return targets.best_ranged_visible end
+    if mode == 2 then return targets.best_melee end
+    if mode == 3 then return targets.best_melee_visible end
+    if mode == 4 then return targets.closest end
+    if mode == 5 then return targets.closest_visible end
+    if mode == 6 then return targets.best_cursor end
+    if mode == 7 then return targets.closest_cursor end
+    
+    -- Default to closest for safety
+    return targets.closest or targets.best_melee
+end
+
+-- Legacy function for backward compatibility - evaluates targets on-demand
+-- Use get_target_by_mode with pre-evaluated targets for better performance
+local function get_target_by_mode_legacy(mode, range, weighted_target)
     local player_pos = get_player_position and get_player_position() or nil
     if not player_pos then return nil end
     
@@ -601,9 +627,10 @@ local my_utility = {
     get_best_point = get_best_point,
     should_pop_cds = should_pop_cds,
     horde_objectives = horde_objectives,
-    -- Targeting modes (like Druid script)
+    -- Targeting modes (like Druid script - 8 modes)
     targeting_modes = targeting_modes,
     get_target_by_mode = get_target_by_mode,
+    get_target_by_mode_legacy = get_target_by_mode_legacy,  -- For backward compatibility
     enemy_count_by_type = enemy_count_by_type,
     -- Movement utilities (like Druid script)
     get_melee_range = get_melee_range,

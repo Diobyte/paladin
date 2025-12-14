@@ -10,6 +10,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_shield_enabled")),
+    targeting_mode = combo_box:new(4, get_hash("paladin_rotation_blessed_shield_targeting_mode")),  -- Default: 4 = Closest Target (prevents "freaking out")
     min_cooldown = slider_float:new(0.0, 1.0, 0.15, get_hash("paladin_rotation_blessed_shield_min_cd")),  -- Fast for shield builds
     cast_range = slider_float:new(3.0, 10.0, 6.0, get_hash("paladin_rotation_blessed_shield_cast_range")),
     min_resource = slider_int:new(0, 100, 25, get_hash("paladin_rotation_blessed_shield_min_resource")),  -- Lower threshold for more spam
@@ -29,6 +30,7 @@ local function menu()
     if menu_elements.tree_tab:push("Blessed Shield") then
         menu_elements.main_boolean:render("Enable", "Extended melee skill (5.5-6.0 range), ricochets 3x (Faith Cost: 28)")
         if menu_elements.main_boolean:get() then
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "Minimum time between casts", 2)
             menu_elements.cast_range:render("Cast Range", "Must be within this range to cast (extended melee)", 1)
             menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this %")

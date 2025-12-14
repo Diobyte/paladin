@@ -9,6 +9,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_brandish_enabled")),
+    targeting_mode = combo_box:new(4, get_hash("paladin_rotation_brandish_targeting_mode")),  -- Default: 4 = Closest Target
     min_cooldown = slider_float:new(0.0, 5.0, 0.08, get_hash("paladin_rotation_brandish_min_cd")),  -- Fast backup generator
     resource_threshold = slider_int:new(0, 100, 25, get_hash("paladin_rotation_brandish_resource_threshold")),  -- Only when Faith very low (backup)
 }
@@ -22,6 +23,7 @@ local function menu()
     if menu_elements.tree_tab:push("Brandish") then
         menu_elements.main_boolean:render("Enable", "Basic Generator - Arc for 75% (Generate 14 Faith)")
         if menu_elements.main_boolean:get() then
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (backup generator)")
         end

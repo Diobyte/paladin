@@ -10,6 +10,7 @@ local menu_module = require("menu")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_holy_bolt_enabled")),
+    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_holy_bolt_targeting_mode")),  -- Default: 0 = Ranged Target
     min_cooldown = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_holy_bolt_min_cd")),
     cast_range = slider_float:new(5.0, 20.0, 12.0, get_hash("paladin_rotation_holy_bolt_cast_range")),  -- Ranged projectile
     use_for_judgement = checkbox:new(false, get_hash("paladin_rotation_holy_bolt_judgement_mode")),
@@ -43,11 +44,12 @@ local function menu()
     if menu_elements.tree_tab:push("Holy Bolt") then
         menu_elements.main_boolean:render("Enable", "Basic Generator - Throw hammer for 90% (Generate 16 Faith)")
         if menu_elements.main_boolean:get() then
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.cast_range:render("Cast Range", "Maximum distance to target for casting", 1)
             menu_elements.use_for_judgement:render("Judgement Build (Captain America)", "Always use to apply Judgement before Blessed Shield (ignore resource threshold)")
             if not menu_elements.use_for_judgement:get() then
-                menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (set 0 for always)")
+                menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (set 0 for always)"))
             end
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
         end

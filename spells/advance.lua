@@ -9,6 +9,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_advance_enabled")),
+    targeting_mode = combo_box:new(4, get_hash("paladin_rotation_advance_targeting_mode")),  -- Default: 4 = Closest Target
     min_cooldown = slider_float:new(0.0, 2.0, 0.12, get_hash("paladin_rotation_advance_min_cd")),  -- Fast mobility
     min_range = slider_float:new(2.0, 10.0, 5.0, get_hash("paladin_rotation_advance_min_range")),  -- Slightly increased for gap close
     max_range = slider_float:new(5.0, 20.0, 12.0, get_hash("paladin_rotation_advance_max_range")),
@@ -24,6 +25,7 @@ local function menu()
     if menu_elements.tree_tab:push("Advance") then
         menu_elements.main_boolean:render("Enable", "Basic Mobility - Lunge for 105% (Generate 18 Faith)")
         if menu_elements.main_boolean:get() then
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.min_range:render("Min Range", "Minimum distance to lunge", 1)
             menu_elements.max_range:render("Max Range", "Maximum distance to lunge", 1)

@@ -206,6 +206,167 @@ local function get_best_target(max_range, cluster_radius, prefer_elites)
     return best, count, has_boss_like
 end
 
+-- Evaluate all target types for the Druid-style per-spell targeting system
+-- This runs once per update tick and returns all possible targets
+-- Spells then pick the appropriate target based on their targeting_mode setting
+local function evaluate_all_targets(player_pos, melee_range, max_range)
+    local enemies = actors_manager.get_enemy_npcs()
+    
+    -- Result table with all target types
+    local targets = {
+        best_ranged = nil,           -- 0: Best weighted for ranged
+        best_ranged_visible = nil,   -- 1: Same with visibility check
+        best_melee = nil,            -- 2: Best weighted for melee
+        best_melee_visible = nil,    -- 3: Same with visibility check
+        closest = nil,               -- 4: Closest by distance
+        closest_visible = nil,       -- 5: Closest with visibility check
+        best_cursor = nil,           -- 6: Best weighted near cursor
+        closest_cursor = nil,        -- 7: Closest to cursor
+    }
+    
+    local melee_range_sqr = melee_range * melee_range
+    local max_range_sqr = max_range * max_range
+    local cursor_pos = get_cursor_position()
+    local cursor_range_sqr = 10.0 * 10.0  -- 10 unit radius around cursor
+    
+    -- Collect valid enemies with scoring data
+    local melee_candidates = {}
+    local ranged_candidates = {}
+    local cursor_candidates = {}
+    local closest_dist = math.huge
+    local closest_unit = nil
+    local closest_visible_dist = math.huge
+    local closest_visible_unit = nil
+    
+    for _, e in ipairs(enemies) do
+        if e and e:is_enemy() then
+            -- Filter out invalid targets
+            if e:is_dead() or e:is_immune() or e:is_untargetable() then
+                goto continue_enemy
+            end
+            
+            local pos = e:get_position()
+            if not pos then goto continue_enemy end
+            
+            local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
+            
+            -- Check visibility (no wall collision)
+            local is_visible = true
+            if target_selector and target_selector.is_wall_collision then
+                is_visible = not target_selector.is_wall_collision(player_pos, e, 1.0)
+            end
+            
+            -- Calculate base score for weighted targeting
+            local score = 0
+            if e:is_boss() then
+                score = score + 5000
+            elseif e:is_champion() then
+                score = score + 2500
+            elseif e:is_elite() then
+                score = score + 1000
+            end
+            -- Distance penalty (slight)
+            score = score - (dist_sqr * 0.01)
+            
+            -- Track closest targets
+            if dist_sqr < closest_dist then
+                closest_dist = dist_sqr
+                closest_unit = e
+            end
+            if is_visible and dist_sqr < closest_visible_dist then
+                closest_visible_dist = dist_sqr
+                closest_visible_unit = e
+            end
+            
+            -- Categorize by range
+            if dist_sqr <= melee_range_sqr then
+                table.insert(melee_candidates, {unit = e, score = score, visible = is_visible})
+            end
+            if dist_sqr <= max_range_sqr then
+                table.insert(ranged_candidates, {unit = e, score = score, visible = is_visible})
+            end
+            
+            -- Cursor-based candidates
+            if cursor_pos then
+                local cursor_dist_sqr = pos:squared_dist_to_ignore_z(cursor_pos)
+                if cursor_dist_sqr <= cursor_range_sqr then
+                    table.insert(cursor_candidates, {unit = e, score = score, cursor_dist = cursor_dist_sqr})
+                end
+            end
+            
+            ::continue_enemy::
+        end
+    end
+    
+    -- Set closest targets (modes 4, 5)
+    targets.closest = closest_unit
+    targets.closest_visible = closest_visible_unit
+    
+    -- Find best melee targets (modes 2, 3)
+    local best_melee_score = -math.huge
+    local best_melee_visible_score = -math.huge
+    for _, c in ipairs(melee_candidates) do
+        if c.score > best_melee_score then
+            best_melee_score = c.score
+            targets.best_melee = c.unit
+        end
+        if c.visible and c.score > best_melee_visible_score then
+            best_melee_visible_score = c.score
+            targets.best_melee_visible = c.unit
+        end
+    end
+    
+    -- Find best ranged targets (modes 0, 1)
+    local best_ranged_score = -math.huge
+    local best_ranged_visible_score = -math.huge
+    for _, c in ipairs(ranged_candidates) do
+        if c.score > best_ranged_score then
+            best_ranged_score = c.score
+            targets.best_ranged = c.unit
+        end
+        if c.visible and c.score > best_ranged_visible_score then
+            best_ranged_visible_score = c.score
+            targets.best_ranged_visible = c.unit
+        end
+    end
+    
+    -- Find cursor targets (modes 6, 7)
+    local best_cursor_score = -math.huge
+    local closest_cursor_dist = math.huge
+    for _, c in ipairs(cursor_candidates) do
+        if c.score > best_cursor_score then
+            best_cursor_score = c.score
+            targets.best_cursor = c.unit
+        end
+        if c.cursor_dist < closest_cursor_dist then
+            closest_cursor_dist = c.cursor_dist
+            targets.closest_cursor = c.unit
+        end
+    end
+    
+    -- Fallbacks: if melee targets are nil, use ranged or closest
+    if not targets.best_melee then targets.best_melee = targets.best_ranged or targets.closest end
+    if not targets.best_melee_visible then targets.best_melee_visible = targets.best_ranged_visible or targets.closest_visible end
+    
+    return targets
+end
+
+-- Get target for a spell based on its targeting_mode menu element
+local function get_spell_target(spell, evaluated_targets)
+    if not spell or not spell.menu_elements then
+        return evaluated_targets.closest or evaluated_targets.best_melee
+    end
+    
+    -- Check if spell has targeting_mode menu element
+    if spell.menu_elements.targeting_mode then
+        local mode = spell.menu_elements.targeting_mode:get()
+        return my_utility.get_target_by_mode(mode, evaluated_targets)
+    end
+    
+    -- Default to closest for melee spells without targeting_mode
+    return evaluated_targets.closest or evaluated_targets.best_melee
+end
+
 safe_on_render_menu(function()
     if not menu.menu_elements.main_tree:push("Paladin_Rotation") then
         return
@@ -417,118 +578,21 @@ safe_on_update(function()
     if not player then return end
     local player_position = player:get_position()
 
-    local best_target = nil
-    local movement_target = nil
-
-    if menu.menu_elements.weighted_targeting_enabled:get() then
-        local scan_radius = menu.menu_elements.scan_radius:get()
-        local refresh_rate = menu.menu_elements.scan_refresh_rate:get()
-        local min_targets = menu.menu_elements.min_targets:get()
-        local comparison_radius = menu.menu_elements.comparison_radius:get()
-        
-        local boss_weight, elite_weight, champion_weight, any_weight
-        local damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight
-        local normal_target_count, champion_target_count, elite_target_count, boss_target_count
-        
-        if menu.menu_elements.custom_enemy_sliders_enabled:get() then
-            normal_target_count = menu.menu_elements.normal_target_count:get()
-            champion_target_count = menu.menu_elements.champion_target_count:get()
-            elite_target_count = menu.menu_elements.elite_target_count:get()
-            boss_target_count = menu.menu_elements.boss_target_count:get()
-            
-            boss_weight = menu.menu_elements.boss_weight:get()
-            elite_weight = menu.menu_elements.elite_weight:get()
-            champion_weight = menu.menu_elements.champion_weight:get()
-            any_weight = menu.menu_elements.any_weight:get()
-        else
-            normal_target_count = 1
-            champion_target_count = 5
-            elite_target_count = 5
-            boss_target_count = 5
-            
-            boss_weight = 50
-            elite_weight = 10
-            champion_weight = 15
-            any_weight = 2
-        end
-
-        if menu.menu_elements.custom_buff_weights_enabled:get() then
-            damage_resistance_provider_weight = menu.menu_elements.damage_resistance_provider_weight:get()
-            damage_resistance_receiver_penalty = menu.menu_elements.damage_resistance_receiver_penalty:get()
-            horde_objective_weight = menu.menu_elements.horde_objective_weight:get()
-            vulnerable_debuff_weight = menu.menu_elements.vulnerable_debuff_weight:get()
-        else
-            damage_resistance_provider_weight = 30
-            damage_resistance_receiver_penalty = 5
-            horde_objective_weight = 50
-            vulnerable_debuff_weight = 1
-        end
-        
-        local debug_enabled = menu.menu_elements.weighted_targeting_debug:get()
-        
-        best_target = my_target_selector.get_weighted_target(
-            player_position,
-            scan_radius,
-            min_targets,
-            comparison_radius,
-            boss_weight,
-            elite_weight,
-            champion_weight,
-            any_weight,
-            refresh_rate,
-            damage_resistance_provider_weight,
-            damage_resistance_receiver_penalty,
-            horde_objective_weight,
-            vulnerable_debuff_weight,
-            min_targets,
-            normal_target_count,
-            champion_target_count,
-            elite_target_count,
-            boss_target_count,
-            debug_enabled
-        )
-        movement_target = best_target
-    else
-        local max_range = safe_get_menu_element(menu.menu_elements.max_targeting_range, 30)
-        local cluster_radius = safe_get_menu_element(menu.menu_elements.cluster_radius, 6.0)
-        local prefer_elites = safe_get_menu_element(menu.menu_elements.prefer_elites, true)
-        best_target = get_best_target(max_range, cluster_radius, prefer_elites)
-        movement_target = best_target
-    end
-
-    if not best_target then
+    -- Get melee and max range settings
+    local melee_range = my_utility.get_melee_range()
+    local max_range = safe_get_menu_element(menu.menu_elements.max_targeting_range, 30)
+    
+    -- DRUID-STYLE TARGETING: Evaluate ALL target types once per tick
+    -- Each spell picks its target based on its targeting_mode menu setting
+    local evaluated_targets = evaluate_all_targets(player_position, melee_range, max_range)
+    
+    -- If no targets at all, exit early
+    if not evaluated_targets.closest and not evaluated_targets.best_melee and not evaluated_targets.best_ranged then
         return
     end
-
-    -- Define spell parameters for consistent argument passing based on spell type
-    -- Simplified to match sorc/barb pattern - just pass target for targeted spells
-    local spell_params = {
-        -- Core damage (highest priority for Hammerkuna)
-        blessed_hammer = { args = {} },
-        blessed_shield = { args = {best_target} },  -- Bouncing shield throw
-        
-        -- Targeted spells
-        holy_bolt = { args = {best_target} },
-        falling_star = { args = {best_target} },
-        arbiter_of_justice = { args = {best_target} },
-        spear_of_the_heavens = { args = {best_target} },
-        divine_lance = { args = {best_target} },
-        brandish = { args = {best_target} },
-        advance = { args = {best_target} },
-        shield_charge = { args = {best_target} },
-        zeal = { args = {best_target} },
-        clash = { args = {best_target} },  -- Shield bash generator
-        
-        -- Self-cast spells (auras, buffs, AoE around player)
-        heavens_fury = { args = {} },
-        zenith = { args = {} },
-        condemn = { args = {} },
-        consecration = { args = {} },
-        rally = { args = {} },
-        defiance_aura = { args = {} },
-        fanaticism_aura = { args = {} },
-        holy_light_aura = { args = {} },
-    }
+    
+    -- Default target for spells without per-spell targeting_mode (uses closest for melee safety)
+    local default_target = evaluated_targets.closest or evaluated_targets.best_melee
 
     -- Get equipped spells for spell casting logic
     local equipped_spells = get_equipped_spell_ids() or {}
@@ -572,14 +636,6 @@ safe_on_update(function()
         end
         
         if should_process then
-            local params = spell_params[spell_name]
-            if not params then
-                if menu.menu_elements.enable_debug:get() then
-                    dbg(spell_name .. " has no params in spell_params table!")
-                end
-                goto continue
-            end
-            
             -- Check internal cooldown for this spell
             local internal_cooldown = spell_internal_cooldowns[spell_name] or 0
             if internal_cooldown > 0 then
@@ -591,18 +647,22 @@ safe_on_update(function()
                 end
             end
             
-            -- Call spell's logics function with appropriate arguments (like Druid pattern)
-            -- Spells now return just true/false (not tuples)
-            local args = params.args or {}
-            local cast_successful
-            
-            if #args == 0 then
-                cast_successful = spell.logics()
-            elseif #args == 1 then
-                cast_successful = spell.logics(args[1])
+            -- DRUID-STYLE PER-SPELL TARGETING:
+            -- Get the appropriate target based on spell's targeting_mode menu setting
+            -- If spell has targeting_mode, use it; otherwise use default_target
+            local spell_target = nil
+            if spell.menu_elements and spell.menu_elements.targeting_mode then
+                local targeting_mode = spell.menu_elements.targeting_mode:get()
+                spell_target = my_utility.get_target_by_mode(targeting_mode, evaluated_targets)
             else
-                cast_successful = spell.logics(args[1], args[2])
+                -- Self-cast spells (auras, etc.) don't need a target
+                -- Targeted spells without targeting_mode use default (closest)
+                spell_target = default_target
             end
+            
+            -- Call spell's logics function with target (Druid pattern)
+            -- Self-cast spells handle nil target gracefully
+            local cast_successful = spell.logics(spell_target)
 
             if cast_successful then
                 -- Set cast_end_time to a SHORT animation lock (like Druid pattern)
@@ -630,5 +690,5 @@ safe_on_update(function()
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.2 (Season 11 Meta Optimized - Dec 2025)")
+    console.print("Paladin_Rotation | Version 1.3 (Per-Spell Targeting System - Dec 2025)")
 end

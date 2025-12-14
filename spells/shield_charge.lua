@@ -9,6 +9,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_shield_charge_enabled")),
+    targeting_mode = combo_box:new(4, get_hash("paladin_rotation_shield_charge_targeting_mode")),  -- Default: 4 = Closest Target
     min_cooldown = slider_float:new(0.0, 5.0, 0.3, get_hash("paladin_rotation_shield_charge_min_cd")),  -- Fast mobility
     min_range = slider_float:new(2.0, 15.0, 6.0, get_hash("paladin_rotation_shield_charge_min_range")),  -- Only charge from mid-range
     max_range = slider_float:new(5.0, 30.0, 15.0, get_hash("paladin_rotation_shield_charge_max_range")),
@@ -23,6 +24,7 @@ local function menu()
     if menu_elements.tree_tab:push("Shield Charge") then
         menu_elements.main_boolean:render("Enable", "Valor Channeled - 10% DR + 90% damage (CD: 10s)")
         if menu_elements.main_boolean:get() then
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.min_range:render("Min Range", "Minimum distance to target before charging", 1)
             menu_elements.max_range:render("Max Range", "Maximum distance to target for charging", 1)
