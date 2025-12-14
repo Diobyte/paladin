@@ -57,6 +57,13 @@ local menu_elements =
     damage_resistance_receiver_penalty = slider_int:new(0, 20, 5, get_hash("paladin_rotation_damage_resistance_receiver_penalty")),
     horde_objective_weight = slider_int:new(1, 100, 50, get_hash("paladin_rotation_horde_objective_weight")),
     vulnerable_debuff_weight = slider_int:new(1, 5, 1, get_hash("paladin_rotation_vulnerable_debuff_weight")),
+    
+    -- Visibility & Elevation Filtering (matches Druid/Spiritborn reference repos)
+    visibility_tree = tree_node:new(1),
+    enable_floor_filter = checkbox:new(true, get_hash("paladin_rotation_enable_floor_filter")),
+    floor_height_threshold = slider_float:new(1.0, 15.0, 5.0, get_hash("paladin_rotation_floor_height_threshold")),
+    enable_visibility_filter = checkbox:new(true, get_hash("paladin_rotation_enable_visibility_filter")),
+    visibility_collision_width = slider_float:new(0.5, 3.0, 1.0, get_hash("paladin_rotation_visibility_collision_width")),
 }
 
 return {

@@ -320,10 +320,13 @@ local function get_health_pct()
     return cur / max
 end
 
-local function enemy_count_in_radius(radius, origin)
+local function enemy_count_in_radius(radius, origin, floor_height_threshold)
     -- Default to player position if no origin provided
     origin = origin or (get_player_position and get_player_position())
     if not origin then return 0 end
+    
+    -- Default floor height threshold (elevation filter) - matches Druid/Spiritborn reference repos
+    floor_height_threshold = floor_height_threshold or 5.0
     
     local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
     local count = 0
@@ -341,8 +344,15 @@ local function enemy_count_in_radius(radius, origin)
             
             if not is_dead and not is_immune then
                 local pos = e:get_position()
-                if pos and pos:squared_dist_to_ignore_z(origin) <= radius_sqr then
-                    count = count + 1
+                if pos then
+                    -- Check horizontal distance
+                    if pos:squared_dist_to_ignore_z(origin) <= radius_sqr then
+                        -- Check elevation/floor difference (prevents counting enemies on different floors)
+                        local z_difference = math.abs(origin:z() - pos:z())
+                        if z_difference <= floor_height_threshold then
+                            count = count + 1
+                        end
+                    end
                 end
             end
         end

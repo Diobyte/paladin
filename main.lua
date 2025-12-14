@@ -259,6 +259,12 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
     local closest_visible_dist = math.huge
     local closest_visible_unit = nil
     
+    -- Get visibility/elevation filter settings from menu (matching Druid/Spiritborn reference repos)
+    local enable_floor_filter = safe_get_menu_element(menu.menu_elements.enable_floor_filter, true)
+    local floor_height_threshold = safe_get_menu_element(menu.menu_elements.floor_height_threshold, 5.0)
+    local enable_visibility_filter = safe_get_menu_element(menu.menu_elements.enable_visibility_filter, true)
+    local visibility_collision_width = safe_get_menu_element(menu.menu_elements.visibility_collision_width, 1.0)
+    
     -- First pass: collect all valid enemies with positions
     local valid_enemies = {}
     for _, e in ipairs(enemies) do
@@ -271,6 +277,15 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
             local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
             if dist_sqr > max_range_sqr then goto continue_collect end
             
+            -- ELEVATION/FLOOR CHECK: Skip targets on different floors (z-axis difference)
+            -- This prevents targeting enemies above/below on different levels
+            if enable_floor_filter then
+                local z_difference = math.abs(player_pos:z() - pos:z())
+                if z_difference > floor_height_threshold then
+                    goto continue_collect
+                end
+            end
+            
             table.insert(valid_enemies, {unit = e, pos = pos, dist_sqr = dist_sqr})
             ::continue_collect::
         end
@@ -282,10 +297,10 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
         local pos = data.pos
         local dist_sqr = data.dist_sqr
         
-        -- Check visibility (no wall collision)
+        -- Check visibility (no wall collision) using menu-configured width
         local is_visible = true
-        if target_selector and target_selector.is_wall_collision then
-            is_visible = not target_selector.is_wall_collision(player_pos, e, 1.0)
+        if enable_visibility_filter and target_selector and target_selector.is_wall_collision then
+            is_visible = not target_selector.is_wall_collision(player_pos, e, visibility_collision_width)
         end
         
         -- Calculate base score using menu weights (matching reference repos)
@@ -477,6 +492,19 @@ safe_on_render_menu(function()
         end
         
         menu.menu_elements.weighted_targeting_tree:pop()
+    end
+    
+    -- Visibility & Elevation Filtering (matches Druid/Spiritborn reference repos)
+    if menu.menu_elements.visibility_tree:push("Visibility & Elevation") then
+        menu.menu_elements.enable_floor_filter:render("Enable Floor/Elevation Filter", "Skip targets on different floors (z-axis height difference). Prevents targeting enemies above/below on different levels.")
+        if menu.menu_elements.enable_floor_filter:get() then
+            menu.menu_elements.floor_height_threshold:render("Floor Height Threshold", "Maximum Z-axis height difference (units). Targets beyond this are ignored. Default: 5.0", 1)
+        end
+        menu.menu_elements.enable_visibility_filter:render("Enable Visibility Filter", "Check line-of-sight before targeting. Filters out enemies behind walls.")
+        if menu.menu_elements.enable_visibility_filter:get() then
+            menu.menu_elements.visibility_collision_width:render("Collision Check Width", "Width for wall collision check (units). Larger = stricter. Default: 1.0", 1)
+        end
+        menu.menu_elements.visibility_tree:pop()
     end
 
     if menu.menu_elements.settings_tree:push("Settings") then
