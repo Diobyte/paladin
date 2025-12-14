@@ -467,8 +467,9 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         end
     else
         -- Self-cast spell (auras, consecration, etc.)
-        -- These don't need a target - call logics without target
-        if debug_enabled then dbg(spell_name .. ": self-cast, calling logics") end
+        -- These don't need a target usually, but we pass it anyway in case the spell
+        -- wants to use it for positioning logic (like Blessed Hammer)
+        if debug_enabled then dbg(spell_name .. ": self-cast, calling logics with optional target") end
         
         if type(spell.logics) ~= "function" then
             if debug_enabled then dbg(spell_name .. ": logics is not a function") end
@@ -476,7 +477,8 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         end
         
         -- SAFE CALL: Wrap spell logic in pcall
-        local ok, success, cast_duration = pcall(spell.logics)
+        -- Pass spell_target as optional argument
+        local ok, success, cast_duration = pcall(spell.logics, spell_target)
         if ok and success == true then
             return true, cast_duration
         elseif not ok then

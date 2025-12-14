@@ -10,6 +10,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_heavens_fury_enabled")),
     debug_mode = checkbox:new(false, get_hash("paladin_rotation_heavens_fury_debug_mode")),
+    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_heavens_fury_targeting_mode")),
     min_cooldown = slider_float:new(0.0, 40.0, 0.5, get_hash("paladin_rotation_heavens_fury_min_cd")),  -- React fast when ult is up
     engage_range = slider_float:new(4.0, 15.0, 10.0, get_hash("paladin_rotation_heavens_fury_engage_range")),  -- AoE check radius
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_heavens_fury_min_enemies")),  -- 1 = use on any pack
@@ -26,6 +27,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Ultimate - 200%/s AoE + 60% seeking beams (CD: 30s)")
         if menu_elements.main_boolean:get() then
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.engage_range:render("Engage Range", "Radius to check for enemies before casting", 1)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast")
@@ -39,7 +41,7 @@ local function menu()
     end
 end
 
-local function logics()
+local function logics(target)
     local debug_enabled = menu_elements.debug_mode:get()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
@@ -58,6 +60,17 @@ local function logics()
     
     -- Check for nearby enemies using configurable engage range
     local engage_range = menu_elements.engage_range:get()
+    
+    -- Auto-targeting / Movement System
+    if target and target:is_enemy() then   
+        local in_range = my_utility.is_in_range(target, engage_range)
+        if not in_range then
+            my_utility.move_to_target(target:get_position(), target:get_id())
+            if debug_enabled then console.print("[HEAVENS FURY DEBUG] Moving to target - out of engage range") end
+            return false, 0
+        end
+    end
+
     local min_enemies = menu_elements.min_enemies:get()
     local use_minimum_weight = menu_elements.use_minimum_weight:get()
     local minimum_weight = math.ceil(menu_elements.minimum_weight:get())

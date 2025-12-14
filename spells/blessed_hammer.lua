@@ -11,6 +11,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
     debug_mode = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_debug_mode")),
+    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_targeting_mode")),  -- Default: 0 = Ranged Target (since user considers it ranged)
     min_cooldown = slider_float:new(0.0, 1.0, 0.0, get_hash("paladin_rotation_blessed_hammer_min_cd")),  -- META: 0 = maximum spam rate
     engage_range = slider_float:new(2.0, 25.0, 7.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),  -- Reduced to 7.0 for effective spiral hits
     min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),  -- 0 = spam freely (meta)
@@ -30,6 +31,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Core Skill - Spiraling hammer (Faith Cost: 10)")
         if menu_elements.main_boolean:get() then
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.engage_range:render("Engage Range", "Max distance to enemies for casting", 1)
             menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this % (0 = spam freely)")
@@ -51,7 +53,7 @@ local function logics(target)
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
     if not is_logic_allowed then
-        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Spell not allowed") end
+        -- if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Spell not allowed") end
         return false, 0
     end
 
@@ -72,6 +74,29 @@ local function logics(target)
     end
     
     local engage = menu_elements.engage_range:get()
+
+    -- Auto-targeting / Movement System
+    -- If target is nil, try to find one from global valid enemies to allow movement
+    if not target and _G.PaladinRotation and _G.PaladinRotation.current_target_id then
+        -- Try to find the current global target object
+        -- Use world.get_game_object(id) as per API documentation
+        if world and world.get_game_object then
+            local global_target = world.get_game_object(_G.PaladinRotation.current_target_id)
+            if global_target and global_target:is_valid() then
+                target = global_target
+            end
+        end
+    end
+
+    if target and target:is_enemy() then   
+        local in_range = my_utility.is_in_range(target, engage)
+        if not in_range then
+            my_utility.move_to_target(target:get_position(), target:get_id())
+            if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving to target - out of engage range") end
+            return false, 0
+        end
+    end
+
     local min_enemies = menu_elements.min_enemies:get()
     local use_pack_gate = menu_elements.use_minimum_weight:get()
     local min_pack_size = math.ceil(menu_elements.minimum_weight:get())
@@ -110,7 +135,10 @@ local function logics(target)
     for _, e in ipairs(enemies_list) do
         if e and e:is_enemy() then
             -- Filter out dead, immune, and untargetable enemies (if not already filtered)
-            if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+            -- Note: valid_enemies from main.lua are already filtered for dead/immune/untargetable
+            local is_pre_filtered = (_G.PaladinRotation and _G.PaladinRotation.valid_enemies)
+            
+            if not is_pre_filtered then
                 if e:is_dead() or e:is_immune() or e:is_untargetable() then
                     goto continue
                 end
@@ -119,7 +147,7 @@ local function logics(target)
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_sqr then
                 -- Elevation check (if not already filtered)
-                if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                if not is_pre_filtered then
                     if math.abs(player_pos:z() - pos:z()) > floor_height_threshold then
                         goto continue
                     end
