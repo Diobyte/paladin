@@ -19,6 +19,17 @@ local horde_objectives = {
     "BSK_skeleton_boss"
 }
 
+-- Targeting modes for flexible target selection (like Druid script)
+-- Each spell can specify which targeting mode to use
+local targeting_modes = {
+    "Weighted Target",           -- 0: Use weighted targeting system (boss > elite > champion > normal)
+    "Closest Target",            -- 1: Target closest enemy
+    "Lowest Health Target",      -- 2: Target with lowest current HP
+    "Highest Health Target",     -- 3: Target with highest current HP  
+    "Cursor Target",             -- 4: Target closest to cursor
+    "Best Cluster Target",       -- 5: Target in best cluster for AoE
+}
+
 local function safe_get_time()
     if type(get_time_since_inject) == "function" then
         return get_time_since_inject()
@@ -320,6 +331,186 @@ local spell_delays = {
     move_delay = 0.25,     -- delay between movement commands
 }
 
+-- Get enemy count by type in radius (like Druid's enemy_count_in_range)
+-- Returns: all, normal, elite, champion, boss
+local function enemy_count_by_type(radius, origin)
+    local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
+    local radius_sqr = radius * radius
+    origin = origin or (get_player_position and get_player_position())
+    
+    local all_count = 0
+    local normal_count = 0
+    local elite_count = 0
+    local champion_count = 0
+    local boss_count = 0
+    
+    for _, e in ipairs(enemies) do
+        if e then
+            -- Filter out dead, immune, untargetable
+            local is_dead = false
+            local is_immune = false
+            local is_untargetable = false
+            local ok_dead, res_dead = pcall(function() return e:is_dead() end)
+            local ok_immune, res_immune = pcall(function() return e:is_immune() end)
+            local ok_untarget, res_untarget = pcall(function() return e:is_untargetable() end)
+            is_dead = ok_dead and res_dead or false
+            is_immune = ok_immune and res_immune or false
+            is_untargetable = ok_untarget and res_untarget or false
+            
+            if not is_dead and not is_immune and not is_untargetable then
+                local pos = e:get_position()
+                if pos and origin and pos:squared_dist_to_ignore_z(origin) <= radius_sqr then
+                    all_count = all_count + 1
+                    
+                    -- Categorize by type
+                    local is_boss = false
+                    local is_elite = false
+                    local is_champion = false
+                    local ok_boss, res_boss = pcall(function() return e:is_boss() end)
+                    local ok_elite, res_elite = pcall(function() return e:is_elite() end)
+                    local ok_champ, res_champ = pcall(function() return e:is_champion() end)
+                    is_boss = ok_boss and res_boss or false
+                    is_elite = ok_elite and res_elite or false
+                    is_champion = ok_champ and res_champ or false
+                    
+                    if is_boss then
+                        boss_count = boss_count + 1
+                    elseif is_champion then
+                        champion_count = champion_count + 1
+                    elseif is_elite then
+                        elite_count = elite_count + 1
+                    else
+                        normal_count = normal_count + 1
+                    end
+                end
+            end
+        end
+    end
+    
+    return all_count, normal_count, elite_count, champion_count, boss_count
+end
+
+-- Get target based on targeting mode
+-- mode: 0=weighted, 1=closest, 2=lowest_hp, 3=highest_hp, 4=cursor, 5=cluster
+local function get_target_by_mode(mode, range, weighted_target)
+    local player_pos = get_player_position and get_player_position() or nil
+    if not player_pos then return nil end
+    
+    local range_sqr = range * range
+    local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
+    
+    -- Filter valid enemies in range
+    local valid_enemies = {}
+    for _, e in ipairs(enemies) do
+        if e then
+            local is_dead = false
+            local is_immune = false
+            local is_untargetable = false
+            local ok_dead, res_dead = pcall(function() return e:is_dead() end)
+            local ok_immune, res_immune = pcall(function() return e:is_immune() end)
+            local ok_untarget, res_untarget = pcall(function() return e:is_untargetable() end)
+            is_dead = ok_dead and res_dead or false
+            is_immune = ok_immune and res_immune or false
+            is_untargetable = ok_untarget and res_untarget or false
+            
+            if not is_dead and not is_immune and not is_untargetable then
+                local pos = e:get_position()
+                if pos and pos:squared_dist_to_ignore_z(player_pos) <= range_sqr then
+                    table.insert(valid_enemies, {unit = e, pos = pos, dist_sqr = pos:squared_dist_to_ignore_z(player_pos)})
+                end
+            end
+        end
+    end
+    
+    if #valid_enemies == 0 then return nil end
+    
+    -- Mode 0: Weighted (use passed weighted_target or fallback to closest)
+    if mode == 0 then
+        if weighted_target then return weighted_target end
+        -- Fallback to closest
+        table.sort(valid_enemies, function(a, b) return a.dist_sqr < b.dist_sqr end)
+        return valid_enemies[1].unit
+    end
+    
+    -- Mode 1: Closest
+    if mode == 1 then
+        table.sort(valid_enemies, function(a, b) return a.dist_sqr < b.dist_sqr end)
+        return valid_enemies[1].unit
+    end
+    
+    -- Mode 2: Lowest Health
+    if mode == 2 then
+        local lowest = nil
+        local lowest_hp = math.huge
+        for _, entry in ipairs(valid_enemies) do
+            local hp = entry.unit:get_current_health() or math.huge
+            if hp < lowest_hp then
+                lowest_hp = hp
+                lowest = entry.unit
+            end
+        end
+        return lowest
+    end
+    
+    -- Mode 3: Highest Health
+    if mode == 3 then
+        local highest = nil
+        local highest_hp = 0
+        for _, entry in ipairs(valid_enemies) do
+            local hp = entry.unit:get_current_health() or 0
+            if hp > highest_hp then
+                highest_hp = hp
+                highest = entry.unit
+            end
+        end
+        return highest
+    end
+    
+    -- Mode 4: Cursor Target
+    if mode == 4 then
+        local cursor_pos = get_cursor_position and get_cursor_position() or nil
+        if not cursor_pos then
+            -- Fallback to closest
+            table.sort(valid_enemies, function(a, b) return a.dist_sqr < b.dist_sqr end)
+            return valid_enemies[1].unit
+        end
+        local closest_to_cursor = nil
+        local closest_cursor_dist = math.huge
+        for _, entry in ipairs(valid_enemies) do
+            local cursor_dist = entry.pos:squared_dist_to_ignore_z(cursor_pos)
+            if cursor_dist < closest_cursor_dist then
+                closest_cursor_dist = cursor_dist
+                closest_to_cursor = entry.unit
+            end
+        end
+        return closest_to_cursor
+    end
+    
+    -- Mode 5: Best Cluster (most nearby enemies)
+    if mode == 5 then
+        local cluster_radius_sqr = 6.0 * 6.0
+        local best_cluster = nil
+        local best_cluster_count = 0
+        for _, entry in ipairs(valid_enemies) do
+            local cluster_count = 0
+            for _, other in ipairs(valid_enemies) do
+                if entry.pos:squared_dist_to_ignore_z(other.pos) <= cluster_radius_sqr then
+                    cluster_count = cluster_count + 1
+                end
+            end
+            if cluster_count > best_cluster_count then
+                best_cluster_count = cluster_count
+                best_cluster = entry.unit
+            end
+        end
+        return best_cluster or valid_enemies[1].unit
+    end
+    
+    -- Default: closest
+    table.sort(valid_enemies, function(a, b) return a.dist_sqr < b.dist_sqr end)
+    return valid_enemies[1].unit
+end
+
 local my_utility = {
     plugin_label = plugin_label,
     safe_get_time = safe_get_time,
@@ -336,7 +527,11 @@ local my_utility = {
     get_best_point = get_best_point,
     should_pop_cds = should_pop_cds,
     horde_objectives = horde_objectives,
-    -- New movement utilities (like druid script)
+    -- Targeting modes (like Druid script)
+    targeting_modes = targeting_modes,
+    get_target_by_mode = get_target_by_mode,
+    enemy_count_by_type = enemy_count_by_type,
+    -- Movement utilities (like druid script)
     get_melee_range = get_melee_range,
     is_in_range = is_in_range,
     spell_delays = spell_delays,

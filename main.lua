@@ -644,9 +644,15 @@ safe_on_update(function()
     local is_auto_play = my_utility.is_auto_play_enabled()
     if is_auto_play and movement_target then
         local movement_target_position = movement_target:get_position()
-        local move_pos = movement_target_position:get_extended(player_position, 3.0)
-        if pathfinder and pathfinder.request_move then
-            pathfinder.request_move(move_pos)
+        if movement_target_position then
+            local melee_range = my_utility.get_melee_range()
+            -- Only move if not in melee range
+            if not my_utility.is_in_range(movement_target, melee_range) then
+                local move_pos = movement_target_position:get_extended(player_position, melee_range * 0.8)
+                if pathfinder and pathfinder.request_move then
+                    pathfinder.request_move(move_pos)
+                end
+            end
         end
     end
     
@@ -656,14 +662,12 @@ safe_on_update(function()
         local manual_play = menu.menu_elements.manual_play:get()
         if not manual_play then
             -- Not in manual play mode - automatically move toward targets
-            local movement_target_position = movement_target:get_position()
-            if movement_target_position then
-                local dist_sqr = player_position:squared_dist_to_ignore_z(movement_target_position)
-                local engage_range = 6.0  -- Move closer when further than 6 units
-                if dist_sqr > (engage_range * engage_range) then
-                    if pathfinder and pathfinder.request_move then
-                        pathfinder.request_move(movement_target_position)
-                    end
+            local melee_range = my_utility.get_melee_range()
+            -- Use is_in_range for consistent range checking
+            if not my_utility.is_in_range(movement_target, melee_range + 2.0) then
+                local movement_target_position = movement_target:get_position()
+                if movement_target_position and pathfinder and pathfinder.request_move then
+                    pathfinder.request_move(movement_target_position)
                 end
             end
         end

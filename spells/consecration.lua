@@ -119,13 +119,7 @@ local function logics()
                         end
                     end
                 end
-            end
-
-            else
-                        has_priority_target = true
-                    end
-                    ::continue_consecration::
-                end
+                ::continue_consecration::
             end
 
             -- Check enemy type filter (must have priority target for damage use)
