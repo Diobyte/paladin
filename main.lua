@@ -1,960 +1,556 @@
--- =====================================================
--- PALADIN ROTATION SCRIPT (Season 11)
--- Based on "Sorc_Rota_salad" architecture and Druid/Spiritborn reference repos.
---
--- REVIEW & OPTIMIZATION (Dec 2025):
--- 1. Validated against Season 11 Paladin/Spiritborn API.
--- 2. Optimized Blessed Hammer logic to rely on centralized movement (removed explicit move).
--- 3. Standardized cursor position handling in my_utility.
--- 4. Verified Weighted Targeting integration in main loop.
--- 5. Confirmed "Fairness Rotation System" prevents spell starvation.
--- 6. COMPREHENSIVE REVIEW: Codebase validated for end-to-end usage.
---    - Target Selector: Robust clustering and weighting logic confirmed.
---    - Spell Logic: Correctly integrates with centralized movement.
---    - Fairness: Internal cooldowns ensure rotation diversity.
---    - FIX: Blessed Hammer now strictly uses cast_spell.self() to prevent targeting issues.
---
--- FEATURES:
--- 1. Centralized Target Evaluation (evaluate_all_targets):
---    - Scans targets once per tick for efficiency.
---    - Supports Weighted Targeting (Cluster/Priority) system.
---    - Implements Visibility and Elevation filters.
---
--- 2. Fairness Rotation System:
---    - Uses internal cooldowns (spell_internal_cooldowns) to prevent high-priority spell spam.
---    - Ensures all equipped spells get a chance to cast.
---
--- 3. Centralized Movement (my_utility.move_to_target):
---    - Prevents oscillation between different modules trying to move.
---    - Respects "Manual Play" and Orbwalker modes.
---
--- 4. Global State Coordination (_G.PaladinRotation):
---    - Exposes combat state for Looteer and other external modules.
---    - Optimizes target scanning by sharing valid_enemies list.
--- =====================================================
-
-if package and package.loaded then
-    package.loaded["menu"] = nil
-    package.loaded["spell_priority"] = nil
-    package.loaded["my_utility/my_utility"] = nil
-    package.loaded["my_utility/spell_data"] = nil
-    package.loaded["my_utility/buff_cache"] = nil
-    package.loaded["my_utility/my_target_selector"] = nil
-    package.loaded["spells/holy_bolt"] = nil
-    package.loaded["spells/blessed_hammer"] = nil
-    package.loaded["spells/blessed_shield"] = nil
-    package.loaded["spells/falling_star"] = nil
-    package.loaded["spells/arbiter_of_justice"] = nil
-    package.loaded["spells/rally"] = nil
-    package.loaded["spells/defiance_aura"] = nil
-    package.loaded["spells/fanaticism_aura"] = nil
-    package.loaded["spells/holy_light_aura"] = nil
-    package.loaded["spells/zeal"] = nil
-    package.loaded["spells/clash"] = nil
-    package.loaded["spells/shield_charge"] = nil
-    package.loaded["spells/spear_of_the_heavens"] = nil
-    package.loaded["spells/divine_lance"] = nil
-    package.loaded["spells/brandish"] = nil
-    -- New spells added from research
-    package.loaded["spells/condemn"] = nil
-    package.loaded["spells/consecration"] = nil
-    package.loaded["spells/heavens_fury"] = nil
-    package.loaded["spells/zenith"] = nil
-    package.loaded["spells/advance"] = nil
+local local_player = get_local_player();
+if local_player == nil then
+    return
 end
 
--- Early class check (like sorc/barb)
--- Paladin Class ID: 7 (Spiritborn/Paladin)
--- Class IDs: Sorcerer=0, Barbarian=1, Rogue=3, Druid=5, Necromancer=6, Spiritborn/Paladin=7
--- We do NOT return early here to ensure callbacks are registered even if player isn't ready yet
-local is_paladin_checked = false
-local is_paladin_class = false
+local character_id = local_player:get_character_class_id();
+local is_paladin = character_id == 7;  -- Paladin is class 7
+if not is_paladin then
+    return
+end;
 
--- Orbwalker settings (like druid/barb) - take control of movement
--- These MUST be called unconditionally at the top level, before any logic
--- set_block_movement(true): We handle all movement in spell logics, not orbwalker
--- set_clear_toggle(true): Allow the clear mode toggle to work
-if orbwalker and orbwalker.set_block_movement then
-    pcall(function() orbwalker.set_block_movement(true) end)
-end
-if orbwalker and orbwalker.set_clear_toggle then
-    pcall(function() orbwalker.set_clear_toggle(true) end)
-end
+-- orbwalker settings
+orbwalker.set_block_movement(true);
+orbwalker.set_clear_toggle(true);
 
-local my_utility = require("my_utility/my_utility")
-local spell_data = require("my_utility/spell_data")
-local spell_priority_module = require("spell_priority")
-local spell_priority = spell_priority_module.spells
-local spell_internal_cooldowns = spell_priority_module.cooldowns
+local my_target_selector = require("my_utility/my_target_selector");
+local my_utility = require("my_utility/my_utility");
+local spell_data = require("my_utility/spell_data");
+local spell_priority = require("spell_priority");
 local menu = require("menu")
-local my_target_selector = require("my_utility/my_target_selector")
 
--- Menu helper must exist before any callbacks that read menu state
-local function safe_get_menu_element(element, fallback)
-    if element and type(element.get) == "function" then
-        return element:get()
-    end
-    return fallback
-end
-
--- GLOBAL STATE FOR LOOTEER COORDINATION
--- Looteer checks this before looting to avoid conflicts with combat
--- When in_combat=true or is_casting=true, Looteer should defer looting
-_G.PaladinRotation = {
-    in_combat = false,      -- True when we have valid combat targets
-    is_casting = false,     -- True when we're in cast animation
-    last_cast_time = 0,     -- Time of last successful cast
-    current_target_id = nil, -- ID of current target for coordination
-    debug = {}              -- Store debug timers here to avoid global pollution
+local spells =
+{
+    advance = require("spells/advance"),
+    arbiter_of_justice = require("spells/arbiter_of_justice"),
+    blessed_hammer = require("spells/blessed_hammer"),
+    blessed_shield = require("spells/blessed_shield"),
+    brandish = require("spells/brandish"),
+    clash = require("spells/clash"),
+    condemn = require("spells/condemn"),
+    consecration = require("spells/consecration"),
+    defiance_aura = require("spells/defiance_aura"),
+    divine_lance = require("spells/divine_lance"),
+    falling_star = require("spells/falling_star"),
+    fanaticism_aura = require("spells/fanaticism_aura"),
+    heavens_fury = require("spells/heavens_fury"),
+    holy_bolt = require("spells/holy_bolt"),
+    holy_light_aura = require("spells/holy_light_aura"),
+    rally = require("spells/rally"),
+    shield_charge = require("spells/shield_charge"),
+    spear_of_the_heavens = require("spells/spear_of_the_heavens"),
+    zeal = require("spells/zeal"),
+    zenith = require("spells/zenith"),
+    aegis = require("spells/aegis"),
+    fortress = require("spells/fortress"),
+    judgement = require("spells/judgement"),
+    purify = require("spells/purify"),
 }
 
-local function update_global_flags_from_menu()
-    if not menu or not menu.menu_elements then return end
-    _G.PaladinRotation.manual_play = safe_get_menu_element(menu.menu_elements.manual_play, false)
-    _G.PaladinRotation.boss_burn_mode = safe_get_menu_element(menu.menu_elements.boss_burn_mode, false)
-    _G.PaladinRotation.disable_cursor_priority = safe_get_menu_element(menu.menu_elements.disable_cursor_priority, false)
-end
+on_render_menu(function()
+    if not menu.menu_elements.main_tree:push("Paladin [Dirty] v1.0.0") then
+        return;
+    end;
 
-local function safe_on_render_menu(cb)
-    if type(on_render_menu) == "function" then
-        return on_render_menu(cb)
-    end
-    return false
-end
+    menu.menu_elements.main_boolean:render("Enable Plugin", "");
 
-local function safe_on_update(cb)
-    if type(on_update) == "function" then
-        return on_update(cb)
-    end
-    return false
-end
-
-local function safe_on_render(cb)
-    if type(on_render) == "function" then
-        return on_render(cb)
-    end
-    return false
-end
-
-local spells = {}
--- Safe spell loading helper
-local function load_spell(name, path)
-    local ok, mod = pcall(require, path)
-    if ok and mod then
-        spells[name] = mod
-    elseif console and console.print then
-        console.print("[Paladin_Rotation] Failed to load spell: " .. name)
-    end
-end
-
--- Basic Skills (Resource Generators)
-load_spell("holy_bolt", "spells/holy_bolt")
-load_spell("zeal", "spells/zeal")
-load_spell("advance", "spells/advance")
-load_spell("clash", "spells/clash")
-
--- Core Skills (Main Damage)
-load_spell("blessed_hammer", "spells/blessed_hammer")
-load_spell("blessed_shield", "spells/blessed_shield")
-load_spell("divine_lance", "spells/divine_lance")
-load_spell("brandish", "spells/brandish")
-
--- Aura Skills (Buff Maintenance)
-load_spell("defiance_aura", "spells/defiance_aura")
-load_spell("fanaticism_aura", "spells/fanaticism_aura")
-load_spell("holy_light_aura", "spells/holy_light_aura")
-
--- Valor Skills (Utility/Mobility)
-load_spell("shield_charge", "spells/shield_charge")
-load_spell("rally", "spells/rally")
-
--- Justice Skills (Damage/Control)
-load_spell("spear_of_the_heavens", "spells/spear_of_the_heavens")
-load_spell("falling_star", "spells/falling_star")
-load_spell("condemn", "spells/condemn")
-load_spell("consecration", "spells/consecration")
-
--- Ultimate Skills
-load_spell("arbiter_of_justice", "spells/arbiter_of_justice")
-load_spell("heavens_fury", "spells/heavens_fury")
-load_spell("zenith", "spells/zenith")
-
-local function dbg(msg)
-    local enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
-    if enabled and console and type(console.print) == "function" then
-        console.print("[Paladin_Rotation] " .. msg)
-    end
-end
-
--- Evaluate all target types for the per-spell targeting system
--- This runs once per update tick and returns all possible targets
-local function evaluate_all_targets(player_pos, melee_range, max_range)
-    -- Get weights from menu
-    local weights = {
-        normal = safe_get_menu_element(menu.menu_elements.any_weight, 2),
-        elite = safe_get_menu_element(menu.menu_elements.elite_weight, 10),
-        champion = safe_get_menu_element(menu.menu_elements.champion_weight, 15),
-        boss = safe_get_menu_element(menu.menu_elements.boss_weight, 50),
-        comparison_radius = safe_get_menu_element(menu.menu_elements.comparison_radius, 3.0)
-    }
-    
-    -- Get visibility/elevation filter settings
-    local filters = {
-        check_floor = safe_get_menu_element(menu.menu_elements.enable_floor_filter, true),
-        floor_height = safe_get_menu_element(menu.menu_elements.floor_height_threshold, 5.0),
-        check_visibility = safe_get_menu_element(menu.menu_elements.enable_visibility_filter, true),
-        visibility_width = safe_get_menu_element(menu.menu_elements.visibility_collision_width, 1.0)
-    }
-    
-    local cursor_pos = get_cursor_position and get_cursor_position() or nil
-    
-    -- Use the centralized target selector logic
-    -- Safety check: ensure my_target_selector is loaded and has the function
-    if my_target_selector and my_target_selector.get_best_targets then
-        return my_target_selector.get_best_targets(player_pos, melee_range, max_range, cursor_pos, weights, filters)
-    end
-    
-    -- Fallback if target selector is missing (should not happen)
-    return {
-        valid_enemies = {},
-        closest = nil,
-        best_melee = nil,
-        best_ranged = nil,
-        best_cursor = nil
-    }
-end
-
-
-
-safe_on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("Paladin_Rotation") then
-        return
-    end
-
-    update_global_flags_from_menu()
-
-    menu.menu_elements.main_boolean:render("Enable Plugin", "")
-    if not safe_get_menu_element(menu.menu_elements.main_boolean, false) then
-        menu.menu_elements.main_tree:pop()
-        return
-    end
-
-    -- Weighted Targeting System menu
-    if menu.menu_elements.weighted_targeting_tree:push("Weighted Targeting System") then
-        menu.menu_elements.weighted_targeting_debug:render("Debug Mode", "Enable high-verbosity console logging for weighted targeting decisions")
-        menu.menu_elements.weighted_targeting_enabled:render("Enable Weighted Targeting", "Enables the weighted targeting system that prioritizes targets based on type and proximity")
-        
-        -- Only show configuration if weighted targeting is enabled
-        if menu.menu_elements.weighted_targeting_enabled:get() then
-            -- Scan settings (scan_radius is now in Settings section - always visible)
-            menu.menu_elements.scan_refresh_rate:render("Refresh Rate", "How often to refresh target scanning in seconds (0.1-1.0)", 1)
-            menu.menu_elements.min_targets:render("Minimum Targets", "Minimum number of targets required to activate weighted targeting (1-10)")
-            menu.menu_elements.comparison_radius:render("Comparison Radius", "Radius to check for nearby targets when calculating weights (0.1-6.0)", 1)
-            
-            -- Custom Enemy Sliders toggle
-            menu.menu_elements.custom_enemy_sliders_enabled:render("Custom Enemy Sliders", "Enable to customize target counts and weights for different enemy types")
-            
-            -- Only show sliders if custom enemy sliders are enabled
-            if menu.menu_elements.custom_enemy_sliders_enabled:get() then
-                -- Normal Enemy
-                menu.menu_elements.normal_target_count:render("Normal Target Count", "Target count value for normal enemies (1-10)")
-                menu.menu_elements.any_weight:render("Normal Weight", "Weight assigned to normal targets (1-100)")
-                
-                -- Elite Enemy
-                menu.menu_elements.elite_target_count:render("Elite Target Count", "Target count value for elite enemies (1-10)")
-                menu.menu_elements.elite_weight:render("Elite Weight", "Weight assigned to elite targets (1-100)")
-                
-                -- Champion Enemy
-                menu.menu_elements.champion_target_count:render("Champion Target Count", "Target count value for champion enemies (1-10)")
-                menu.menu_elements.champion_weight:render("Champion Weight", "Weight assigned to champion targets (1-100)")
-                
-                -- Boss Enemy
-                menu.menu_elements.boss_target_count:render("Boss Target Count", "Target count value for boss enemies (1-10)")
-                menu.menu_elements.boss_weight:render("Boss Weight", "Weight assigned to boss targets (1-100)")
-            end
-            -- Custom Buff Weights section
-            menu.menu_elements.custom_buff_weights_enabled:render("Custom Buff Weights", "Enable to customize weights for special buff-related targets")
-            if menu.menu_elements.custom_buff_weights_enabled:get() then
-                menu.menu_elements.damage_resistance_provider_weight:render("Damage Resistance Provider Bonus", "Weight bonus for enemies providing damage resistance aura (1-100)")
-                menu.menu_elements.damage_resistance_receiver_penalty:render("Damage Resistance Receiver Penalty", "Weight penalty for enemies receiving damage resistance (0-20)")
-                menu.menu_elements.horde_objective_weight:render("Horde Objective Bonus", "Weight bonus for infernal horde objective targets (1-100)")
-                menu.menu_elements.vulnerable_debuff_weight:render("Vulnerable Debuff Bonus", "Weight bonus for targets with VulnerableDebuff (1-5)")
-            end
-        end
-        
-        menu.menu_elements.weighted_targeting_tree:pop()
-    end
-    
-    -- Visibility & Elevation Filtering (matches Druid/Spiritborn reference repos)
-    if menu.menu_elements.visibility_tree:push("Visibility & Elevation") then
-        menu.menu_elements.enable_floor_filter:render("Enable Floor/Elevation Filter", "Skip targets on different floors (z-axis height difference). Prevents targeting enemies above/below on different levels.")
-        if menu.menu_elements.enable_floor_filter:get() then
-            menu.menu_elements.floor_height_threshold:render("Floor Height Threshold", "Maximum Z-axis height difference (units). Targets beyond this are ignored. Default: 5.0", 1)
-        end
-        menu.menu_elements.enable_visibility_filter:render("Enable Visibility Filter", "Check line-of-sight before targeting. Filters out enemies behind walls.")
-        if menu.menu_elements.enable_visibility_filter:get() then
-            menu.menu_elements.visibility_collision_width:render("Collision Check Width", "Width for wall collision check (units). Larger = stricter. Default: 1.0", 1)
-        end
-        menu.menu_elements.visibility_tree:pop()
-    end
+    if not menu.menu_elements.main_boolean:get() then
+        -- plugin not enabled, stop rendering menu elements
+        menu.menu_elements.main_tree:pop();
+        return;
+    end;
 
     if menu.menu_elements.settings_tree:push("Settings") then
-        -- SCAN RADIUS: How far to look for potential targets
-        -- This is ALWAYS shown - it's the primary range setting
-        menu.menu_elements.scan_radius:render("Scan Radius", "How far to search for enemies (units). Spells have their own cast ranges within this.")
-        
-        -- Legacy setting - only show if weighted targeting is disabled
-        if not menu.menu_elements.weighted_targeting_enabled:get() then
-            if menu.menu_elements.prefer_elites then
-                menu.menu_elements.prefer_elites:render("Prefer Elites/Champions/Boss", "")
-            end
-            if menu.menu_elements.cluster_radius then
-                menu.menu_elements.cluster_radius:render("Cluster Radius", "", 1)
+        menu.menu_elements.enemy_count_threshold:render("Minimum Enemy Count",
+            "       Minimum number of enemies in Enemy Evaluation Radius to consider them for targeting")
+        menu.menu_elements.targeting_refresh_interval:render("Targeting Refresh Interval",
+            "       Time between target checks in seconds       ", 1)
+        menu.menu_elements.max_targeting_range:render("Max Targeting Range",
+            "       Maximum range for targeting       ")
+        menu.menu_elements.cursor_targeting_radius:render("Cursor Targeting Radius",
+            "       Area size for selecting target around the cursor       ", 1)
+        menu.menu_elements.cursor_targeting_angle:render("Cursor Targeting Angle",
+            "       Maximum angle between cursor and target to cast targetted spells       ")
+        menu.menu_elements.best_target_evaluation_radius:render("Enemy Evaluation Radius",
+            "       Area size around an enemy to evaluate if it's the best target       \n" ..
+            "       If you use huge aoe spells, you should increase this value       \n" ..
+            "       Size is displayed with debug/display targets with faded white circles       ", 1)
+
+        menu.menu_elements.custom_enemy_weights:render("Custom Enemy Weights",
+            "Enable custom enemy weights for determining best targets within Enemy Evaluation Radius")
+        if menu.menu_elements.custom_enemy_weights:get() then
+            if menu.menu_elements.custom_enemy_weights_tree:push("Custom Enemy Weights") then
+                menu.menu_elements.enemy_weight_normal:render("Normal Enemy Weight",
+                    "Weighing score for normal enemies - default is 2")
+                menu.menu_elements.enemy_weight_elite:render("Elite Enemy Weight",
+                    "Weighing score for elite enemies - default is 10")
+                menu.menu_elements.enemy_weight_champion:render("Champion Enemy Weight",
+                    "Weighing score for champion enemies - default is 15")
+                menu.menu_elements.enemy_weight_boss:render("Boss Enemy Weight",
+                    "Weighing score for boss enemies - default is 50")
+                menu.menu_elements.enemy_weight_damage_resistance:render("Damage Resistance Aura Enemy Weight",
+                    "Weighing score for enemies with damage resistance aura - default is 25")
+                menu.menu_elements.custom_enemy_weights_tree:pop()
             end
         end
 
-        if menu.menu_elements.treat_elite_as_boss then
-            menu.menu_elements.treat_elite_as_boss:render("Treat Elite As Boss", "Treat Elite enemies as Bosses for logic purposes")
-        end
-        
-        menu.menu_elements.combo_enemy_count:render("Combo Enemy Count", "", 0)
-        menu.menu_elements.combo_window:render("Combo Window", "", 2)
-        menu.menu_elements.rally_resource_pct:render("Rally Resource %", "", 2)
-        if menu.menu_elements.holy_bolt_resource_pct then
-            menu.menu_elements.holy_bolt_resource_pct:render("Holy Bolt Resource %", "", 2)
-        end
-        if menu.menu_elements.boss_defiance_hp_pct then
-            menu.menu_elements.boss_defiance_hp_pct:render("Boss Defiance HP %", "", 2)
+        menu.menu_elements.enable_debug:render("Enable Debug", "")
+        if menu.menu_elements.enable_debug:get() then
+            if menu.menu_elements.debug_tree:push("Debug") then
+                menu.menu_elements.draw_targets:render("Display Targets", menu.draw_targets_description)
+                menu.menu_elements.draw_max_range:render("Display Max Range",
+                    "Draw max range circle")
+                menu.menu_elements.draw_melee_range:render("Display Melee Range",
+                    "Draw melee range circle")
+                menu.menu_elements.draw_enemy_circles:render("Display Enemy Circles",
+                    "Draw enemy circles")
+                menu.menu_elements.draw_cursor_target:render("Display Cursor Target", menu.cursor_target_description)
+                menu.menu_elements.debug_tree:pop()
+            end
         end
 
-        -- QoL toggles
-        if menu.menu_elements.boss_burn_mode then
-            menu.menu_elements.boss_burn_mode:render("Boss Burn Mode", "Ignore generator resource throttles on elites/bosses to keep APM high")
-        end
-        if menu.menu_elements.disable_cursor_priority then
-            menu.menu_elements.disable_cursor_priority:render("Disable Cursor Priority", "Turn off cursor snap targeting (useful for single-target bossing)")
-        end
-        
-        -- Manual Play Mode
-        menu.menu_elements.manual_play:render("Manual Play", "When enabled, disables automatic movement for melee spells - you control positioning manually")
-        
         menu.menu_elements.settings_tree:pop()
     end
 
-    -- Debug Options
-    menu.menu_elements.enable_debug:render("Debug", "")
-    menu.menu_elements.melee_debug_mode:render("Melee Debug Mode", "Enable detailed console logging for melee spell movement and casting decisions")
-    menu.menu_elements.bypass_equipped_check:render("Bypass Equipped Check", "DEBUG: Skip checking if spell is equipped - helps identify spell ID issues")
-
-    -- Get equipped spells
-    local equipped_spells = get_equipped_spell_ids() or {}
+    local equipped_spells = get_equipped_spell_ids()
+    table.insert(equipped_spells, spell_data.evade.spell_id) -- add evade to the list
 
     -- Create a lookup table for equipped spells
     local equipped_lookup = {}
     for _, spell_id in ipairs(equipped_spells) do
-        equipped_lookup[spell_id] = true
+        -- Check each spell in spell_data to find matching spell_id
+        for spell_name, data in pairs(spell_data) do
+            if data.spell_id == spell_id then
+                equipped_lookup[spell_name] = true
+                break
+            end
+        end
     end
 
-    if menu.menu_elements.active_spells_tree:push("Active Spells") then
+    if menu.menu_elements.spells_tree:push("Equipped Spells") then
+        -- Display spells in priority order, but only if they're equipped
+        for _, spell_name in ipairs(spell_priority) do
+            if equipped_lookup[spell_name] then
+                local spell = spells[spell_name]
+                if spell then
+                    spell.menu()
+                end
+            end
+        end
+        menu.menu_elements.spells_tree:pop()
+    end
+
+    if menu.menu_elements.disabled_spells_tree:push("Inactive Spells") then
         for _, spell_name in ipairs(spell_priority) do
             local spell = spells[spell_name]
-            if spell and spell.menu and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id] then
+            if spell and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
                 spell.menu()
             end
         end
-        menu.menu_elements.active_spells_tree:pop()
+        menu.menu_elements.disabled_spells_tree:pop()
     end
 
-    if menu.menu_elements.inactive_spells_tree:push("Inactive Spells") then
-        for _, spell_name in ipairs(spell_priority) do
-            local spell = spells[spell_name]
-            if spell and spell.menu and spell_data[spell_name] and spell_data[spell_name].spell_id and not equipped_lookup[spell_data[spell_name].spell_id] then
-                spell.menu()
-            end
-        end
-        menu.menu_elements.inactive_spells_tree:pop()
-    end
-
-    menu.menu_elements.main_tree:pop()
+    menu.menu_elements.main_tree:pop();
 end)
 
-local cast_end_time = 0.0
-local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
--- Movement is now centralized in my_utility.move_to_target()
-
--- Cache evaluated targets to reduce per-frame work and target thrashing
-local targets_cache = { data = nil, time = 0.0, melee_range = 0.0, scan_radius = 0.0 }
-
--- TARGET STICKINESS: Prevent oscillation by sticking to a target for a minimum time
-local sticky_target = nil
-local sticky_target_time = 0.0
-local sticky_duration = 0.75  -- Stay on same target for at least 0.75s
-local last_cast_target = nil  -- Track target we last successfully cast at
-
--- =====================================================
--- SPELL ROTATION FAIRNESS SYSTEM
--- Ensures all equipped spells get a chance to cast, not just the first one
--- Without this, blessed_hammer (0.05s ICD) would dominate and other spells never cast
--- =====================================================
-local last_spell_cast_name = nil  -- Track which spell cast last
-local spell_cast_counts = {}       -- Count of casts per spell (for weighted fairness)
-
--- Internal cooldowns are now loaded from spell_priority.lua
-
--- =====================================================
--- USE_ABILITY FUNCTION (Druid Pattern)
--- Centralized spell casting with proper target handling
--- This prevents multiple spells from fighting over movement
--- =====================================================
-local function use_ability(spell_name, spell, spell_target, delay_after_cast)
-    local debug_enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
-
-    -- Check if spell is enabled
-    if not spell or not spell.menu_elements or not spell.menu_elements.main_boolean then
-        if debug_enabled then dbg(spell_name .. ": no main_boolean, trying logics()") end
-        if spell and type(spell.logics) == "function" then
-            local ok, success = pcall(spell.logics)
-            if ok and success then return true end
-        end
-        return false
+on_update(function()
+    if not menu.menu_elements.main_boolean:get() then
+        return
     end
 
-    if not spell.menu_elements.main_boolean:get() then
-        return false
+    -- filter the code to work only with orbwalker running some mode
+    if orbwalker.get_orb_mode() == orb_mode.none then
+        return
     end
 
-    -- For targeted spells, we need a valid target
-    -- Self-cast spells (auras, consecration, etc.) handle nil target internally
-    local is_targeted_spell = spell.menu_elements.targeting_mode ~= nil
+    local current_time = get_time_since_inject()
+    if current_time < next_cast_time then
+        return
+    end
 
-    if is_targeted_spell then
-        -- Targeted spell - MUST have a target to proceed
-        if not spell_target then
-            if debug_enabled then dbg(spell_name .. ": targeted spell but no target") end
-            return false
+    -- Update targets if needed
+    if current_time >= next_target_update_time then
+        update_targets()
+        next_target_update_time = current_time + targeting_refresh_interval
+    end
+
+    -- Get the best target based on current orbwalker mode
+    local best_target = nil
+    if orbwalker.get_orb_mode() == orb_mode.pvp then
+        best_target = best_ranged_target
+    elseif orbwalker.get_orb_mode() == orb_mode.clear then
+        best_target = best_melee_target
+    elseif orbwalker.get_orb_mode() == orb_mode.flee then
+        best_target = closest_target
+    end
+
+    if not best_target then
+        return
+    end
+
+    -- Cast spells in priority order
+    for _, spell_name in ipairs(spell_priority) do
+        local spell = spells[spell_name]
+        if spell and spell.logics(best_target) then
+            next_cast_time = current_time + 0.1 -- Small delay between casts
+            break
+        end
+    end
+end)
+
+-- Targets
+local best_ranged_target = nil
+local best_ranged_target_visible = nil
+local best_melee_target = nil
+local best_melee_target_visible = nil
+local closest_target = nil
+local closest_target_visible = nil
+local best_cursor_target = nil
+local closest_cursor_target = nil
+local closest_cursor_target_angle = 0
+-- Targetting scores
+local ranged_max_score = 0
+local ranged_max_score_visible = 0
+local melee_max_score = 0
+local melee_max_score_visible = 0
+local cursor_max_score = 0
+
+-- Targetting settings
+local max_targeting_range = menu.menu_elements.max_targeting_range:get()
+local collision_table = { true, 1 } -- collision width
+local floor_table = { true, 5.0 }   -- floor height
+local angle_table = { false, 90.0 } -- max angle
+
+-- Cache for heavy function results
+local next_target_update_time = 0.0 -- Time of next target evaluation
+local next_cast_time = 0.0          -- Time of next possible cast
+local targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
+
+-- Default enemy weights for different enemy types
+local normal_monster_value = 2
+local elite_value = 10
+local champion_value = 15
+local boss_value = 50
+local damage_resistance_value = 25
+
+local target_selector_data_all = nil
+
+local function update_targets()
+    -- Get all enemies
+    target_selector_data_all = actors_manager.get_enemy_npcs()
+    
+    -- Evaluate targets
+    best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score, melee_max_score, cursor_max_score, closest_cursor_target_angle = evaluate_targets(target_selector_data_all, 5.0) -- melee range 5.0
+    
+    -- Also set closest_target
+    closest_target = my_target_selector.get_target_closer(get_player_position(), max_targeting_range)
+end
+
+local function evaluate_targets(target_list, melee_range)
+    local best_ranged_target = nil
+    local best_melee_target = nil
+    local best_cursor_target = nil
+    local closest_cursor_target = nil
+    local closest_cursor_target_angle = 0
+
+    local ranged_max_score = 0
+    local melee_max_score = 0
+    local cursor_max_score = 0
+
+    local melee_range_sqr = melee_range * melee_range
+    local player_position = get_player_position()
+    local cursor_position = get_cursor_position()
+    local cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get()
+    local cursor_targeting_radius_sqr = cursor_targeting_radius * cursor_targeting_radius
+    local best_target_evaluation_radius = menu.menu_elements.best_target_evaluation_radius:get()
+    local cursor_targeting_angle = menu.menu_elements.cursor_targeting_angle:get()
+    local enemy_count_threshold = menu.menu_elements.enemy_count_threshold:get()
+    local closest_cursor_distance_sqr = math.huge
+
+    for _, unit in ipairs(target_list) do
+        local unit_health = unit:get_current_health()
+        local unit_name = unit:get_skin_name()
+        local unit_position = unit:get_position()
+        local distance_sqr = unit_position:squared_dist_to_ignore_z(player_position)
+        local cursor_distance_sqr = unit_position:squared_dist_to_ignore_z(cursor_position)
+        local buffs = unit:get_buffs()
+
+        -- get enemy count in range of enemy unit
+        local all_units_count, normal_units_count, elite_units_count, champion_units_count, boss_units_count = my_utility
+            .enemy_count_in_range(best_target_evaluation_radius, unit_position)
+
+        -- if enemy count is less than enemy count threshold and unit is not elite, champion or boss, skip this unit
+        if all_units_count < enemy_count_threshold and not (unit:is_elite() or unit:is_champion() or unit:is_boss()) then
+            goto continue
         end
 
-        -- Validate target with pcalls so missing methods do not hard-fail
-        local function safe_bool(method_name, default_when_missing)
-            if spell_target[method_name] == nil then
-                return default_when_missing
+        local total_score = normal_units_count * normal_monster_value
+        if boss_units_count > 0 then
+            total_score = total_score + boss_value * boss_units_count
+        elseif champion_units_count > 0 then
+            total_score = total_score + champion_value * champion_units_count
+        elseif elite_units_count > 0 then
+            total_score = total_score + elite_value * elite_units_count
+        end
+
+        -- Check if unit has damage resistance buff
+        for _, buff in ipairs(buffs) do
+            if buff.name_hash == spell_data.enemies.damage_resistance.spell_id then
+                -- if the enemy is the provider of the damage resistance aura
+                if buff.type == spell_data.enemies.damage_resistance.buff_ids.provider then
+                    total_score = total_score + damage_resistance_value
+                    break
+                else -- otherwise the enemy is the receiver of the damage resistance aura
+                    total_score = total_score - damage_resistance_value
+                    break
+                end
             end
-            local ok, res = pcall(function() return spell_target[method_name](spell_target) end)
-            if not ok then return default_when_missing end
-            return res
         end
 
-        local alive = not safe_bool("is_dead", false)
-        local not_immune = not safe_bool("is_immune", false)
-        local targetable = not safe_bool("is_untargetable", false)
-
-        if not (alive and not_immune and targetable) then
-            if debug_enabled then dbg(spell_name .. ": target invalid (dead/immune/untargetable)") end
-            return false
+        -- Check if unit is an infernal horde objective
+        for _, objective_name in ipairs(my_utility.horde_objectives) do
+            if unit_name:match(objective_name) and unit_health > 1 then
+                total_score = total_score + 1000
+                break
+            end
         end
 
-        if debug_enabled then dbg(spell_name .. ": calling logics with target") end
-
-        if type(spell.logics) ~= "function" then
-            if debug_enabled then dbg(spell_name .. ": logics is not a function") end
-            return false
+        -- in max range
+        if total_score > ranged_max_score then
+            ranged_max_score = total_score
+            best_ranged_target = unit
         end
 
-        -- SAFE CALL: Wrap spell logic in pcall to prevent script crash on single spell error
-        local ok, success, cast_duration = pcall(spell.logics, spell_target)
-        if ok and success == true then
-            return true, cast_duration
-        elseif not ok then
-            if debug_enabled then dbg(spell_name .. " ERROR: " .. tostring(success)) end
-        end
-    else
-        -- Self-cast spell (auras, consecration, etc.)
-        -- These don't need a target usually, but we pass it anyway in case the spell
-        -- wants to use it for positioning logic (like Blessed Hammer)
-        if debug_enabled then dbg(spell_name .. ": self-cast, calling logics with optional target") end
-
-        if type(spell.logics) ~= "function" then
-            if debug_enabled then dbg(spell_name .. ": logics is not a function") end
-            return false
+        -- in melee range
+        if distance_sqr < melee_range_sqr and total_score > melee_max_score then
+            melee_max_score = total_score
+            best_melee_target = unit
         end
 
-        local ok, success, cast_duration = pcall(spell.logics, spell_target)
-        if ok and success == true then
-            return true, cast_duration
-        elseif not ok then
-            if debug_enabled then dbg(spell_name .. " ERROR: " .. tostring(success)) end
+        -- in cursor angle
+        if cursor_distance_sqr <= cursor_targeting_radius_sqr then
+            local angle_to_cursor = unit_position:get_angle(cursor_position, player_position)
+            if angle_to_cursor <= cursor_targeting_angle then
+                -- in cursor radius
+                if cursor_distance_sqr <= cursor_targeting_radius_sqr then
+                    if total_score > cursor_max_score then
+                        cursor_max_score = total_score
+                        best_cursor_target = unit
+                    end
+
+                    if cursor_distance_sqr < closest_cursor_distance_sqr then
+                        closest_cursor_distance_sqr = cursor_distance_sqr
+                        closest_cursor_target = unit
+                        closest_cursor_target_angle = angle_to_cursor
+                    end
+                end
+            end
         end
+
+        ::continue::
+    end
+
+    return best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score,
+        melee_max_score, cursor_max_score, closest_cursor_target_angle
+end
+
+local function use_ability(spell_name, delay_after_cast)
+    local spell = spells[spell_name]
+    if not (spell and spell.menu_elements.main_boolean:get()) then
+        return false
+    end
+
+    local target_unit = nil
+    if spell.menu_elements.targeting_mode then
+        local targeting_mode = spell.menu_elements.targeting_mode:get()
+        target_unit = ({
+            [0] = best_ranged_target,
+            [1] = best_ranged_target_visible,
+            [2] = best_melee_target,
+            [3] = best_melee_target_visible,
+            [4] = closest_target,
+            [5] = closest_target_visible,
+            [6] = best_cursor_target,
+            [7] = closest_cursor_target
+        })[targeting_mode]
+    end
+
+    --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
+    if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
+        next_cast_time = get_time_since_inject() + delay_after_cast
+        return true
     end
 
     return false
 end
 
-safe_on_update(function()
-    local debug_enabled = false
-    if menu and menu.menu_elements then
-        debug_enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
+
+
+-- Debug
+local font_size = 16
+local y_offset = font_size + 2
+local visible_text = 255
+local visible_alpha = 180
+local alpha = 100
+local target_evaluation_radius_alpha = 50
+on_render(function()
+    if menu.menu_elements.main_boolean:get() == false or not menu.menu_elements.enable_debug:get() then
+        return;
+    end;
+
+    local local_player = get_local_player();
+    if not local_player then
+        return;
     end
-    
-    if not menu or not menu.menu_elements or not safe_get_menu_element(menu.menu_elements.main_boolean, false) then
+
+    local player_position = local_player:get_position();
+    local player_screen_position = graphics.w2s(player_position);
+    if player_screen_position:is_zero() then
+        return;
+    end
+
+    -- Draw max range
+    max_targeting_range = menu.menu_elements.max_targeting_range:get()
+    if menu.menu_elements.draw_max_range:get() then
+        graphics.circle_3d(player_position, max_targeting_range, color_white(85), 2.5, 144)
+    end
+
+    -- Draw melee range
+    if menu.menu_elements.draw_melee_range:get() then
+        local melee_range = my_utility.get_melee_range()
+        graphics.circle_3d(player_position, melee_range, color_white(85), 2.5, 144)
+    end
+
+    -- Draw enemy circles
+    if menu.menu_elements.draw_enemy_circles:get() then
+        local enemies = actors_manager.get_enemy_npcs()
+
+        for i, obj in ipairs(enemies) do
+            local position = obj:get_position();
+            graphics.circle_3d(position, 1, color_white(100));
+
+            local future_position = prediction.get_future_unit_position(obj, 0.4);
+            graphics.circle_3d(future_position, 0.25, color_yellow(100));
+        end;
+    end
+
+    if menu.menu_elements.draw_cursor_target:get() then
+        local cursor_position = get_cursor_position()
+        local cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get()
+
+        -- Draw cursor radius
+        graphics.circle_3d(cursor_position, cursor_targeting_radius, color_white(target_evaluation_radius_alpha), 1);
+    end
+
+    -- Only draw targets if we have valid target selector data
+    if not target_selector_data_all or not target_selector_data_all.is_valid then
         return
     end
 
-    -- Sync global flags from menu so gameplay reacts immediately to UI changes
-    update_global_flags_from_menu()
-
-    -- Check orbwalker mode without forcing it (match reference repo behaviour)
-    local current_orb_mode = orb_mode.none
-    if orbwalker and orbwalker.get_orb_mode then
-        local ok_mode, mode_val = pcall(function() return orbwalker.get_orb_mode() end)
-        if ok_mode then
-            current_orb_mode = mode_val
-        end
-    end
-
-    -- Debug: Log orb mode periodically
-    if debug_enabled then
-        local now = my_utility.safe_get_time()
-        if not _G.PaladinRotation.debug.orb_mode_time or (now - _G.PaladinRotation.debug.orb_mode_time) > 2.0 then
-            _G.PaladinRotation.debug.orb_mode_time = now
-            local mode_str = "unknown"
-            if current_orb_mode == orb_mode.none then mode_str = "none"
-            elseif current_orb_mode == orb_mode.pvp then mode_str = "pvp"
-            elseif current_orb_mode == orb_mode.clear then mode_str = "clear"
-            elseif current_orb_mode == orb_mode.flee then mode_str = "flee"
-            end
-            dbg("Orb Mode: " .. mode_str .. " (raw: " .. tostring(current_orb_mode) .. ")")
-        end
-    end
-
-    -- CRITICAL FIX: Only run rotation if Orbwalker is active OR Auto Play is enabled
-    -- Allow manual-play users to drive movement while still executing spells
-    local manual_play_enabled = safe_get_menu_element(menu.menu_elements.manual_play, false)
-    if current_orb_mode == orb_mode.none and not my_utility.is_auto_play_enabled() and not manual_play_enabled then
-        -- console.print("Paladin Rotation: Idle (Orb Mode: None, Auto Play: Off, Manual Play: Off)")
-        return
-    end
-
-    local current_time = my_utility.safe_get_time()
-    if current_time < cast_end_time then
-        return
-    end
-
-    -- Use is_action_allowed for mount/buff checks (like sorc/barb)
-    if not my_utility.is_action_allowed() then
-        if debug_enabled then dbg("is_action_allowed returned false") end
-        return
-    end
-
-    local player = get_local_player()
-    if not player then return end
-    
-    -- Perform class check once when player is available
-    if not is_paladin_checked then
-        local character_id = player:get_character_class_id() or -1
-        -- Paladin/Spiritborn is class ID 7 or 9
-        is_paladin_class = (character_id == 7 or character_id == 9)
-        if not is_paladin_class and console and console.print then
-            console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7 or 9); continuing load for debugging")
-        end
-        is_paladin_checked = true
-    end
-
-    local player_position = player:get_position()
-
-    -- =====================================================
-    -- TARGETING RANGE (SCAN RADIUS)
-    -- This is the maximum range to search for potential targets
-    -- Individual spells have their own cast_range which determines
-    -- if they can cast or need to move toward the target
-    -- =====================================================
-    local melee_range = my_utility.get_melee_range()
-    local scan_radius = safe_get_menu_element(menu.menu_elements.scan_radius, 15)
-    local scan_refresh_rate = safe_get_menu_element(menu.menu_elements.scan_refresh_rate, 0.2)
-    
-    -- DRUID-STYLE TARGETING: Evaluate ALL target types once per tick (throttled)
-    -- Reuse the last evaluation if within refresh window and ranges unchanged
-    local should_refresh_targets = false
-    if not targets_cache.data then
-        should_refresh_targets = true
-    else
-        if (current_time - targets_cache.time) >= scan_refresh_rate then
-            should_refresh_targets = true
-        end
-        if targets_cache.melee_range ~= melee_range or targets_cache.scan_radius ~= scan_radius then
-            should_refresh_targets = true
-        end
-        -- Invalidate cache if player moved significantly (> 2 units)
-        if targets_cache.player_pos and player_position:dist_to(targets_cache.player_pos) > 2.0 then
-            should_refresh_targets = true
-        end
-    end
-
-    if should_refresh_targets then
-        targets_cache.data = evaluate_all_targets(player_position, melee_range, scan_radius)
-        targets_cache.time = current_time
-        targets_cache.melee_range = melee_range
-        targets_cache.scan_radius = scan_radius
-        targets_cache.player_pos = player_position
-        
-        -- Update global valid enemies list for other modules to use
-        if targets_cache.data and targets_cache.data.valid_enemies then
-            _G.PaladinRotation.valid_enemies = targets_cache.data.valid_enemies
-        else
-            _G.PaladinRotation.valid_enemies = {}
-        end
-    end
-
-    local evaluated_targets = targets_cache.data or {
-        valid_enemies = {},
-        closest = nil,
-        best_melee = nil,
-        best_ranged = nil,
-        best_cursor = nil
-    }
-    
-    -- If no targets at all, exit early and update global state
-    if not evaluated_targets.closest and not evaluated_targets.best_melee and not evaluated_targets.best_ranged then
-        -- Update global state for Looteer coordination
-        _G.PaladinRotation.in_combat = false
-        _G.PaladinRotation.is_casting = false
-        _G.PaladinRotation.current_target_id = nil
-        if debug_enabled then
-            -- Only log this occasionally to avoid spam
-            if not _G.PaladinRotation.debug.no_targets_time or (current_time - _G.PaladinRotation.debug.no_targets_time) > 2.0 then
-                _G.PaladinRotation.debug.no_targets_time = current_time
-                dbg("No valid targets found - check elevation/visibility settings")
-            end
-        end
-        -- REMOVED EARLY RETURN: Allow self-cast spells (like Blessed Hammer/Buffs) to run even if no primary target is selected
-        -- return
-    end
-    
-    -- Debug: Log when targets ARE found
-    if debug_enabled then
-        if not _G.PaladinRotation.debug.targets_found_time or (current_time - _G.PaladinRotation.debug.targets_found_time) > 2.0 then
-            _G.PaladinRotation.debug.targets_found_time = current_time
-            local closest_name = evaluated_targets.closest and evaluated_targets.closest:get_skin_name() or "nil"
-            dbg("Targets found! Closest: " .. closest_name)
-        end
-    end
-    
-    -- UPDATE GLOBAL STATE: We have combat targets
-    _G.PaladinRotation.in_combat = true
-    _G.PaladinRotation.is_casting = (current_time < cast_end_time)
-    
-    -- Weighted targeting (optional): prefer clustered/high-value targets when enabled
-    local weighted_target = nil
-    if safe_get_menu_element(menu.menu_elements.weighted_targeting_enabled, false) then
-        local min_targets = safe_get_menu_element(menu.menu_elements.min_targets, 1)
-        local comparison_radius = safe_get_menu_element(menu.menu_elements.comparison_radius, 3.0)
-        local refresh_rate = safe_get_menu_element(menu.menu_elements.scan_refresh_rate, 0.2)
-        local boss_weight = safe_get_menu_element(menu.menu_elements.boss_weight, 50)
-        local elite_weight = safe_get_menu_element(menu.menu_elements.elite_weight, 10)
-        local champion_weight = safe_get_menu_element(menu.menu_elements.champion_weight, 15)
-        local any_weight = safe_get_menu_element(menu.menu_elements.any_weight, 2)
-
-        local custom_buff_weights = safe_get_menu_element(menu.menu_elements.custom_buff_weights_enabled, false)
-        local damage_resistance_provider_weight = custom_buff_weights and safe_get_menu_element(menu.menu_elements.damage_resistance_provider_weight, 30) or 0
-        local damage_resistance_receiver_penalty = custom_buff_weights and safe_get_menu_element(menu.menu_elements.damage_resistance_receiver_penalty, 5) or 0
-        local horde_objective_weight = custom_buff_weights and safe_get_menu_element(menu.menu_elements.horde_objective_weight, 50) or 0
-        local vulnerable_debuff_weight = custom_buff_weights and safe_get_menu_element(menu.menu_elements.vulnerable_debuff_weight, 1) or 0
-
-        local custom_enemy_sliders = safe_get_menu_element(menu.menu_elements.custom_enemy_sliders_enabled, false)
-        local normal_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.normal_target_count, 1) or 1
-        local champion_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.champion_target_count, 5) or 5
-        local elite_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.elite_target_count, 5) or 5
-        local boss_target_count = custom_enemy_sliders and safe_get_menu_element(menu.menu_elements.boss_target_count, 5) or 5
-
-        local cluster_threshold = min_targets
-        local wt_debug = safe_get_menu_element(menu.menu_elements.weighted_targeting_debug, false)
-        local floor_height_threshold = safe_get_menu_element(menu.menu_elements.floor_height_threshold, 5.0)
-
-        -- OPTIMIZATION: Use pre-filtered list from evaluate_all_targets to avoid double scanning
-        local pre_filtered_units = {}
-        if evaluated_targets.valid_enemies then
-            for _, data in ipairs(evaluated_targets.valid_enemies) do
-                table.insert(pre_filtered_units, data.unit)
-            end
-        end
-
-        weighted_target = my_target_selector.get_weighted_target(
-            player_position,
-            scan_radius,
-            min_targets,
-            comparison_radius,
-            boss_weight,
-            elite_weight,
-            champion_weight,
-            any_weight,
-            refresh_rate,
-            damage_resistance_provider_weight,
-            damage_resistance_receiver_penalty,
-            horde_objective_weight,
-            vulnerable_debuff_weight,
-            cluster_threshold,
-            normal_target_count,
-            champion_target_count,
-            elite_target_count,
-            boss_target_count,
-            wt_debug,
-            floor_height_threshold,
-            pre_filtered_units
-        )
-    end
-
-    -- Inject weighted target into evaluated targets so per-mode selection can prefer it
-    if weighted_target then
-        evaluated_targets.weighted = weighted_target
-        evaluated_targets.best_ranged = weighted_target
-        evaluated_targets.best_melee = evaluated_targets.best_melee or weighted_target
-    end
-
-    -- Default target for spells without per-spell targeting_mode (uses weighted first, then closest for melee safety)
-    local default_target = weighted_target or evaluated_targets.closest or evaluated_targets.best_melee
-    
-    -- Track current target for Looteer coordination
-    if default_target then
-        _G.PaladinRotation.current_target_id = default_target:get_id()
-        local ok_name, tgt_name = pcall(function() return default_target:get_skin_name() end)
-        _G.PaladinRotation.current_target_name = ok_name and tgt_name or "(unknown)"
-    end
-
-    -- Get equipped spells for spell casting logic
-    -- OPTIMIZATION: Cache equipped spells to avoid calling get_equipped_spell_ids() every frame
-    -- This matches the optimization pattern used for target scanning
-    if not _G.PaladinRotation.equipped_spells_cache or (current_time - (_G.PaladinRotation.equipped_spells_time or 0)) > 2.0 then
-        _G.PaladinRotation.equipped_spells_cache = get_equipped_spell_ids() or {}
-        _G.PaladinRotation.equipped_spells_time = current_time
-        
-        -- Rebuild lookup table when cache updates
-        _G.PaladinRotation.equipped_lookup = {}
-        for _, spell_id in ipairs(_G.PaladinRotation.equipped_spells_cache) do
-            _G.PaladinRotation.equipped_lookup[spell_id] = true
-        end
-    end
-    
-    local equipped_spells = _G.PaladinRotation.equipped_spells_cache
-    local equipped_lookup = _G.PaladinRotation.equipped_lookup or {}
-
-    -- Debug: Print equipped spell IDs once
-    if debug_enabled then
-        if not _G.PaladinRotation.debug.equipped_printed or (current_time - _G.PaladinRotation.debug.equipped_printed) > 10.0 then
-            _G.PaladinRotation.debug.equipped_printed = current_time
-            local ids_str = ""
-            for i, sid in ipairs(equipped_spells) do
-                ids_str = ids_str .. tostring(sid) .. ", "
-            end
-            dbg("Equipped spell IDs: " .. ids_str)
-        end
-    end
-
-    -- If we cannot read equipped spells (new class IDs, API quirks), auto-bypass equip check
-    local bypass_equipped = menu.menu_elements.bypass_equipped_check:get()
-    if (next(equipped_lookup) == nil) and (not bypass_equipped) then
-        bypass_equipped = true
-        if debug_enabled then
-            dbg("Equipped spell list empty - auto-enabling bypass to allow casting")
-        end
-    end
-
-    -- Loop through spells in priority order defined in spell_priority.lua
-    for _, spell_name in ipairs(spell_priority) do
-        local spell = spells[spell_name]
-        local spell_equipped = spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id]
-        local should_process = spell_equipped or (bypass_equipped and spell and spell_data[spell_name])
-        
-        if not should_process then
-             -- console.print("Skipping " .. spell_name .. " (Equipped: " .. tostring(spell_equipped) .. ", Bypass: " .. tostring(bypass_equipped) .. ")")
-        end
-
-        if should_process then
-            if debug_enabled and spell_data[spell_name] then
-                if not spell_equipped then
-                    _G.PaladinRotation.debug.last_equip = _G.PaladinRotation.debug.last_equip or {}
-                    if not _G.PaladinRotation.debug.last_equip[spell_name] or (current_time - _G.PaladinRotation.debug.last_equip[spell_name]) > 2.0 then
-                        _G.PaladinRotation.debug.last_equip[spell_name] = current_time
-                        dbg(spell_name .. " not equipped (spell_id: " .. tostring(spell_data[spell_name].spell_id) .. ")" .. (bypass_equipped and " [BYPASSED]" or ""))
-                    end
-                end
-            end
-            
-            -- Check internal cooldown for this spell
-            local internal_cooldown = spell_internal_cooldowns[spell_name] or 0
-            if internal_cooldown > 0 then
-                local last_cast_time = spell_last_cast_times[spell_name] or 0
-                local time_since_last_cast = current_time - last_cast_time
-                if time_since_last_cast < internal_cooldown then
-                    goto continue
-                end
-            end
-            
-            -- DRUID-STYLE PER-SPELL TARGETING:
-            local spell_target = nil
-            if spell.menu_elements and spell.menu_elements.targeting_mode then
-                local targeting_mode = spell.menu_elements.targeting_mode:get()
-                spell_target = my_utility.get_target_by_mode(targeting_mode, evaluated_targets)
-            else
-                spell_target = default_target
-            end
-            
-            -- TARGET STICKINESS: If we have a sticky target, prefer it if valid
-            if sticky_target and (current_time - sticky_target_time) < sticky_duration then
-                if not sticky_target:is_dead() and not sticky_target:is_immune() and not sticky_target:is_untargetable() then
-                    if spell.menu_elements and spell.menu_elements.targeting_mode then
-                        spell_target = sticky_target
-                    end
-                else
-                    sticky_target = nil
-                end
-            end
-            
-            -- Use the centralized use_ability function
-            local cast_successful, cast_duration = use_ability(spell_name, spell, spell_target, my_utility.spell_delays.regular_cast)
-
-            if cast_successful then
-                -- Animation lock
-                -- Use returned cast_duration if available, otherwise default to regular_cast
-                local duration = (type(cast_duration) == "number" and cast_duration > 0) and cast_duration or my_utility.spell_delays.regular_cast
-                cast_end_time = current_time + duration
-                
-                -- Update global state for Looteer coordination
-                _G.PaladinRotation.last_cast_time = current_time
-                _G.PaladinRotation.is_casting = true
-                
-                -- Update internal cooldown tracking
-                spell_last_cast_times[spell_name] = current_time
-                
-                -- Track for rotation debugging
-                last_spell_cast_name = spell_name
-                spell_cast_counts[spell_name] = (spell_cast_counts[spell_name] or 0) + 1
-                
-                -- Update sticky target
-                if spell_target then
-                    sticky_target = spell_target
-                    sticky_target_time = current_time
-                    last_cast_target = spell_target
-                end
-                
-                if debug_enabled then
-                    dbg("Cast " .. spell_name .. " (count " .. spell_cast_counts[spell_name] .. ") Duration: " .. string.format("%.2f", duration))
-                end
-                return
-            end
-            
-            ::continue::
-        end
-    end
-    
-    -- MOVEMENT HANDLING: Auto Play / Botting Support
-    -- If auto-play is enabled OR Orbwalker is active (and we blocked its movement), move to target
-    -- CRITICAL FIX: Check if a spell already requested movement (e.g. Zeal out of range) to prevent override
-    local should_move = my_utility.is_auto_play_enabled() or (current_orb_mode ~= orb_mode.none)
-    
-    if should_move and not my_utility.was_movement_requested_recently(0.1) then
-        local player_pos = player:get_position()
-        local is_dangerous = false
-        if evade and evade.is_dangerous_position then
-            is_dangerous = evade.is_dangerous_position(player_pos)
-        end
-        
-        if not is_dangerous then
-            -- Use the default target (weighted or closest)
-            local target = default_target
-            if target then
-                local target_pos = target:get_position()
-                if target_pos then
-                    -- Move to within 4 yards of the target (melee range)
-                    -- get_extended: from target_pos, extend towards player_pos by 4.0 units
-                    local move_pos = target_pos:get_extended(player_pos, 4.0)
-                    my_utility.move_to_target(move_pos, target:get_id())
-                end
-            end
-        end
-    end
-end)
-
--- Lightweight debug overlay (toggle with Enable Debug)
-safe_on_render(function()
-    if not safe_get_menu_element(menu.menu_elements.enable_debug, false) then
-        return
-    end
-
-    local player = get_local_player()
-    if not player then return end
-    local player_pos = player:get_position()
-    local pos2d = graphics.w2s(player_pos)
-    if not pos2d or pos2d:is_zero() then return end
-
-    local function make_vec2_safe(px, py)
-        if vec2 and vec2.new then return vec2.new(px, py) end
-        return nil
-    end
-
-    -- Draw ranges
-    local scan_radius = safe_get_menu_element(menu.menu_elements.scan_radius, 15)
-    graphics.circle_3d(player_pos, scan_radius, color_white(85), 2.5, 144)
-    
-    local melee_range = my_utility.get_melee_range()
-    graphics.circle_3d(player_pos, melee_range, color_white(85), 2.5, 144)
+    local best_target_evaluation_radius = menu.menu_elements.best_target_evaluation_radius:get()
 
     -- Draw targets
-    local targets = targets_cache.data
-    if targets then
-        local function draw_target(unit, label, col)
-            if unit then
-                local pos = unit:get_position()
-                if pos then
-                    graphics.circle_3d(pos, 1.0, col, 2.0)
-                    local p2d = graphics.w2s(pos)
-                    if p2d and not p2d:is_zero() then
-                        graphics.line(pos2d, p2d, col, 2.0)
-                        graphics.text_2d(label, p2d, 16, col)
-                    end
-                end
-            end
+    if menu.menu_elements.draw_targets:get() then
+        -- Draw visible ranged target
+        if best_ranged_target_visible and best_ranged_target_visible:is_enemy() then
+            local best_ranged_target_visible_position = best_ranged_target_visible:get_position();
+            local best_ranged_target_visible_position_2d = graphics.w2s(best_ranged_target_visible_position);
+            graphics.line(best_ranged_target_visible_position_2d, player_screen_position, color_red(visible_alpha),
+                2.5)
+            graphics.circle_3d(best_ranged_target_visible_position, 0.80, color_red(visible_alpha), 2.0);
+            graphics.circle_3d(best_ranged_target_visible_position, best_target_evaluation_radius,
+                color_white(target_evaluation_radius_alpha), 1);
+            local text_position = vec2:new(best_ranged_target_visible_position_2d.x,
+                best_ranged_target_visible_position_2d.y - y_offset)
+            graphics.text_2d("RANGED_VISIBLE - Score:" .. ranged_max_score_visible, text_position, font_size,
+                color_red(visible_text))
         end
 
-        draw_target(targets.best_melee, "Melee", color_green(200))
-        draw_target(targets.best_ranged, "Ranged", color_red(200))
-        draw_target(targets.best_cursor, "Cursor", color_orange(200))
-    end
+        -- Draw ranged target if it's not the same as the visible ranged target
+        if best_ranged_target_visible ~= best_ranged_target and best_ranged_target and best_ranged_target:is_enemy() then
+            local best_ranged_target_position = best_ranged_target:get_position();
+            local best_ranged_target_position_2d = graphics.w2s(best_ranged_target_position);
+            graphics.circle_3d(best_ranged_target_position, 0.80, color_red_pale(alpha), 2.0);
+            graphics.circle_3d(best_ranged_target_position, best_target_evaluation_radius,
+                color_white(target_evaluation_radius_alpha), 1);
+            local text_position = vec2:new(best_ranged_target_position_2d.x,
+                best_ranged_target_position_2d.y - y_offset)
+            graphics.text_2d("RANGED - Score:" .. ranged_max_score, text_position, font_size, color_red_pale(alpha))
+        end
 
-    local lines = {}
-    local mode = "nil"
-    if orbwalker and orbwalker.get_orb_mode then
-        local ok, m = pcall(function() return orbwalker.get_orb_mode() end)
-        if ok then
-            if orb_mode then
-                if m == orb_mode.none then mode = "none"
-                elseif m == orb_mode.pvp then mode = "pvp"
-                elseif m == orb_mode.clear then mode = "clear"
-                elseif m == orb_mode.flee then mode = "flee"
-                else mode = tostring(m)
-                end
-            else
-                mode = tostring(m)
-            end
+        -- Draw visible melee target
+        if best_melee_target_visible and best_melee_target_visible:is_enemy() then
+            local best_melee_target_visible_position = best_melee_target_visible:get_position();
+            local best_melee_target_visible_position_2d = graphics.w2s(best_melee_target_visible_position);
+            graphics.line(best_melee_target_visible_position_2d, player_screen_position, color_green(visible_alpha),
+                2.5)
+            graphics.circle_3d(best_melee_target_visible_position, 0.70, color_green(visible_alpha), 2.0);
+            graphics.circle_3d(best_melee_target_visible_position, best_target_evaluation_radius,
+                color_white(target_evaluation_radius_alpha), 1);
+            local text_position = vec2:new(best_melee_target_visible_position_2d.x,
+                best_melee_target_visible_position_2d.y)
+            graphics.text_2d("MELEE_VISIBLE - Score:" .. melee_max_score_visible, text_position, font_size,
+                color_green(visible_text))
+        end
+
+        -- Draw melee target if it's not the same as the visible melee target
+        if best_melee_target_visible ~= best_melee_target and best_melee_target and best_melee_target:is_enemy() then
+            local best_melee_target_position = best_melee_target:get_position();
+            local best_melee_target_position_2d = graphics.w2s(best_melee_target_position);
+            graphics.circle_3d(best_melee_target_position, 0.70, color_green_pale(alpha), 2.0);
+            graphics.circle_3d(best_melee_target_position, best_target_evaluation_radius,
+                color_white(target_evaluation_radius_alpha), 1);
+            local text_position = vec2:new(best_melee_target_position_2d.x, best_melee_target_position_2d.y)
+            graphics.text_2d("MELEE - Score:" .. melee_max_score, text_position, font_size, color_green_pale(alpha))
+        end
+
+        -- Draw visible closest target
+        if closest_target_visible and closest_target_visible:is_enemy() then
+            local closest_target_visible_position = closest_target_visible:get_position();
+            local closest_target_visible_position_2d = graphics.w2s(closest_target_visible_position);
+            graphics.line(closest_target_visible_position_2d, player_screen_position, color_cyan(visible_alpha), 2.5)
+            graphics.circle_3d(closest_target_visible_position, 0.60, color_cyan(visible_alpha), 2.0);
+            graphics.circle_3d(closest_target_visible_position, best_target_evaluation_radius,
+                color_white(target_evaluation_radius_alpha), 1);
+            local text_position = vec2:new(closest_target_visible_position_2d.x,
+                closest_target_visible_position_2d.y + y_offset)
+            graphics.text_2d("CLOSEST_VISIBLE", text_position, font_size, color_cyan(visible_text))
+        end
+
+        -- Draw closest target if it's not the same as the visible closest target
+        if closest_target_visible ~= closest_target and closest_target and closest_target:is_enemy() then
+            local closest_target_position = closest_target:get_position();
+            local closest_target_position_2d = graphics.w2s(closest_target_position);
+            graphics.circle_3d(closest_target_position, 0.60, color_cyan_pale(alpha), 2.0);
+            graphics.circle_3d(closest_target_position, best_target_evaluation_radius,
+                color_white(target_evaluation_radius_alpha), 1);
+            local text_position = vec2:new(closest_target_position_2d.x, closest_target_position_2d.y + y_offset)
+            graphics.text_2d("CLOSEST", text_position, font_size, color_cyan_pale(alpha))
         end
     end
 
-    table.insert(lines, "Orbwalker: " .. mode)
-    table.insert(lines, "Last Spell: " .. tostring(last_spell_cast_name or "-"))
-    if _G.PaladinRotation then
-        table.insert(lines, "Target ID: " .. tostring(_G.PaladinRotation.current_target_id or "-"))
-        table.insert(lines, "Target Name: " .. tostring(_G.PaladinRotation.current_target_name or "-"))
-    end
+    if menu.menu_elements.draw_cursor_target:get() then
+        -- Draw best cursor target
+        if best_cursor_target and best_cursor_target:is_enemy() then
+            local best_cursor_target_position = best_cursor_target:get_position();
+            local best_cursor_target_position_2d = graphics.w2s(best_cursor_target_position);
+            graphics.circle_3d(best_cursor_target_position, 0.60, color_orange_red(255), 2.0, 5);
+            graphics.text_2d("BEST_CURSOR_TARGET - Score:" .. cursor_max_score, best_cursor_target_position_2d, font_size,
+                color_orange_red(255))
+        end
 
-    local x = pos2d.x + 40
-    local y = pos2d.y - 120
-    local line_height = 16
-    for i, text in ipairs(lines) do
-        local p = make_vec2_safe(x, y + (i - 1) * line_height)
-        if p then
-            graphics.text_2d(text, p, 16, color_white(220))
+        -- Draw closest cursor target
+        if closest_cursor_target and closest_cursor_target:is_enemy() then
+            local closest_cursor_target_position = closest_cursor_target:get_position();
+            local closest_cursor_target_position_2d = graphics.w2s(closest_cursor_target_position);
+            graphics.circle_3d(closest_cursor_target_position, 0.40, color_green_pastel(255), 2.0, 5);
+            local text_position = vec2:new(closest_cursor_target_position_2d.x,
+                closest_cursor_target_position_2d.y + y_offset)
+            graphics.text_2d("CLOSEST_CURSOR_TARGET - Angle:" .. string.format("%.1f", closest_cursor_target_angle),
+                text_position, font_size,
+                color_green_pastel(255))
         end
     end
-end)
+end);
 
-if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 2.0 (Spell Rotation Fairness System)")
-end
+console.print("Lua Plugin - Paladin Dirty - Version 1.5.6")

@@ -1,172 +1,60 @@
--- Holy Bolt - Basic Skill (Judicator)
--- Generate Faith: 16 | Lucky Hit: 44%
--- Throw a Holy hammer, dealing 90% damage.
--- Holy Damage
-
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
-local menu_module = require("menu")
 
-local menu_elements = {
-    tree_tab = tree_node:new(1),
-    main_boolean = checkbox:new(true, get_hash("paladin_rotation_holy_bolt_enabled")),
-    debug_mode = checkbox:new(false, get_hash("paladin_rotation_holy_bolt_debug_mode")),
-    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_holy_bolt_targeting_mode")),  -- Default: 0 = Ranged Target
-    min_cooldown = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_holy_bolt_min_cd")),
-    cast_range = slider_float:new(5.0, 20.0, 12.0, get_hash("paladin_rotation_holy_bolt_cast_range")),  -- Ranged projectile
-    use_for_judgement = checkbox:new(false, get_hash("paladin_rotation_holy_bolt_judgement_mode")),
-    resource_threshold = slider_int:new(0, 100, 30, get_hash("paladin_rotation_holy_bolt_resource_threshold")),  -- Only gen when Faith below 30%
-    prediction_time = slider_float:new(0.1, 0.8, 0.25, get_hash("paladin_rotation_holy_bolt_prediction")),  -- Slightly faster prediction
+local max_spell_range = 15.0
+local menu_elements =
+{
+    tree_tab            = tree_node:new(1),
+    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_bolt_main_bool_base")),
+    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "holy_bolt_targeting_mode")),
+    min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
+        get_hash(my_utility.plugin_label .. "holy_bolt_min_target_range")),
 }
-
-local spell_id = spell_data.holy_bolt.spell_id
-local next_time_allowed_cast = 0.0
--- Movement is now handled by my_utility.move_to_target() centralized system
-local last_api_debug_time = 0.0
-
-local function dbg(msg)
-    local enabled = false
-    if menu_module and menu_module.menu_elements and menu_module.menu_elements.enable_debug then
-        enabled = menu_module.menu_elements.enable_debug:get()
-    end
-    if enabled and console and type(console.print) == "function" then
-        console.print("[Paladin_Rotation][Holy Bolt] " .. msg)
-    end
-end
-
-local function dbg_api_once_per_sec(msg)
-    local now = my_utility.safe_get_time()
-    if now - last_api_debug_time >= 1.0 then
-        last_api_debug_time = now
-        dbg(msg)
-    end
-end
 
 local function menu()
     if menu_elements.tree_tab:push("Holy Bolt") then
-        menu_elements.main_boolean:render("Enable", "Basic Generator - Throw hammer for 90% (Generate 16 Faith)")
+        menu_elements.main_boolean:render("Enable Holy Bolt", "")
         if menu_elements.main_boolean:get() then
-            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
-            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
-            menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.cast_range:render("Cast Range", "Maximum distance to target for casting", 1)
-            menu_elements.use_for_judgement:render("Judgement Build (Captain America)", "Always use to apply Judgement before Blessed Shield (ignore resource threshold)")
-            if not menu_elements.use_for_judgement:get() then
-                menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (set 0 for always)")
-            end
-            menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
+                my_utility.targeting_mode_description)
+            menu_elements.min_target_range:render("Min Target Distance",
+                "\n     Must be lower than Max Targeting Range     \n\n", 1)
         end
+
         menu_elements.tree_tab:pop()
     end
 end
 
+local next_time_allowed_cast = 0;
+
 local function logics(target)
-    local debug_enabled = menu_elements.debug_mode:get()
-    
-    if not target then
-        if debug_enabled then console.print("[HOLY BOLT DEBUG] No target provided") end
-        return false, 0
-    end
-    
-    local menu_boolean = menu_elements.main_boolean:get()
-    if not menu_boolean then
-        return false, 0
-    end
+    if not target then return false end;
+    local menu_boolean = menu_elements.main_boolean:get();
+    local is_logic_allowed = my_utility.is_spell_allowed(
+        menu_boolean,
+        next_time_allowed_cast,
+        spell_data.holy_bolt.spell_id);
 
-    -- Validate target (Druid pattern - simple checks)
-    if not target:is_enemy() then
-        if debug_enabled then console.print("[HOLY BOLT DEBUG] Target is not an enemy") end
-        return false, 0
-    end
-    if target:is_dead() or target:is_immune() or target:is_untargetable() then
-        if debug_enabled then console.print("[HOLY BOLT DEBUG] Target is dead/immune/untargetable") end
-        return false, 0
+    if not is_logic_allowed then return false end;
+
+    if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
+        return false
     end
 
-    local player = get_local_player()
-    if not player then return false, 0 end
-    
-    -- Check readiness BEFORE movement so we don't chase while gated by cooldown/resource/mode
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
-    if not is_logic_allowed then
-        if debug_enabled then console.print("[HOLY BOLT DEBUG] Spell not allowed (cooldown/mode)") end
-        return false, 0
-    end
+    if cast_spell.target(target, spell_data.holy_bolt.spell_id, 0) then
+        local current_time = get_time_since_inject();
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        console.print("Cast Holy Bolt - Target: " ..
+            my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
+        return true;
+    end;
 
-    -- Range check AFTER gating for ranged projectile
-    local cast_range = menu_elements.cast_range:get()
-    if not my_utility.is_in_range(target, cast_range) then
-        -- CENTRALIZED MOVEMENT: Move toward target
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[HOLY BOLT DEBUG] Moving toward target - out of range") end
-        return false, 0  -- Don't cast, just move
-    end
-
-    -- JUDGEMENT BUILD MODE (Captain America): Always cast to apply Judgement
-    -- GENERATOR MODE: Only cast when Faith is LOW
-    local judgement_mode = menu_elements.use_for_judgement:get()
-    if not judgement_mode then
-        local burn_override = _G.PaladinRotation and _G.PaladinRotation.boss_burn_mode and (target:is_elite() or target:is_champion() or target:is_boss())
-        local threshold = menu_elements.resource_threshold:get()
-        if (threshold > 0) and (not burn_override) then
-            local resource_pct = my_utility.get_resource_pct()
-            if resource_pct and (resource_pct * 100) >= threshold then
-                if debug_enabled then console.print("[HOLY BOLT DEBUG] Faith too high") end
-                return false, 0  -- Faith is high enough, let spenders handle it
-            end
-        end
-    end
-
-    local cooldown = menu_elements.min_cooldown:get()
-    if cooldown < my_utility.spell_delays.regular_cast then
-        cooldown = my_utility.spell_delays.regular_cast
-    end
-
-    if cast_spell.target(target, spell_id, 0.0, false) then
-        local current_time = my_utility.safe_get_time()
-        next_time_allowed_cast = current_time + cooldown
-        if debug_enabled then
-            local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
-            console.print("[HOLY BOLT DEBUG] Cast successful - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
-        end
-        return true, cooldown
-    end
-
-    -- Fallback: Try position-based cast with prediction
-    local tpos = target:get_position()
-    if tpos then
-        local prediction_time = menu_elements.prediction_time:get()
-        if prediction and prediction.get_future_unit_position then
-            local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
-            if predicted_pos then
-                tpos = predicted_pos
-            end
-        end
-
-        local cast_range = menu_elements.cast_range:get()
-        local player_pos = player and player:get_position() or nil
-        local in_range = player_pos and tpos and player_pos:squared_dist_to_ignore_z(tpos) <= (cast_range * cast_range)
-
-        if in_range and cast_spell.position(spell_id, tpos, 0.0) then
-            local current_time = my_utility.safe_get_time()
-            next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-            if debug_enabled then
-                local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
-                console.print("[HOLY BOLT DEBUG] Cast successful (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
-            end
-            return true
-        elseif (not in_range) then
-            -- Keep advancing if prediction is out of range
-            my_utility.move_to_target(tpos, target:get_id())
-            if debug_enabled then console.print("[HOLY BOLT DEBUG] Predicted position out of range - moving") end
-        end
-    end
-
-    return false
+    return false;
 end
 
-return {
+return
+{
     menu = menu,
     logics = logics,
-    menu_elements = menu_elements,
+    menu_elements = menu_elements
 }
