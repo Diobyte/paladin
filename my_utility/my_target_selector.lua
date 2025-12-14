@@ -171,8 +171,8 @@ local function get_target_selector_data(source, list)
         local distance_sqr = unit_position:squared_dist_to_ignore_z(source)
         
         -- Use safe wrappers for health values
-        local max_health = safe_get_current_health(unit) > 0 and unit:get_max_health() or 0
         local current_health = safe_get_current_health(unit)
+        local max_health = safe_get_max_health(unit)
         if current_health <= 0 then goto continue end  -- Skip dead units
 
         -- update units data
@@ -402,9 +402,10 @@ local function get_target_list(source, range, collision_table, floor_table, angl
 
     for _, unit in ipairs(possible_targets_list) do
 
-        local skin = unit:get_skin_name()
+        local skin = safe_get_skin_name(unit)
         if skin ~= "S05_BSK_Rogue_001_Clone" then
-            local unit_position = unit:get_position()
+            local unit_position = safe_get_position(unit)
+            if not unit_position then goto continue_filter end
             local is_valid_unit = true
 
             -- Collision (wall) filter - use target_selector API per documentation
@@ -414,10 +415,10 @@ local function get_target_list(source, range, collision_table, floor_table, angl
                 end
             end
 
-            -- Floor/height filter (use x-difference heuristic as in original)
+            -- Floor/height filter (use z-difference for vertical height check)
             if is_valid_unit and floor_enabled then
-                local x_difference = math.abs(source:x() - unit_position:x())
-                if x_difference > floor_height then
+                local z_difference = math.abs(source:z() - unit_position:z())
+                if z_difference > floor_height then
                     is_valid_unit = false
                 end
             end
@@ -436,6 +437,7 @@ local function get_target_list(source, range, collision_table, floor_table, angl
                 table.insert(new_list, unit)
             end
         end
+        ::continue_filter::
     end
 
     return new_list;
