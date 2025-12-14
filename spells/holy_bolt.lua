@@ -35,7 +35,7 @@ local function dbg(msg)
 end
 
 local function dbg_api_once_per_sec(msg)
-    local now = get_time_since_inject()
+    local now = my_utility.safe_get_time()
     if now - last_api_debug_time >= 1.0 then
         last_api_debug_time = now
         dbg(msg)
@@ -122,7 +122,7 @@ local function logics(target)
     end
 
     if cast_spell.target(target, spell_id, 0.0, false) then
-        local current_time = get_time_since_inject()
+        local current_time = my_utility.safe_get_time()
         next_time_allowed_cast = current_time + cooldown
         if debug_enabled then
             local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
@@ -143,10 +143,12 @@ local function logics(target)
         end
 
         if cast_spell.position(spell_id, tpos, 0.0) then
-            local current_time = get_time_since_inject()
+            local current_time = my_utility.safe_get_time()
             next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-            local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
-            console.print("Cast Holy Bolt (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
+            if debug_enabled then
+                local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+                console.print("[HOLY BOLT DEBUG] Cast successful (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
+            end
             return true
         end
     end

@@ -125,14 +125,40 @@ local function safe_get_time()
 end
 
 local function is_auto_play_enabled()
-    -- Auto play fire spells without orbwalker
-    local is_auto_play_active = auto_play and auto_play.is_active and auto_play.is_active()
-    local auto_play_objective = auto_play and auto_play.get_objective and auto_play.get_objective()
-    local is_auto_play_fighting = auto_play_objective == objective.fight
-    if is_auto_play_active and is_auto_play_fighting then
-        return true
+    -- Safely detect if auto_play is toggled on; avoid crashing when objective enums are absent
+    if not (auto_play and auto_play.is_active) then
+        return false
     end
-    return false
+
+    local ok_active, is_active = pcall(auto_play.is_active)
+    if not ok_active or not is_active then
+        return false
+    end
+
+    -- Some environments expose a mode/objective getter; treat "fight"/"combat" as active combat
+    local ok_objective, objective_value = pcall(function()
+        if auto_play.get_mode then
+            return auto_play.get_mode()
+        end
+        if auto_play.get_objective then
+            return auto_play.get_objective()
+        end
+        return nil
+    end)
+
+    if ok_objective and objective_value then
+        if type(objective_value) == "string" then
+            local normalized = objective_value:lower()
+            if normalized == "fight" or normalized == "combat" or normalized == "pvp" then
+                return true
+            end
+        elseif type(objective_value) == "table" and objective_value.fight then
+            return true
+        end
+    end
+
+    -- Default to true when auto_play is active but objective is unavailable
+    return true
 end
 
 -- Check if a spell's buff is active on player (like Druid is_spell_active)
@@ -228,7 +254,7 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false
     end
 
-    local current_time = get_time_since_inject()
+    local current_time = safe_get_time()
     if current_time < next_cast_allowed_time then
         if debug_mode then console.print("[is_spell_allowed] waiting for next_cast_allowed_time") end
         return false

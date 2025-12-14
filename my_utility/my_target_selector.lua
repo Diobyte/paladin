@@ -581,13 +581,119 @@ local last_scan_time = 0
 local cached_weighted_target = nil
 local cached_target_list = {}
 
+-- Ensure cached target remains valid between scans (can die/move out of range)
+local function is_cached_target_valid(target, source_pos, scan_radius)
+    if not target then return false end
+
+    local ok_enemy, is_enemy_flag = pcall(function() return target:is_enemy() end)
+    if not ok_enemy or not is_enemy_flag then return false end
+
+    local checks = {
+        function() return not target:is_dead() end,
+        function() return not target:is_immune() end,
+        function() return not target:is_untargetable() end,
+    }
+
+    for _, fn in ipairs(checks) do
+        local ok, result = pcall(fn)
+        if not ok or not result then
+            return false
+        end
+    end
+
+    local pos_ok, pos = pcall(function() return target:get_position() end)
+    if not pos_ok or not pos then
+        return false
+    end
+
+    if source_pos and scan_radius then
+        local radius_sqr = scan_radius * scan_radius
+        if pos:squared_dist_to_ignore_z(source_pos) > radius_sqr then
+            return false
+        end
+    end
+
+    return true
+end
+
+local function get_closest_valid_target(list, source)
+    if not list or not source then return nil end
+
+    -- Normalize source to a vec3 if a gameobject is provided
+    local ref_pos = source
+    if type(source) == "table" and source.get_position then
+        local ok, pos = pcall(function() return source:get_position() end)
+        if ok and pos then
+            ref_pos = pos
+        else
+            return nil
+        end
+    end
+
+    if type(ref_pos) ~= "table" or not ref_pos.squared_dist_to_ignore_z then
+        return nil
+    end
+
+    local closest = nil
+    local closest_sqr = math.huge
+
+    for _, unit in ipairs(list) do
+        if is_cached_target_valid(unit, ref_pos, nil) then
+            local ok_pos, pos = pcall(function() return unit:get_position() end)
+            if ok_pos and pos then
+                local dist_sqr = pos:squared_dist_to_ignore_z(ref_pos)
+                if dist_sqr < closest_sqr then
+                    closest_sqr = dist_sqr
+                    closest = unit
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
 local function get_weighted_target(source, scan_radius, min_targets, comparison_radius, boss_weight, elite_weight, champion_weight, any_weight, refresh_rate, damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight, cluster_min_target_count, normal_target_count, champion_target_count, elite_target_count, boss_target_count, debug_enabled)
-    local current_time = get_time_since_inject()
+    -- Normalize inputs
+    scan_radius = math.max(scan_radius or 0, 0.1)
+    comparison_radius = math.max(comparison_radius or 0, 0.1)
+    min_targets = math.max(min_targets or 1, 1)
+    refresh_rate = math.max(refresh_rate or 0.05, 0.01)
+
+    -- Normalize source to a vec3 for distance and API calls
+    local source_pos = source
+    if source and type(source) == "table" and source.get_position then
+        local ok, pos = pcall(function() return source:get_position() end)
+        if ok and pos then
+            source_pos = pos
+        end
+    end
+
+    if not source_pos then
+        cached_target_list = {}
+        cached_weighted_target = nil
+        return nil
+    end
+
+    local current_time = my_utility.safe_get_time()
     
     -- Only scan for new targets if refresh time has passed
     if current_time - last_scan_time >= refresh_rate then
         last_scan_time = current_time
-        cached_target_list = target_selector.get_near_target_list(source, scan_radius) or {}
+        cached_target_list = target_selector.get_near_target_list(source_pos, scan_radius) or {}
+
+        if #cached_target_list < min_targets then
+            cached_weighted_target = get_closest_valid_target(cached_target_list, source_pos)
+            if debug_enabled then
+                console.print("[WEIGHTED TARGET DEBUG] Not enough targets (" .. #cached_target_list .. " < " .. min_targets .. ")")
+                if cached_weighted_target then
+                    console.print("[WEIGHTED TARGET DEBUG] Using closest valid target as fallback")
+                else
+                    console.print("[WEIGHTED TARGET DEBUG] No valid targets available")
+                end
+            end
+            return cached_weighted_target
+        end
         
         if debug_enabled then
             console.print("[WEIGHTED TARGET DEBUG] === Starting New Scan ===")
@@ -762,32 +868,50 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
         -- Stage 2: Sort valid clusters by total weight (highest first) and select target
         if #valid_clusters > 0 then
             table.sort(valid_clusters, function(a, b) return a.total_weight > b.total_weight end)
-            cached_weighted_target = valid_clusters[1].highest_weight_unit
-            
-            if debug_enabled then
-                console.print("[WEIGHTED TARGET DEBUG] Winning cluster: " .. valid_clusters[1].cluster_id .. " (TotalWeight: " .. valid_clusters[1].total_weight .. ")")
-                -- Find the selected target's details
-                local selected_target_info = nil
-                for _, cluster_target in ipairs(valid_clusters[1].targets) do
-                    if cluster_target.unit == cached_weighted_target then
-                        selected_target_info = cluster_target
-                        break
+
+            -- Pick the first cluster whose highest_weight_unit is still valid; fall through otherwise
+            for _, cluster in ipairs(valid_clusters) do
+                if is_cached_target_valid(cluster.highest_weight_unit, source_pos, scan_radius) then
+                    cached_weighted_target = cluster.highest_weight_unit
+                    if debug_enabled then
+                        console.print("[WEIGHTED TARGET DEBUG] Winning cluster: " .. cluster.cluster_id .. " (TotalWeight: " .. cluster.total_weight .. ")")
+                        local selected_target_info = nil
+                        for _, cluster_target in ipairs(cluster.targets) do
+                            if cluster_target.unit == cached_weighted_target then
+                                selected_target_info = cluster_target
+                                break
+                            end
+                        end
+                        if selected_target_info then
+                            console.print("[WEIGHTED TARGET DEBUG] Selected target: " .. selected_target_info.unit_type .. " (Weight: " .. selected_target_info.weight .. ")")
+                        end
+                        console.print("[WEIGHTED TARGET DEBUG] === TARGET SELECTION SUCCESS ===")
                     end
+                    break
                 end
-                if selected_target_info then
-                    console.print("[WEIGHTED TARGET DEBUG] Selected target: " .. selected_target_info.unit_type .. " (Weight: " .. selected_target_info.weight .. ")")
-                end
-                console.print("[WEIGHTED TARGET DEBUG] === TARGET SELECTION SUCCESS ===")
             end
-        else
-            cached_weighted_target = nil
-            if debug_enabled then
-                console.print("[WEIGHTED TARGET DEBUG] FAILED: No valid clusters after filtering")
-                console.print("[WEIGHTED TARGET DEBUG] === TARGET SELECTION FAILED ===")
+        end
+
+        if not cached_weighted_target then
+            cached_weighted_target = get_closest_valid_target(cached_target_list, source_pos)
+            if debug_enabled and cached_weighted_target then
+                console.print("[WEIGHTED TARGET DEBUG] Fallback to closest valid target (no valid cluster target)")
             end
+        end
+
+        if not cached_weighted_target and debug_enabled then
+            console.print("[WEIGHTED TARGET DEBUG] FAILED: No valid clusters after filtering")
+            console.print("[WEIGHTED TARGET DEBUG] === TARGET SELECTION FAILED ===")
         end
     end
     
+    -- Validate cached target before returning (can die/move between refreshes)
+    if cached_weighted_target and not is_cached_target_valid(cached_weighted_target, source_pos, scan_radius) then
+        cached_weighted_target = nil
+        cached_target_list = {}
+        last_scan_time = 0  -- force immediate rescan next call
+    end
+
     return cached_weighted_target
 end
 

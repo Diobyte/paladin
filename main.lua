@@ -40,9 +40,9 @@ end
 local character_id = local_player:get_character_class_id()
 local is_paladin = character_id == 7 -- Paladin class ID
 -- Uncomment below to restrict plugin to Paladin only:
--- if not is_paladin then
---     return
--- end
+if not is_paladin then
+    return
+end
 
 -- Orbwalker settings (like druid/barb) - take control of movement
 -- These MUST be called unconditionally at the top level, before any logic
@@ -68,21 +68,15 @@ _G.PaladinRotation = {
 }
 
 local function safe_on_render_menu(cb)
-    if type(_G.safe_on_render_menu) == "function" then
-        return _G.safe_on_render_menu(cb)
-    end
-    if type(_G.on_render_menu) == "function" then
-        return _G.on_render_menu(cb)
+    if type(on_render_menu) == "function" then
+        return on_render_menu(cb)
     end
     return false
 end
 
 local function safe_on_update(cb)
-    if type(_G.safe_on_update) == "function" then
-        return _G.safe_on_update(cb)
-    end
-    if type(_G.on_update) == "function" then
-        return _G.on_update(cb)
+    if type(on_update) == "function" then
+        return on_update(cb)
     end
     return false
 end
@@ -307,7 +301,7 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
     
     -- Debug: Log enemy counts
     if debug_enabled then
-        local now = get_time_since_inject()
+        local now = my_utility.safe_get_time()
         if not _G.paladin_enemy_count_time or (now - _G.paladin_enemy_count_time) > 3.0 then
             _G.paladin_enemy_count_time = now
             dbg("Enemies: " .. total_enemies .. " total, " .. #valid_enemies .. " valid, filtered: dead=" .. filtered_dead .. " range=" .. filtered_range .. " floor=" .. filtered_floor)
@@ -477,8 +471,7 @@ safe_on_render_menu(function()
         
         -- Only show configuration if weighted targeting is enabled
         if menu.menu_elements.weighted_targeting_enabled:get() then
-            -- Scan settings
-            menu.menu_elements.scan_radius:render("Scan Radius", "Radius around character to scan for targets (1-30)")
+            -- Scan settings (scan_radius is now in Settings section - always visible)
             menu.menu_elements.scan_refresh_rate:render("Refresh Rate", "How often to refresh target scanning in seconds (0.1-1.0)", 1)
             menu.menu_elements.min_targets:render("Minimum Targets", "Minimum number of targets required to activate weighted targeting (1-10)")
             menu.menu_elements.comparison_radius:render("Comparison Radius", "Radius to check for nearby targets when calculating weights (0.1-6.0)", 1)
@@ -531,9 +524,12 @@ safe_on_render_menu(function()
     end
 
     if menu.menu_elements.settings_tree:push("Settings") then
-        -- Only show legacy targeting settings if weighted targeting is disabled
+        -- SCAN RADIUS: How far to look for potential targets
+        -- This is ALWAYS shown - it's the primary range setting
+        menu.menu_elements.scan_radius:render("Scan Radius", "How far to search for enemies (units). Spells have their own cast ranges within this.")
+        
+        -- Legacy setting - only show if weighted targeting is disabled
         if not menu.menu_elements.weighted_targeting_enabled:get() then
-            menu.menu_elements.max_targeting_range:render("Max Targeting Range", "")
             if menu.menu_elements.prefer_elites then
                 menu.menu_elements.prefer_elites:render("Prefer Elites/Champions/Boss", "")
             end
@@ -556,7 +552,7 @@ safe_on_render_menu(function()
             menu.menu_elements.boss_defiance_hp_pct:render("Boss Defiance HP %", "", 2)
         end
         
-        -- Manual Play Mode (like barb)
+        -- Manual Play Mode
         menu.menu_elements.manual_play:render("Manual Play", "When enabled, disables automatic movement for melee spells - you control positioning manually")
         
         menu.menu_elements.settings_tree:pop()
@@ -609,9 +605,20 @@ local sticky_target_time = 0.0
 local sticky_duration = 0.75  -- Stay on same target for at least 0.75s
 local last_cast_target = nil  -- Track target we last successfully cast at
 
+-- =====================================================
+-- SPELL ROTATION FAIRNESS SYSTEM
+-- Ensures all equipped spells get a chance to cast, not just the first one
+-- Without this, blessed_hammer (0.05s ICD) would dominate and other spells never cast
+-- =====================================================
+local last_spell_cast_name = nil  -- Track which spell cast last
+local spell_cast_counts = {}       -- Count of casts per spell (for weighted fairness)
+local rotation_skip_until = {}     -- Per-spell "rest" time after casting
+local ROTATION_REST_TIME = 0.15    -- After casting, give other spells a chance for this duration
+
 -- Internal cooldowns (minimum time between casts of same spell)
 -- These control how often each spell can be CHECKED for casting
--- Lower values = more frequent checks = higher priority in practice
+-- NOTE: The rotation fairness system (rotation_skip_until) ensures other spells
+-- get a chance after each successful cast, preventing spam of highest priority
 --
 -- META OPTIMIZATION (Hammerdin from maxroll.gg):
 -- - Core spam (blessed_hammer) has SHORT ICD so it casts frequently
@@ -621,18 +628,18 @@ local last_cast_target = nil  -- Track target we last successfully cast at
 local spell_internal_cooldowns = {
     -- CORE SPAM - Very short ICD for maximum spam rate
     -- META: "Spam Blessed Hammer to deal damage" - minimal ICD
-    blessed_hammer = 0.05,  -- Primary spam skill - cast as fast as possible (was 0.10)
+    blessed_hammer = 0.08,  -- Primary spam skill - slightly increased to allow rotation
     
-    -- ALTERNATIVE CORE SPENDERS - Slightly longer to not compete with main
-    blessed_shield = 0.20,  -- Higher cost, use when ricochet value
-    zeal = 0.15,            -- Fast melee combo
-    divine_lance = 0.20,    -- Mobility spender
+    -- ALTERNATIVE CORE SPENDERS - Similar ICD for fair rotation
+    blessed_shield = 0.12,  -- Higher cost, use when ricochet value
+    zeal = 0.10,            -- Fast melee combo
+    divine_lance = 0.12,    -- Mobility spender
     
     -- ULTIMATES - Short ICD, game handles actual cooldown
     -- We want these to cast IMMEDIATELY when available
-    arbiter_of_justice = 0.25,
-    heavens_fury = 0.25,
-    zenith = 0.25,
+    arbiter_of_justice = 0.20,
+    heavens_fury = 0.20,
+    zenith = 0.20,
     
     -- AURAS - Moderate ICD, buff duration handled in spell logic
     -- Check every 0.5s is plenty for buff maintenance
@@ -644,21 +651,61 @@ local spell_internal_cooldowns = {
     -- ARBITER TRIGGERS (falling_star, condemn) - VERY LOW ICD for max uptime!
     -- META: "Use Falling Star OR Condemn every few seconds to stay in Arbiter form"
     -- These are CRITICAL for Hammerdin to stay in Arbiter form
-    falling_star = 0.10,        -- ARBITER TRIGGER - react VERY fast (was 0.20)
-    spear_of_the_heavens = 0.25, -- Ranged burst (was 0.30)
-    condemn = 0.10,             -- ARBITER TRIGGER - react VERY fast (was 0.20)
-    consecration = 0.35,        -- Ground effect, less urgent (was 0.40)
+    falling_star = 0.10,        -- ARBITER TRIGGER - react VERY fast
+    spear_of_the_heavens = 0.20, -- Ranged burst
+    condemn = 0.10,             -- ARBITER TRIGGER - react VERY fast
+    consecration = 0.30,        -- Ground effect, less urgent
     
     -- GENERATORS - Short ICD, but logics() has resource threshold
     -- Rally moved to buff tier - very short ICD for maximum uptime
-    rally = 0.10,      -- META: "Use Rally as often as possible!" Very short ICD (was 0.15)
-    clash = 0.12,      -- Shield bash - fast generator (was 0.15)
-    advance = 0.20,    -- Gap closer + gen (was 0.25)
-    holy_bolt = 0.12,  -- Ranged filler (was 0.15)
-    brandish = 0.12,   -- Melee arc filler (was 0.15)
+    rally = 0.10,      -- META: "Use Rally as often as possible!"
+    clash = 0.10,      -- Shield bash - fast generator
+    advance = 0.15,    -- Gap closer + gen
+    holy_bolt = 0.10,  -- Ranged filler
+    brandish = 0.10,   -- Melee arc filler
     
     -- MOBILITY - Moderate ICD, positioning not DPS
-    shield_charge = 0.50,
+    shield_charge = 0.40,
+}
+
+-- =====================================================
+-- SPELL TIER SYSTEM
+-- Groups spells by priority tier for rotation within tiers
+-- Higher tier = more important, cast first when available
+-- Within same tier, rotation fairness ensures all spells get turns
+-- =====================================================
+local spell_tiers = {
+    -- Tier 1: Auras (always maintain first)
+    fanaticism_aura = 1,
+    defiance_aura = 1,
+    holy_light_aura = 1,
+    
+    -- Tier 2: Ultimates (when available)
+    arbiter_of_justice = 2,
+    heavens_fury = 2,
+    zenith = 2,
+    
+    -- Tier 3: Burst cooldowns / Arbiter triggers
+    falling_star = 3,
+    condemn = 3,
+    spear_of_the_heavens = 3,
+    consecration = 3,
+    
+    -- Tier 4: Core spenders (main rotation)
+    blessed_hammer = 4,
+    blessed_shield = 4,
+    zeal = 4,
+    divine_lance = 4,
+    
+    -- Tier 5: Generators / Resource builders
+    rally = 5,
+    clash = 5,
+    advance = 5,
+    holy_bolt = 5,
+    brandish = 5,
+    
+    -- Tier 6: Mobility
+    shield_charge = 6,
 }
 
 -- =====================================================
@@ -708,9 +755,9 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         end
     else
         -- Self-cast spell (auras, consecration, etc.)
-        -- These don't need a target - call logics directly
+        -- These don't need a target - call logics without target
         if debug_enabled then dbg(spell_name .. ": self-cast, calling logics") end
-        if spell.logics(spell_target) then
+        if spell.logics() then
             return true
         end
     end
@@ -731,7 +778,7 @@ safe_on_update(function()
     
     -- Debug: Log orb mode periodically
     if debug_enabled then
-        local now = get_time_since_inject()
+        local now = my_utility.safe_get_time()
         if not _G.paladin_orb_mode_debug_time or (now - _G.paladin_orb_mode_debug_time) > 2.0 then
             _G.paladin_orb_mode_debug_time = now
             local mode_str = "unknown"
@@ -751,7 +798,7 @@ safe_on_update(function()
         end
     end
 
-    local current_time = get_time_since_inject()
+    local current_time = my_utility.safe_get_time()
     if current_time < cast_end_time then
         return
     end
@@ -766,13 +813,20 @@ safe_on_update(function()
     if not player then return end
     local player_position = player:get_position()
 
-    -- Get melee and max range settings
+    -- =====================================================
+    -- TARGETING RANGE (SCAN RADIUS)
+    -- This is the maximum range to search for potential targets
+    -- Individual spells have their own cast_range which determines
+    -- if they can cast or need to move toward the target
+    -- =====================================================
     local melee_range = my_utility.get_melee_range()
-    local max_range = safe_get_menu_element(menu.menu_elements.max_targeting_range, 30)
+    local scan_radius = safe_get_menu_element(menu.menu_elements.scan_radius, 15)
     
     -- DRUID-STYLE TARGETING: Evaluate ALL target types once per tick
+    -- Uses scan_radius to find all potential targets
     -- Each spell picks its target based on its targeting_mode menu setting
-    local evaluated_targets = evaluate_all_targets(player_position, melee_range, max_range)
+    -- Then each spell checks if target is within ITS OWN cast_range
+    local evaluated_targets = evaluate_all_targets(player_position, melee_range, scan_radius)
     
     -- If no targets at all, exit early and update global state
     if not evaluated_targets.closest and not evaluated_targets.best_melee and not evaluated_targets.best_ranged then
@@ -839,89 +893,123 @@ safe_on_update(function()
     local move_requested = false
     local move_target_pos = nil
     
+    -- =====================================================
+    -- SPELL ROTATION WITH FAIRNESS SYSTEM
+    -- This ensures all equipped spells get a chance to cast
+    -- The algorithm:
+    -- 1. Spells are grouped by tier (auras > ultimates > burst > core > generators > mobility)
+    -- 2. Within each tier, we process in priority order from spell_priority.lua
+    -- 3. After a spell casts, it gets a "rest" period (rotation_skip_until) to let others cast
+    -- 4. This prevents blessed_hammer from always dominating other core spells
+    -- =====================================================
+    
+    -- First pass: Collect all available (equipped + enabled) spells by tier
+    local available_spells_by_tier = {}
     for _, spell_name in ipairs(spell_priority) do
         local spell = spells[spell_name]
-        -- Only process spells that are equipped (or bypass if debug enabled)
         local spell_equipped = spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id]
         local should_process = spell_equipped or (bypass_equipped and spell and spell_data[spell_name])
         
-        if menu.menu_elements.enable_debug:get() and spell_data[spell_name] then
-            if not spell_equipped then
-                -- Only log once per 2 seconds to avoid spam
-                _G.paladin_last_equip_debug = _G.paladin_last_equip_debug or {}
-                if not _G.paladin_last_equip_debug[spell_name] or (current_time - _G.paladin_last_equip_debug[spell_name]) > 2.0 then
-                    _G.paladin_last_equip_debug[spell_name] = current_time
-                    dbg(spell_name .. " not equipped (spell_id: " .. tostring(spell_data[spell_name].spell_id) .. ")" .. (bypass_equipped and " [BYPASSED]" or ""))
+        if should_process then
+            local tier = spell_tiers[spell_name] or 99
+            available_spells_by_tier[tier] = available_spells_by_tier[tier] or {}
+            table.insert(available_spells_by_tier[tier], spell_name)
+        end
+    end
+    
+    -- Process tiers in order (1 = highest priority)
+    local tiers_in_order = {}
+    for tier, _ in pairs(available_spells_by_tier) do
+        table.insert(tiers_in_order, tier)
+    end
+    table.sort(tiers_in_order)
+    
+    for _, tier in ipairs(tiers_in_order) do
+        local tier_spells = available_spells_by_tier[tier]
+        
+        for _, spell_name in ipairs(tier_spells) do
+            local spell = spells[spell_name]
+            
+            if debug_enabled and spell_data[spell_name] then
+                local spell_equipped = spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id]
+                if not spell_equipped then
+                    _G.paladin_last_equip_debug = _G.paladin_last_equip_debug or {}
+                    if not _G.paladin_last_equip_debug[spell_name] or (current_time - _G.paladin_last_equip_debug[spell_name]) > 2.0 then
+                        _G.paladin_last_equip_debug[spell_name] = current_time
+                        dbg(spell_name .. " not equipped (spell_id: " .. tostring(spell_data[spell_name].spell_id) .. ")" .. (bypass_equipped and " [BYPASSED]" or ""))
+                    end
                 end
             end
-        end
-        
-        if should_process then
+            
+            -- ROTATION FAIRNESS: Skip if spell just cast and is in "rest" period
+            -- This gives other spells in the same tier a chance
+            local skip_until = rotation_skip_until[spell_name] or 0
+            if current_time < skip_until then
+                -- This spell is resting, check others in same tier first
+                goto continue
+            end
+            
             -- Check internal cooldown for this spell
             local internal_cooldown = spell_internal_cooldowns[spell_name] or 0
             if internal_cooldown > 0 then
                 local last_cast_time = spell_last_cast_times[spell_name] or 0
                 local time_since_last_cast = current_time - last_cast_time
                 if time_since_last_cast < internal_cooldown then
-                    -- Spell is still on internal cooldown, skip it
                     goto continue
                 end
             end
             
             -- DRUID-STYLE PER-SPELL TARGETING:
-            -- Get the appropriate target based on spell's targeting_mode menu setting
-            -- If spell has targeting_mode, use it; otherwise use default_target
             local spell_target = nil
             if spell.menu_elements and spell.menu_elements.targeting_mode then
                 local targeting_mode = spell.menu_elements.targeting_mode:get()
                 spell_target = my_utility.get_target_by_mode(targeting_mode, evaluated_targets)
             else
-                -- Self-cast spells (auras, etc.) don't need a target
-                -- Targeted spells without targeting_mode use default (closest)
                 spell_target = default_target
             end
             
             -- TARGET STICKINESS: If we have a sticky target, prefer it if valid
             if sticky_target and (current_time - sticky_target_time) < sticky_duration then
-                -- Check if sticky target is still valid
                 if not sticky_target:is_dead() and not sticky_target:is_immune() and not sticky_target:is_untargetable() then
-                    -- Use sticky target for targeted spells
                     if spell.menu_elements and spell.menu_elements.targeting_mode then
                         spell_target = sticky_target
                     end
                 else
-                    -- Sticky target became invalid, clear it
                     sticky_target = nil
                 end
             end
             
-            -- Use the centralized use_ability function (Druid pattern)
+            -- Use the centralized use_ability function
             local cast_successful = use_ability(spell_name, spell, spell_target, my_utility.spell_delays.regular_cast)
 
             if cast_successful then
-                -- Set cast_end_time to a SHORT animation lock (like Druid pattern)
-                -- This prevents animation canceling, NOT spell rotation
+                -- Animation lock
                 cast_end_time = current_time + my_utility.spell_delays.regular_cast
                 
                 -- Update global state for Looteer coordination
                 _G.PaladinRotation.last_cast_time = current_time
                 _G.PaladinRotation.is_casting = true
                 
-                -- Update internal cooldown tracking for this spell
+                -- Update internal cooldown tracking
                 spell_last_cast_times[spell_name] = current_time
                 
-                -- Update sticky target on successful cast
+                -- ROTATION FAIRNESS: Set "rest" period for this spell
+                -- This ensures other spells in the same tier get checked next frame
+                rotation_skip_until[spell_name] = current_time + ROTATION_REST_TIME
+                
+                -- Track for rotation debugging
+                last_spell_cast_name = spell_name
+                spell_cast_counts[spell_name] = (spell_cast_counts[spell_name] or 0) + 1
+                
+                -- Update sticky target
                 if spell_target then
                     sticky_target = spell_target
                     sticky_target_time = current_time
                     last_cast_target = spell_target
                 end
                 
-                -- Clear move target since we just cast
-                current_move_target = nil
-                
-                if menu.menu_elements.enable_debug:get() then
-                    dbg("Cast " .. spell_name)
+                if debug_enabled then
+                    dbg("Cast " .. spell_name .. " (tier " .. tier .. ", count " .. spell_cast_counts[spell_name] .. ")")
                 end
                 return
             end
@@ -931,13 +1019,9 @@ safe_on_update(function()
     end
     
     -- MOVEMENT HANDLING: Removed from main.lua
-    -- Movement is now handled INSIDE each spell's logics() function using the Druid pattern:
-    -- 1. Spell checks if target is in range
-    -- 2. If out of range: pathfinder.force_move_raw(target_pos) with move_delay
-    -- 3. Return false (don't cast) and let next tick re-check
-    -- This prevents oscillation by having ONE source of movement decisions per spell
+    -- Movement is now handled INSIDE each spell's logics() function using the Druid pattern
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.9 (Targeting & Weighting Fix - Dec 2025)")
+    console.print("Paladin_Rotation | Version 2.0 (Spell Rotation Fairness System)")
 end

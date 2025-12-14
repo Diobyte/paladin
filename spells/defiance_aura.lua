@@ -165,7 +165,9 @@ local function logics()
         local cooldown = my_utility.spell_delays.regular_cast
         next_time_allowed_cast = now + cooldown
         is_aura_active = true
-        console.print("Cast Defiance Aura")
+        if debug_enabled then
+            console.print("[DEFIANCE DEBUG] Cast Defiance Aura")
+        end
         return true, cooldown
     end
 

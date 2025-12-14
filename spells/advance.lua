@@ -103,14 +103,16 @@ local function logics(target)
 
     -- Advance lunges to target position (position-type spell per spell_data.lua)
     if cast_spell.position(spell_id, target_pos, 0.0) then
-        local current_time = get_time_since_inject()
+        local current_time = my_utility.safe_get_time()
         local cooldown = menu_elements.min_cooldown:get()
         if cooldown < my_utility.spell_delays.regular_cast then
             cooldown = my_utility.spell_delays.regular_cast
         end
         next_time_allowed_cast = current_time + cooldown
-        local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
-        console.print("Cast Advance - Mode: " .. mode_name)
+        if debug_enabled then
+            local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+            console.print("[ADVANCE DEBUG] Cast successful - Mode: " .. mode_name)
+        end
         return true, cooldown
     end
 

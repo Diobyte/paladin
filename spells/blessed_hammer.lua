@@ -143,7 +143,7 @@ local function logics()
     end
 
     if cast_spell.self(spell_id, 0.0) then
-        local current_time = get_time_since_inject()
+        local current_time = my_utility.safe_get_time()
         next_time_allowed_cast = current_time + cooldown
         if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast successful - Enemies: " .. near) end
         return true, cooldown

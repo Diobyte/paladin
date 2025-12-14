@@ -100,10 +100,12 @@ local function logics(target)
 
     -- Try direct target cast first
     if cast_spell.target(target, spell_id, 0.0, false) then
-        local current_time = get_time_since_inject()
+        local current_time = my_utility.safe_get_time()
         next_time_allowed_cast = current_time + cooldown
-        local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
-        console.print("Cast Arbiter of Justice - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
+        if debug_enabled then
+            local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+            console.print("[ARBITER DEBUG] Cast successful - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
+        end
         return true, cooldown
     end
 
@@ -119,10 +121,12 @@ local function logics(target)
         end
 
         if cast_spell.position(spell_id, pos, 0.0) then
-            local current_time = get_time_since_inject()
+            local current_time = my_utility.safe_get_time()
             next_time_allowed_cast = current_time + cooldown
-            local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
-            console.print("Cast Arbiter of Justice (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
+            if debug_enabled then
+                local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
+                console.print("[ARBITER DEBUG] Cast successful (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
+            end
             return true, cooldown
         end
     end

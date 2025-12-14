@@ -95,7 +95,7 @@ local function logics(target)
 
     -- Divine Lance is primarily a melee/short-range impale skill
     if cast_spell.target(target, spell_id, 0.0, false) then
-        local current_time = get_time_since_inject()
+        local current_time = my_utility.safe_get_time()
         next_time_allowed_cast = current_time + cooldown
         if debug_enabled then
             local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
@@ -116,7 +116,7 @@ local function logics(target)
         end
 
         if cast_spell.position(spell_id, cast_pos, 0.0) then
-            local current_time = get_time_since_inject()
+            local current_time = my_utility.safe_get_time()
             next_time_allowed_cast = current_time + cooldown
             if debug_enabled then
                 local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"

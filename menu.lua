@@ -1,10 +1,41 @@
+-- =====================================================
+-- PALADIN ROTATION MENU CONFIGURATION
+-- =====================================================
+-- 
+-- TARGETING ARCHITECTURE:
+-- 1. SCAN_RADIUS: How far to look for enemies (global setting)
+--    - evaluate_all_targets() uses this to build the target list
+--    - Should be larger than any spell's cast range
+--
+-- 2. SPELL CAST RANGE: Each spell has its own range setting
+--    - If target is within spell's range → cast
+--    - If target is outside spell's range → move toward target
+--
+-- 3. WEIGHTED TARGETING: Within scan radius, pick BEST target
+--    - Prioritizes elites/bosses based on weights
+--    - Considers clustering for AoE value
+--
+-- =====================================================
+
 local menu_elements =
 {
     main_boolean        = checkbox:new(true, get_hash("paladin_rotation_main_boolean")),
     main_tree           = tree_node:new(0),
 
+    -- =====================================================
+    -- GLOBAL SETTINGS
+    -- =====================================================
     settings_tree       = tree_node:new(1),
-    max_targeting_range = slider_int:new(1, 16, 8, get_hash("paladin_rotation_max_targeting_range")),  -- Reduced to match reference repos (was 5-60)
+    
+    -- SCAN RADIUS: Maximum range to search for potential targets
+    -- This should be LARGER than any spell's individual cast range
+    -- Enemies within this radius are considered for targeting
+    -- Movement happens when target is outside a spell's specific range
+    scan_radius = slider_int:new(5, 30, 15, get_hash("paladin_rotation_scan_radius_v2")),
+    
+    -- Legacy setting - kept for backwards compatibility
+    max_targeting_range = slider_int:new(5, 30, 15, get_hash("paladin_rotation_max_targeting_range")),
+    
     prefer_elites       = checkbox:new(true, get_hash("paladin_rotation_prefer_elites")),
     treat_elite_as_boss = checkbox:new(true, get_hash("paladin_rotation_treat_elite_as_boss")),
     cluster_radius      = slider_float:new(2.0, 15.0, 6.0, get_hash("paladin_rotation_cluster_radius")),
@@ -14,26 +45,38 @@ local menu_elements =
     holy_bolt_resource_pct = slider_float:new(0.0, 1.0, 0.35, get_hash("paladin_rotation_holy_bolt_resource_pct")),
     boss_defiance_hp_pct = slider_float:new(0.0, 1.0, 0.50, get_hash("paladin_rotation_boss_defiance_hp_pct")),
 
+    -- =====================================================
+    -- DEBUG SETTINGS
+    -- =====================================================
     debug_tree          = tree_node:new(1),
     enable_debug        = checkbox:new(false, get_hash("paladin_rotation_enable_debug")),
     melee_debug_mode    = checkbox:new(false, get_hash("paladin_rotation_melee_debug_mode")),
     bypass_equipped_check = checkbox:new(false, get_hash("paladin_rotation_bypass_equipped_check")),
 
-    -- Manual Play Mode (like barb)
+    -- Manual Play Mode - disables automatic movement
     manual_play         = checkbox:new(false, get_hash("paladin_rotation_manual_play")),
 
+    -- =====================================================
+    -- SPELL TREES
+    -- =====================================================
     active_spells_tree  = tree_node:new(1),
     inactive_spells_tree = tree_node:new(1),
 
-    -- Weighted Targeting System
+    -- =====================================================
+    -- WEIGHTED TARGETING SYSTEM
+    -- Controls HOW targets are prioritized within scan radius
+    -- =====================================================
     weighted_targeting_tree = tree_node:new(1),
     weighted_targeting_enabled = checkbox:new(true, get_hash("paladin_rotation_weighted_targeting_enabled")),
     weighted_targeting_debug = checkbox:new(false, get_hash("paladin_rotation_weighted_targeting_debug")),
     
-    -- Scan settings
-    scan_radius = slider_int:new(1, 16, 8, get_hash("paladin_rotation_scan_radius")),  -- Reduced to match reference repos
+    -- Scan refresh rate (how often to re-evaluate targets)
     scan_refresh_rate = slider_float:new(0.1, 1.0, 0.2, get_hash("paladin_rotation_scan_refresh_rate")),
+    
+    -- Minimum targets to consider
     min_targets = slider_int:new(1, 10, 1, get_hash("paladin_rotation_min_targets")),
+    
+    -- Comparison radius: cluster scoring range
     comparison_radius = slider_float:new(0.1, 6.0, 3.0, get_hash("paladin_rotation_comparison_radius")),
     
     -- Custom Enemy Sliders
@@ -58,7 +101,9 @@ local menu_elements =
     horde_objective_weight = slider_int:new(1, 100, 50, get_hash("paladin_rotation_horde_objective_weight")),
     vulnerable_debuff_weight = slider_int:new(1, 5, 1, get_hash("paladin_rotation_vulnerable_debuff_weight")),
     
-    -- Visibility & Elevation Filtering (matches Druid/Spiritborn reference repos)
+    -- =====================================================
+    -- VISIBILITY & ELEVATION FILTERING
+    -- =====================================================
     visibility_tree = tree_node:new(1),
     enable_floor_filter = checkbox:new(true, get_hash("paladin_rotation_enable_floor_filter")),
     floor_height_threshold = slider_float:new(1.0, 15.0, 5.0, get_hash("paladin_rotation_floor_height_threshold")),

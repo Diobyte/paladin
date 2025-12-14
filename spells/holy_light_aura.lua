@@ -164,7 +164,9 @@ local function logics()
         local cooldown = my_utility.spell_delays.regular_cast
         next_time_allowed_cast = now + cooldown
         is_aura_active = true
-        console.print("Cast Holy Light Aura")
+        if debug_enabled then
+            console.print("[HOLY_LIGHT DEBUG] Cast Holy Light Aura")
+        end
         return true, cooldown
     end
 
