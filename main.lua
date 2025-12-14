@@ -435,14 +435,18 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         end
 
         -- Validate target with pcalls so missing methods do not hard-fail
-        local function safe_check(fn)
-            local ok, res = pcall(fn)
-            return ok and res or false
+        local function safe_bool(method_name, default_when_missing)
+            if spell_target[method_name] == nil then
+                return default_when_missing
+            end
+            local ok, res = pcall(function() return spell_target[method_name](spell_target) end)
+            if not ok then return default_when_missing end
+            return res
         end
 
-        local alive = (not spell_target.is_dead) or (not safe_check(function() return spell_target:is_dead() end))
-        local not_immune = (not spell_target.is_immune) or (not safe_check(function() return spell_target:is_immune() end))
-        local targetable = (not spell_target.is_untargetable) or (not safe_check(function() return spell_target:is_untargetable() end))
+        local alive = not safe_bool("is_dead", false)
+        local not_immune = not safe_bool("is_immune", false)
+        local targetable = not safe_bool("is_untargetable", false)
 
         if not (alive and not_immune and targetable) then
             if debug_enabled then dbg(spell_name .. ": target invalid (dead/immune/untargetable)") end
