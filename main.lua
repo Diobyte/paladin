@@ -408,57 +408,54 @@ local spell_cast_counts = {}       -- Count of casts per spell (for weighted fai
 -- =====================================================
 local function use_ability(spell_name, spell, spell_target, delay_after_cast)
     local debug_enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
-    
+
     -- Check if spell is enabled
     if not spell or not spell.menu_elements or not spell.menu_elements.main_boolean then
-        -- Self-cast spells without main_boolean (shouldn't happen)
         if debug_enabled then dbg(spell_name .. ": no main_boolean, trying logics()") end
         if spell and type(spell.logics) == "function" then
-             local ok, success = pcall(spell.logics)
-             if ok and success then return true end
+            local ok, success = pcall(spell.logics)
+            if ok and success then return true end
         end
         return false
     end
-    
+
     if not spell.menu_elements.main_boolean:get() then
-        -- Don't spam this - it's expected for disabled spells
         return false
     end
-    
+
     -- For targeted spells, we need a valid target
     -- Self-cast spells (auras, consecration, etc.) handle nil target internally
     local is_targeted_spell = spell.menu_elements.targeting_mode ~= nil
-    
+
     if is_targeted_spell then
         -- Targeted spell - MUST have a target to proceed
         if not spell_target then
             if debug_enabled then dbg(spell_name .. ": targeted spell but no target") end
             return false
         end
-        
-        -- Validate target
-        local is_valid_target = false
-        if spell_target.is_dead and not spell_target:is_dead() then
-            if spell_target.is_immune and not spell_target:is_immune() then
-                if spell_target.is_untargetable and not spell_target:is_untargetable() then
-                    is_valid_target = true
-                end
-            end
+
+        -- Validate target with pcalls so missing methods do not hard-fail
+        local function safe_check(fn)
+            local ok, res = pcall(fn)
+            return ok and res or false
         end
 
-        if not is_valid_target then
-            if debug_enabled then dbg(spell_name .. ": target is dead/immune/untargetable") end
+        local alive = (not spell_target.is_dead) or (not safe_check(function() return spell_target:is_dead() end))
+        local not_immune = (not spell_target.is_immune) or (not safe_check(function() return spell_target:is_immune() end))
+        local targetable = (not spell_target.is_untargetable) or (not safe_check(function() return spell_target:is_untargetable() end))
+
+        if not (alive and not_immune and targetable) then
+            if debug_enabled then dbg(spell_name .. ": target invalid (dead/immune/untargetable)") end
             return false
         end
-        
-        -- Call logics with target
+
         if debug_enabled then dbg(spell_name .. ": calling logics with target") end
-        
+
         if type(spell.logics) ~= "function" then
             if debug_enabled then dbg(spell_name .. ": logics is not a function") end
             return false
         end
-        
+
         -- SAFE CALL: Wrap spell logic in pcall to prevent script crash on single spell error
         local ok, success, cast_duration = pcall(spell.logics, spell_target)
         if ok and success == true then
@@ -471,14 +468,12 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         -- These don't need a target usually, but we pass it anyway in case the spell
         -- wants to use it for positioning logic (like Blessed Hammer)
         if debug_enabled then dbg(spell_name .. ": self-cast, calling logics with optional target") end
-        
+
         if type(spell.logics) ~= "function" then
             if debug_enabled then dbg(spell_name .. ": logics is not a function") end
             return false
         end
-        
-        -- SAFE CALL: Wrap spell logic in pcall
-        -- Pass spell_target as optional argument
+
         local ok, success, cast_duration = pcall(spell.logics, spell_target)
         if ok and success == true then
             return true, cast_duration
@@ -486,7 +481,7 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
             if debug_enabled then dbg(spell_name .. " ERROR: " .. tostring(success)) end
         end
     end
-    
+
     return false
 end
 
@@ -528,10 +523,10 @@ safe_on_update(function()
     end
 
     -- CRITICAL FIX: Only run rotation if Orbwalker is active OR Auto Play is enabled
-    -- This prevents the script from casting spells when the user is just standing still
-    -- Also ensures we don't run if orbwalker is completely missing/nil (safety check)
-    if current_orb_mode == orb_mode.none and not my_utility.is_auto_play_enabled() then
-        -- console.print("Paladin Rotation: Idle (Orb Mode: None, Auto Play: Off)")
+    -- Allow manual-play users to drive movement while still executing spells
+    local manual_play_enabled = safe_get_menu_element(menu.menu_elements.manual_play, false)
+    if current_orb_mode == orb_mode.none and not my_utility.is_auto_play_enabled() and not manual_play_enabled then
+        -- console.print("Paladin Rotation: Idle (Orb Mode: None, Auto Play: Off, Manual Play: Off)")
         return
     end
 
@@ -847,9 +842,11 @@ safe_on_update(function()
     end
     
     -- MOVEMENT HANDLING: Auto Play / Botting Support
-    -- If auto-play is enabled and we haven't cast a spell (and aren't in danger), move to target
+    -- If auto-play is enabled OR Orbwalker is active (and we blocked its movement), move to target
     -- CRITICAL FIX: Check if a spell already requested movement (e.g. Zeal out of range) to prevent override
-    if my_utility.is_auto_play_enabled() and not my_utility.was_movement_requested_recently(0.1) then
+    local should_move = my_utility.is_auto_play_enabled() or (current_orb_mode ~= orb_mode.none)
+    
+    if should_move and not my_utility.was_movement_requested_recently(0.1) then
         local player_pos = player:get_position()
         local is_dangerous = false
         if evade and evade.is_dangerous_position then
