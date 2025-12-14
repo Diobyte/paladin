@@ -55,10 +55,6 @@ end
 if orbwalker and orbwalker.set_clear_toggle then
     pcall(function() orbwalker.set_clear_toggle(true) end)
 end
--- Ensure orbwalker is in a casting-friendly mode on load
-if orbwalker and orbwalker.set_orbwalker_mode then
-    pcall(function() orbwalker.set_orbwalker_mode(orb_mode.clear) end)
-end
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -888,6 +884,8 @@ safe_on_update(function()
     -- Track current target for Looteer coordination
     if default_target then
         _G.PaladinRotation.current_target_id = default_target:get_id()
+        local ok_name, tgt_name = pcall(function() return default_target:get_skin_name() end)
+        _G.PaladinRotation.current_target_name = ok_name and tgt_name or "(unknown)"
     end
 
     -- Get equipped spells for spell casting logic
@@ -1045,6 +1043,46 @@ safe_on_update(function()
     
     -- MOVEMENT HANDLING: Removed from main.lua
     -- Movement is now handled INSIDE each spell's logics() function using the Druid pattern
+end)
+
+-- Lightweight debug overlay (toggle with Enable Debug)
+safe_on_render(function()
+    if not safe_get_menu_element(menu.menu_elements.enable_debug, false) then
+        return
+    end
+
+    local player = get_local_player()
+    if not player then return end
+    local pos2d = graphics.w2s(player:get_position())
+    if not pos2d or pos2d:is_zero() then return end
+
+    local lines = {}
+    local mode = "nil"
+    if orbwalker and orbwalker.get_orb_mode then
+        local ok, m = pcall(function() return orbwalker.get_orb_mode() end)
+        if ok then
+            if m == orb_mode.none then mode = "none"
+            elseif m == orb_mode.pvp then mode = "pvp"
+            elseif m == orb_mode.clear then mode = "clear"
+            elseif m == orb_mode.flee then mode = "flee"
+            else mode = tostring(m)
+            end
+        end
+    end
+
+    table.insert(lines, "Orbwalker: " .. mode)
+    table.insert(lines, "Last Spell: " .. tostring(last_spell_cast_name or "-"))
+    if _G.PaladinRotation then
+        table.insert(lines, "Target ID: " .. tostring(_G.PaladinRotation.current_target_id or "-"))
+        table.insert(lines, "Target Name: " .. tostring(_G.PaladinRotation.current_target_name or "-"))
+    end
+
+    local x = pos2d.x + 40
+    local y = pos2d.y - 120
+    local line_height = 16
+    for i, text in ipairs(lines) do
+        graphics.text_2d(text, vec2:new(x, y + (i - 1) * line_height), 16, color_white(220))
+    end
 end)
 
 if console and type(console.print) == "function" then
