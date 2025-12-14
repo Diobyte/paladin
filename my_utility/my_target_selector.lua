@@ -2,6 +2,54 @@ local spell_data = require("my_utility/spell_data")
 local buff_cache = require("my_utility/buff_cache")
 local my_utility = require("my_utility/my_utility")
 
+-- =====================================================
+-- Safe wrapper functions for gameobject methods
+-- These use pcall to prevent errors from nil/invalid objects
+-- =====================================================
+
+local function safe_is_boss(unit)
+    if not unit then return false end
+    local ok, res = pcall(function() return unit:is_boss() end)
+    return ok and res or false
+end
+
+local function safe_is_elite(unit)
+    if not unit then return false end
+    local ok, res = pcall(function() return unit:is_elite() end)
+    return ok and res or false
+end
+
+local function safe_is_champion(unit)
+    if not unit then return false end
+    local ok, res = pcall(function() return unit:is_champion() end)
+    return ok and res or false
+end
+
+local function safe_get_position(unit)
+    if not unit then return nil end
+    local ok, res = pcall(function() return unit:get_position() end)
+    return ok and res or nil
+end
+
+local function safe_get_skin_name(unit)
+    if not unit then return "" end
+    local ok, res = pcall(function() return unit:get_skin_name() end)
+    return ok and res or ""
+end
+
+local function safe_get_current_health(unit)
+    if not unit then return 0 end
+    local ok, res = pcall(function() return unit:get_current_health() end)
+    return ok and res or 0
+end
+
+local function safe_get_max_health(unit)
+    if not unit then return 0 end
+    local ok, res = pcall(function() return unit:get_max_health() end)
+    return ok and res or 0
+end
+
+-- =====================================================
 -- all in one (aio) target selector data
 -- returns table:
 
@@ -113,24 +161,30 @@ local function get_target_selector_data(source, list)
     local weighted_target = nil;
     local weighted_target_score = -math.huge;
 
+    -- Cache cursor position outside the loop for performance
+    local cursor_pos = get_cursor_position()
+    
     for _, unit in ipairs(possible_targets_list) do
         local unit_position = unit:get_position()
+        if not unit_position then goto continue end
+        
         local distance_sqr = unit_position:squared_dist_to_ignore_z(source)
-        local cursor_pos = get_cursor_position()
-        local player_position = get_player_position()
-        local max_health = unit:get_max_health()
-        local current_health = unit:get_current_health()
+        
+        -- Use safe wrappers for health values
+        local max_health = safe_get_current_health(unit) > 0 and unit:get_max_health() or 0
+        local current_health = safe_get_current_health(unit)
+        if current_health <= 0 then goto continue end  -- Skip dead units
 
         -- update units data
         is_valid = true;  -- Mark as valid since we have at least one unit
         
-        -- Cursor priority: prefer targets very close to cursor, then use distance
-        local cursor_dist = unit_position:dist_to(cursor_pos)
-        if cursor_dist <= 1 then
+        -- Cursor priority: prefer targets very close to cursor, then use distance (use squared distances)
+        local cursor_dist_sqr = cursor_pos and unit_position:squared_dist_to_ignore_z(cursor_pos) or math.huge
+        if cursor_dist_sqr <= 1 then
             -- Very close to cursor - highest priority
             closest_unit = unit;
             closest_unit_distance = distance_sqr;
-        elseif cursor_dist < 2 and closest_unit_distance > 4 then
+        elseif cursor_dist_sqr < 4 and closest_unit_distance > 4 then
             -- Near cursor and current closest is far - take cursor target
             closest_unit = unit;
             closest_unit_distance = distance_sqr;
@@ -267,6 +321,8 @@ local function get_target_selector_data(source, list)
                 highest_max_health_boss_health = max_health;
             end
         end
+        
+        ::continue::
     end
 
     return 
@@ -314,7 +370,7 @@ end
 local function get_target_list(source, range, collision_table, floor_table, angle_table)
 
     local new_list = {}
-    local possible_targets_list = target_selector.get_near_target_list(source, range);
+    local possible_targets_list = target_selector.get_near_target_list(source, range) or {}
 
     -- Normalize option tables to support both array-style {true, 1.0} and key-style {is_enabled=true, width=1.0}
     local function as_bool(tbl, index_key)
@@ -523,50 +579,13 @@ local last_scan_time = 0
 local cached_weighted_target = nil
 local cached_target_list = {}
 
--- Safe wrapper for gameobject type checks
-local function safe_is_boss(unit)
-    if not unit then return false end
-    local ok, res = pcall(function() return unit:is_boss() end)
-    return ok and res or false
-end
-
-local function safe_is_elite(unit)
-    if not unit then return false end
-    local ok, res = pcall(function() return unit:is_elite() end)
-    return ok and res or false
-end
-
-local function safe_is_champion(unit)
-    if not unit then return false end
-    local ok, res = pcall(function() return unit:is_champion() end)
-    return ok and res or false
-end
-
-local function safe_get_position(unit)
-    if not unit then return nil end
-    local ok, res = pcall(function() return unit:get_position() end)
-    return ok and res or nil
-end
-
-local function safe_get_skin_name(unit)
-    if not unit then return "" end
-    local ok, res = pcall(function() return unit:get_skin_name() end)
-    return ok and res or ""
-end
-
-local function safe_get_current_health(unit)
-    if not unit then return 0 end
-    local ok, res = pcall(function() return unit:get_current_health() end)
-    return ok and res or 0
-end
-
 local function get_weighted_target(source, scan_radius, min_targets, comparison_radius, boss_weight, elite_weight, champion_weight, any_weight, refresh_rate, damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight, cluster_min_target_count, normal_target_count, champion_target_count, elite_target_count, boss_target_count, debug_enabled)
     local current_time = get_time_since_inject()
     
     -- Only scan for new targets if refresh time has passed
     if current_time - last_scan_time >= refresh_rate then
         last_scan_time = current_time
-        cached_target_list = target_selector.get_near_target_list(source, scan_radius)
+        cached_target_list = target_selector.get_near_target_list(source, scan_radius) or {}
         
         if debug_enabled then
             console.print("[WEIGHTED TARGET DEBUG] === Starting New Scan ===")
@@ -770,7 +789,7 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
 end
 
 local function analyze_target_area(source, scan_radius, normal_target_count, elite_target_count, champion_target_count, boss_target_count)
-    local target_list = target_selector.get_near_target_list(source, scan_radius)
+    local target_list = target_selector.get_near_target_list(source, scan_radius) or {}
     
     local num_bosses = 0
     local num_elites = 0
