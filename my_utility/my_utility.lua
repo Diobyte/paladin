@@ -1,3 +1,24 @@
+local plugin_label = "BASE_PALADIN_PLUGIN_"
+
+local mount_buff_name = "Generic_SetCannotBeAddedToAITargetList"
+local mount_buff_name_hash_c = 1923
+
+local shrine_conduit_buff_name = "Shine_Conduit"
+local shrine_conduit_buff_name_hash_c = 421661
+
+-- Skin name patterns for infernal horde objectives
+local horde_objectives = {
+    "BSK_HellSeeker",
+    "MarkerLocation_BSK_Occupied",
+    "S05_coredemon",
+    "S05_fallen",
+    "BSK_Structure_BonusAether",
+    "BSK_Miniboss",
+    "BSK_elias_boss",
+    "BSK_cannibal_brute_boss",
+    "BSK_skeleton_boss"
+}
+
 local function safe_get_time()
     if type(get_time_since_inject) == "function" then
         return get_time_since_inject()
@@ -6,6 +27,105 @@ local function safe_get_time()
         return get_current_time()
     end
     return 0
+end
+
+local function is_auto_play_enabled()
+    -- Auto play fire spells without orbwalker
+    local is_auto_play_active = auto_play and auto_play.is_active and auto_play.is_active()
+    local auto_play_objective = auto_play and auto_play.get_objective and auto_play.get_objective()
+    local is_auto_play_fighting = auto_play_objective == objective.fight
+    if is_auto_play_active and is_auto_play_fighting then
+        return true
+    end
+    return false
+end
+
+local function is_action_allowed()
+    -- Evade abort
+    local local_player = get_local_player()
+    if not local_player then
+        return false
+    end
+
+    local player_position = local_player:get_position()
+    if evade and evade.is_dangerous_position and evade.is_dangerous_position(player_position) then
+        return false
+    end
+
+    -- Check if busy with another spell
+    local active_spell_id = local_player:get_active_spell_id()
+    if active_spell_id and active_spell_id ~= 0 then
+        -- Allow certain spells to interrupt, otherwise block
+        -- This helps prevent animation canceling issues
+    end
+
+    local is_mounted = false
+    local is_shrine_conduit = false
+    local local_player_buffs = local_player:get_buffs()
+    
+    for _, buff in ipairs(local_player_buffs or {}) do
+        if buff.name_hash == mount_buff_name_hash_c then
+            is_mounted = true
+            break
+        end
+        if buff.name_hash == shrine_conduit_buff_name_hash_c then
+            is_shrine_conduit = true
+            break
+        end
+    end
+
+    -- Do not make any actions while mounted or with conduit buff
+    if is_mounted or is_shrine_conduit then
+        return false
+    end
+
+    return true
+end
+
+local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spell_id)
+    if not spell_enable_check then
+        return false
+    end
+
+    local current_time = safe_get_time()
+    if current_time < next_cast_allowed_time then
+        return false
+    end
+
+    if utility and utility.is_spell_ready and not utility.is_spell_ready(spell_id) then
+        return false
+    end
+
+    if utility and utility.is_spell_affordable and not utility.is_spell_affordable(spell_id) then
+        return false
+    end
+
+    -- Evade abort
+    local local_player = get_local_player()
+    if local_player then
+        local player_position = local_player:get_position()
+        if evade and evade.is_dangerous_position and evade.is_dangerous_position(player_position) then
+            return false
+        end
+    end
+
+    if is_auto_play_enabled() then
+        return true
+    end
+
+    local current_orb_mode = orbwalker and orbwalker.get_orb_mode and orbwalker.get_orb_mode()
+    if current_orb_mode == orb_mode.none then
+        return false
+    end
+
+    local is_current_orb_mode_pvp = current_orb_mode == orb_mode.pvp
+    local is_current_orb_mode_clear = current_orb_mode == orb_mode.clear
+
+    if not is_current_orb_mode_pvp and not is_current_orb_mode_clear then
+        return false
+    end
+
+    return true
 end
 
 local function is_spell_ready(spell_id)
@@ -76,27 +196,95 @@ local function is_target_within_angle(origin, reference, target, max_angle)
     return angle <= max_angle
 end
 
--- Skin name patterns for infernal horde objectives
-local horde_objectives = {
-    "BSK_HellSeeker",
-    "MarkerLocation_BSK_Occupied",
-    "S05_coredemon",
-    "S05_fallen",
-    "BSK_Structure_BonusAether",
-    "BSK_Miniboss",
-    "BSK_elias_boss",
-    "BSK_cannibal_brute_boss",
-    "BSK_skeleton_boss"
-}
+-- Generate points around target for AoE optimization
+local function generate_points_around_target(target_position, radius, num_points)
+    local points = {}
+    for i = 1, num_points do
+        local angle = (i - 1) * (2 * math.pi / num_points)
+        local x = target_position:x() + radius * math.cos(angle)
+        local y = target_position:y() + radius * math.sin(angle)
+        table.insert(points, vec3.new(x, y, target_position:z()))
+    end
+    return points
+end
+
+-- Get best point for AoE spells (maximize hits)
+local function get_best_point(target_position, circle_radius, current_hit_list)
+    local points = generate_points_around_target(target_position, circle_radius * 0.75, 8)
+    local hit_table = {}
+
+    local player_position = get_player_position and get_player_position() or nil
+    for _, point in ipairs(points) do
+        local hit_list = utility and utility.get_units_inside_circle_list and utility.get_units_inside_circle_list(point, circle_radius) or {}
+
+        local hit_list_collision_less = {}
+        for _, obj in ipairs(hit_list) do
+            local is_wall_collision = target_selector and target_selector.is_wall_collision and target_selector.is_wall_collision(player_position, obj, 2.0)
+            if not is_wall_collision then
+                table.insert(hit_list_collision_less, obj)
+            end
+        end
+
+        table.insert(hit_table, {
+            point = point, 
+            hits = #hit_list_collision_less, 
+            victim_list = hit_list_collision_less
+        })
+    end
+
+    -- Sort by the number of hits
+    table.sort(hit_table, function(a, b) return a.hits > b.hits end)
+
+    local current_hit_list_amount = current_hit_list and #current_hit_list or 0
+    if hit_table[1] and hit_table[1].hits > current_hit_list_amount then
+        return hit_table[1]
+    end
+    
+    return {point = target_position, hits = current_hit_list_amount, victim_list = current_hit_list or {}}
+end
+
+-- Check for elite/boss/champion presence and return counts
+local function should_pop_cds()
+    local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
+    local player_pos = get_player_position and get_player_position() or nil
+    if not player_pos then return false, false, false end
+    
+    local elite_units = 0
+    local champion_units = 0
+    local boss_units = 0
+    local check_range_sqr = 15 * 15
+    
+    for _, enemy in ipairs(enemies) do
+        local enemy_pos = enemy:get_position()
+        if enemy_pos and enemy_pos:squared_dist_to_ignore_z(player_pos) <= check_range_sqr then
+            if enemy:is_boss() then
+                boss_units = boss_units + 1
+            elseif enemy:is_champion() then
+                champion_units = champion_units + 1
+            elseif enemy:is_elite() then
+                elite_units = elite_units + 1
+            end
+        end
+    end
+    
+    return elite_units > 0, champion_units > 0, boss_units > 0
+end
 
 local my_utility = {
+    plugin_label = plugin_label,
     safe_get_time = safe_get_time,
+    is_auto_play_enabled = is_auto_play_enabled,
+    is_action_allowed = is_action_allowed,
+    is_spell_allowed = is_spell_allowed,
     is_spell_ready = is_spell_ready,
     is_spell_affordable = is_spell_affordable,
     get_resource_pct = get_resource_pct,
     get_health_pct = get_health_pct,
     enemy_count_in_radius = enemy_count_in_radius,
     is_target_within_angle = is_target_within_angle,
+    generate_points_around_target = generate_points_around_target,
+    get_best_point = get_best_point,
+    should_pop_cds = should_pop_cds,
     horde_objectives = horde_objectives,
 }
 

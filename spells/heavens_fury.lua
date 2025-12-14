@@ -1,27 +1,32 @@
+-- Heaven's Fury - Ultimate Skill (Judicator)
+-- "Grasp the Light, dealing 200% damage around you per second before releasing it to seek Nearby enemies 
+--  and dealing 60% damage per hit for 7 seconds"
+-- Cooldown: 30 seconds
+-- Holy Damage
+-- Targeting: cast_spell.self() - AoE around player, then seeking beams
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
 local menu_elements = {
     tree_tab = tree_node:new(1),
-    main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
-    min_cooldown = slider_float:new(0.0, 1.0, 0.1, get_hash("paladin_rotation_blessed_hammer_min_cd")),
-    engage_range = slider_float:new(2.0, 25.0, 12.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),
-    min_enemies = slider_int:new(1, 15, 3, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
-    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_enemy_type")),
-    use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_use_min_weight")),
-    minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_blessed_hammer_min_weight")),
+    main_boolean = checkbox:new(true, get_hash("paladin_rotation_heavens_fury_enabled")),
+    min_cooldown = slider_float:new(0.0, 40.0, 1.0, get_hash("paladin_rotation_heavens_fury_min_cd")),
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_heavens_fury_enemy_type")),
+    use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_heavens_fury_use_min_weight")),
+    minimum_weight = slider_float:new(0.0, 50.0, 10.0, get_hash("paladin_rotation_heavens_fury_min_weight")),
+    min_enemies = slider_int:new(1, 15, 3, get_hash("paladin_rotation_heavens_fury_min_enemies")),
 }
 
-local spell_id = spell_data.blessed_hammer.spell_id
+local spell_id = spell_data.heavens_fury.spell_id
 local next_time_allowed_cast = 0.0
 
 local function menu()
-    if menu_elements.tree_tab:push("Blessed Hammer") then
+    if menu_elements.tree_tab:push("Heaven's Fury") then
         menu_elements.main_boolean:render("Enable", "")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.engage_range:render("Engage Range", "", 1)
-            menu_elements.min_enemies:render("Min Enemies to Cast", "Minimum number of enemies nearby to cast")
+            menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
             if menu_elements.use_minimum_weight:get() then
@@ -40,7 +45,7 @@ local function logics(best_target, area_analysis)
         return false, 0 
     end
 
-    -- AoE Logic Check (like barb's hammer of ancients)
+    -- Ultimate should be saved for good situations
     if area_analysis then
         local enemy_type_filter = menu_elements.enemy_type_filter:get()
         -- 0: All, 1: Elite+, 2: Boss
@@ -58,24 +63,25 @@ local function logics(best_target, area_analysis)
         end
     end
 
+    -- Heaven's Fury starts with AoE around player - check enemies nearby
     local player = get_local_player()
     local player_pos = player and player:get_position() or nil
     if not player_pos then
         return false, 0
     end
     
-    local engage = menu_elements.engage_range:get()
-    local engage_sqr = engage * engage
+    -- Check for nearby enemies (initial AoE range ~6 yards)
+    local engage_range = 10.0
+    local engage_range_sqr = engage_range * engage_range
     local min_enemies = menu_elements.min_enemies:get()
     
-    -- Count enemies in range (like barb's HotA min targets)
     local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
     local near = 0
 
     for _, e in ipairs(enemies) do
         if e and e:is_enemy() then
             local pos = e:get_position()
-            if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_sqr then
+            if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_range_sqr then
                 near = near + 1
             end
         end
@@ -88,22 +94,11 @@ local function logics(best_target, area_analysis)
     local now = my_utility.safe_get_time()
     local cooldown = menu_elements.min_cooldown:get()
 
-    -- Try casting at self (AoE around player)
+    -- Heaven's Fury is self-cast, AoE around player then seeking beams
     if cast_spell and type(cast_spell.self) == "function" then
         if cast_spell.self(spell_id, 0.0) then
             next_time_allowed_cast = now + cooldown
             return true, cooldown
-        end
-    end
-
-    -- Fallback to targeting
-    local target = best_target
-    if target and target:is_enemy() then
-        if cast_spell and type(cast_spell.target) == "function" then
-            if cast_spell.target(target, spell_id, 0.0, false) then
-                next_time_allowed_cast = now + cooldown
-                return true, cooldown
-            end
         end
     end
 

@@ -82,15 +82,46 @@ local function is_in_combat()
     return my_utility.enemy_count_in_radius(30.0, player:get_position()) > 0
 end
 
-local function logics()
+local function logics(area_analysis)
+    local spell_id = spell_data.fanaticism_aura.spell_id
+    
     if not menu_elements.main_boolean:get() then 
         is_aura_active = false
-        return false 
+        return false, 0 
     end
     
-    if not is_in_combat() then
+    -- Check if spell is allowed (basic checks)
+    local menu_boolean = menu_elements.main_boolean:get()
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
+    
+    if not is_logic_allowed then 
         is_aura_active = false
-        return false
+        return false, 0
+    end
+    
+    -- Area analysis check (like other aura spells)
+    if area_analysis then
+        local enemy_type_filter = menu_elements.enemy_type_filter:get()
+        -- 0: All, 1: Elite+, 2: Boss
+        if enemy_type_filter == 2 and area_analysis.num_bosses == 0 then 
+            is_aura_active = false
+            return false, 0 
+        end
+        if enemy_type_filter == 1 and (area_analysis.num_elites == 0 and area_analysis.num_champions == 0 and area_analysis.num_bosses == 0) then 
+            is_aura_active = false
+            return false, 0 
+        end
+        
+        if menu_elements.use_minimum_weight:get() then
+            if area_analysis.total_target_count < menu_elements.minimum_weight:get() then
+                is_aura_active = false
+                return false, 0
+            end
+        end
+    elseif not is_in_combat() then
+        -- Fallback to is_in_combat check if no area_analysis provided
+        is_aura_active = false
+        return false, 0
     end
 
     local now = my_utility.safe_get_time()
@@ -103,18 +134,13 @@ local function logics()
     
     if not should_recast and not is_expiring then
         is_aura_active = true
-        return false
+        return false, 0
     end
     
     if now < next_time_allowed_cast then 
         is_aura_active = false
-        return false 
-    end
-
-    local spell_id = spell_data.fanaticism_aura.spell_id
-    if not my_utility.is_spell_ready(spell_id) or not my_utility.is_spell_affordable(spell_id) then
-        is_aura_active = false
-        return false
+        local wait_time = next_time_allowed_cast - now
+        return false, wait_time
     end
 
     if cast_spell and type(cast_spell.self) == "function" then
@@ -128,12 +154,12 @@ local function logics()
                 console.print("Paladin_Rotation | Fanaticism Aura cast at " .. os.date("%H:%M:%S"))
             end
             
-            return true
+            return true, 1.0
         end
     end
 
     is_aura_active = false
-    return false
+    return false, 0
 end
 
 return {

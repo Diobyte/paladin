@@ -19,6 +19,10 @@ local menu_elements =
 
     debug_tree          = tree_node:new(1),
     enable_debug        = checkbox:new(false, get_hash("paladin_rotation_enable_debug")),
+    melee_debug_mode    = checkbox:new(false, get_hash("paladin_rotation_melee_debug_mode")),
+
+    -- Manual Play Mode (like barb)
+    manual_play         = checkbox:new(false, get_hash("paladin_rotation_manual_play")),
 
     active_spells_tree  = tree_node:new(1),
     inactive_spells_tree = tree_node:new(1),

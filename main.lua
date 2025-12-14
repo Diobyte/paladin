@@ -17,7 +17,29 @@ if package and package.loaded then
     package.loaded["spells/spear_of_the_heavens"] = nil
     package.loaded["spells/divine_lance"] = nil
     package.loaded["spells/brandish"] = nil
+    -- New spells added from research
+    package.loaded["spells/condemn"] = nil
+    package.loaded["spells/consecration"] = nil
+    package.loaded["spells/heavens_fury"] = nil
+    package.loaded["spells/zenith"] = nil
+    package.loaded["spells/advance"] = nil
 end
+
+-- Early class check (like sorc/barb)
+-- Paladin Class ID: 7 (new class added in Season 11 / Lord of Hatred expansion)
+-- Note: If Paladin doesn't work with ID 7, try uncommenting the check below
+-- Class IDs: Sorcerer=0, Barbarian=1, Rogue=3, Druid=5, Necromancer=6, Spiritborn/Paladin=7
+local local_player = get_local_player()
+if not local_player then
+    return
+end
+
+local character_id = local_player:get_character_class_id()
+local is_paladin = character_id == 7 -- Paladin class ID
+-- Uncomment below to restrict plugin to Paladin only:
+-- if not is_paladin then
+--     return
+-- end
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -46,20 +68,36 @@ local function safe_on_update(cb)
 end
 
 local spells = {
+    -- Basic Skills (Resource Generators)
     holy_bolt = require("spells/holy_bolt"),
+    zeal = require("spells/zeal"),
+    advance = require("spells/advance"),           -- NEW: Lunge mobility/generator
+    
+    -- Core Skills (Main Damage)
     blessed_hammer = require("spells/blessed_hammer"),
-    falling_star = require("spells/falling_star"),
-    arbiter_of_justice = require("spells/arbiter_of_justice"),
-    rally = require("spells/rally"),
+    divine_lance = require("spells/divine_lance"),
+    brandish = require("spells/brandish"),
+    
+    -- Aura Skills (Buff Maintenance)
     defiance_aura = require("spells/defiance_aura"),
     fanaticism_aura = require("spells/fanaticism_aura"),
     holy_light_aura = require("spells/holy_light_aura"),
-    evade = require("spells/evade"),
-    zeal = require("spells/zeal"),
+    
+    -- Valor Skills (Utility/Mobility)
     shield_charge = require("spells/shield_charge"),
+    rally = require("spells/rally"),
+    evade = require("spells/evade"),
+    
+    -- Justice Skills (Damage/Control)
     spear_of_the_heavens = require("spells/spear_of_the_heavens"),
-    divine_lance = require("spells/divine_lance"),
-    brandish = require("spells/brandish"),
+    falling_star = require("spells/falling_star"),
+    condemn = require("spells/condemn"),           -- NEW: Pull + Stun AoE
+    consecration = require("spells/consecration"), -- NEW: Ground heal + damage
+    
+    -- Ultimate Skills
+    arbiter_of_justice = require("spells/arbiter_of_justice"),
+    heavens_fury = require("spells/heavens_fury"), -- NEW: Judicator Ultimate
+    zenith = require("spells/zenith"),             -- NEW: Zealot Ultimate
 }
 
 local function safe_get_menu_element(element, fallback)
@@ -250,10 +288,15 @@ safe_on_render_menu(function()
             menu.menu_elements.boss_defiance_hp_pct:render("Boss Defiance HP %", "", 2)
         end
         
+        -- Manual Play Mode (like barb)
+        menu.menu_elements.manual_play:render("Manual Play", "When enabled, disables automatic movement for melee spells - you control positioning manually")
+        
         menu.menu_elements.settings_tree:pop()
     end
 
+    -- Debug Options
     menu.menu_elements.enable_debug:render("Debug", "")
+    menu.menu_elements.melee_debug_mode:render("Melee Debug Mode", "Enable detailed console logging for melee spell movement and casting decisions")
 
     -- Get equipped spells
     local equipped_spells = get_equipped_spell_ids()
@@ -295,14 +338,81 @@ safe_on_render_menu(function()
 end)
 
 local cast_end_time = 0.0
+local next_move_time = 0.0  -- Timer to prevent spamming movement commands
+local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
+
+-- Spell classification for targeting (melee vs ranged)
+local spell_classification = {
+    zeal = "melee",
+    brandish = "melee",
+    shield_charge = "gap_closer",
+    holy_bolt = "ranged",
+    blessed_hammer = "ranged_aoe",
+    falling_star = "ranged_aoe",
+    arbiter_of_justice = "ranged_aoe",
+    spear_of_the_heavens = "ranged",
+    divine_lance = "ranged",
+    rally = "buff",
+    defiance_aura = "buff",
+    fanaticism_aura = "buff",
+    holy_light_aura = "buff",
+    evade = "mobility",
+}
+
+-- Spell range configuration
+local spell_ranges = {
+    zeal = 3.5,
+    brandish = 4.0,
+    shield_charge = 15.0,
+    holy_bolt = 12.0,
+    blessed_hammer = 12.0,
+    falling_star = 15.0,
+    arbiter_of_justice = 12.0,
+    spear_of_the_heavens = 12.0,
+    divine_lance = 10.0,
+}
+
+-- Internal cooldowns (minimum time between casts of same spell)
+local spell_internal_cooldowns = {
+    zeal = 0.0,
+    brandish = 0.1,
+    shield_charge = 0.5,
+    holy_bolt = 0.05,
+    blessed_hammer = 0.1,
+    falling_star = 0.6,
+    arbiter_of_justice = 0.8,
+    spear_of_the_heavens = 0.3,
+    divine_lance = 0.2,
+    rally = 4.0,
+    defiance_aura = 5.0,
+    fanaticism_aura = 5.0,
+    holy_light_aura = 5.0,
+    evade = 0.15,
+}
 
 safe_on_update(function()
     if not safe_get_menu_element(menu.menu_elements.main_boolean, false) then
         return
     end
 
-    local now = my_utility.safe_get_time()
-    if now < cast_end_time then
+    -- Check orbwalker mode (like barb/sorc)
+    if orbwalker then
+        local current_orb_mode = orbwalker.get_orb_mode()
+        if current_orb_mode == orb_mode.none then
+            -- Allow if auto_play is active
+            if not my_utility.is_auto_play_enabled() then
+                return
+            end
+        end
+    end
+
+    local current_time = my_utility.safe_get_time()
+    if current_time < cast_end_time then
+        return
+    end
+
+    -- Use is_action_allowed for mount/buff checks (like sorc/barb)
+    if not my_utility.is_action_allowed() then
         return
     end
 
@@ -310,8 +420,14 @@ safe_on_update(function()
     if not player then return end
     local player_position = player:get_position()
 
+    -- Define targeting ranges
+    local melee_range = 3.5
+    local ranged_range = 12.0
+    local screen_range = 16.0
+
     local best_target = nil
-    local enemy_count = 1 -- Default to 1 for weighted targeting
+    local movement_target = nil
+    local enemy_count = 1
 
     if menu.menu_elements.weighted_targeting_enabled:get() then
         local scan_radius = menu.menu_elements.scan_radius:get()
@@ -380,16 +496,20 @@ safe_on_update(function()
             boss_target_count,
             debug_enabled
         )
+        movement_target = best_target
     else
         local max_range = safe_get_menu_element(menu.menu_elements.max_targeting_range, 30)
         local cluster_radius = safe_get_menu_element(menu.menu_elements.cluster_radius, 6.0)
         local prefer_elites = safe_get_menu_element(menu.menu_elements.prefer_elites, true)
         best_target, enemy_count = get_best_target(max_range, cluster_radius, prefer_elites)
+        movement_target = best_target
     end
 
     if not best_target then
         return
     end
+
+    local best_target_position = best_target:get_position()
 
     local combo_enemy_count = safe_get_menu_element(menu.menu_elements.combo_enemy_count, 4)
     local combo_window = safe_get_menu_element(menu.menu_elements.combo_window, 0.8)
@@ -453,40 +573,40 @@ safe_on_update(function()
 
     -- Define spell parameters for consistent argument passing based on spell type
     local spell_params = {
-        holy_bolt = { args = {best_target} },
-        blessed_hammer = { args = {best_target} },
-        falling_star = { args = {best_target} },
-        arbiter_of_justice = { args = {best_target} },
-        rally = { args = {}, custom_check = function()
+        holy_bolt = { args = {best_target}, classification = "ranged" },
+        blessed_hammer = { args = {best_target}, classification = "ranged_aoe" },
+        falling_star = { args = {best_target}, classification = "ranged_aoe" },
+        arbiter_of_justice = { args = {best_target}, classification = "ranged_aoe" },
+        rally = { args = {}, classification = "buff", custom_check = function()
             if spells.rally and spells.rally.menu_elements then
                 return check_aoe_conditions(spells.rally.menu_elements, area_analysis)
             end
             return true
         end },
-        defiance_aura = { args = {}, custom_check = function()
+        defiance_aura = { args = {}, classification = "buff", custom_check = function()
             if spells.defiance_aura and spells.defiance_aura.menu_elements then
                 return check_aoe_conditions(spells.defiance_aura.menu_elements, area_analysis)
             end
             return true
         end },
-        fanaticism_aura = { args = {}, custom_check = function()
+        fanaticism_aura = { args = {}, classification = "buff", custom_check = function()
             if spells.fanaticism_aura and spells.fanaticism_aura.menu_elements then
                 return check_aoe_conditions(spells.fanaticism_aura.menu_elements, area_analysis)
             end
             return true
         end },
-        holy_light_aura = { args = {}, custom_check = function()
+        holy_light_aura = { args = {}, classification = "buff", custom_check = function()
             if spells.holy_light_aura and spells.holy_light_aura.menu_elements then
                 return check_aoe_conditions(spells.holy_light_aura.menu_elements, area_analysis)
             end
             return true
         end },
-        evade = { args = {best_target} },
-        zeal = { args = {best_target} },
-        shield_charge = { args = {best_target} },
-        spear_of_the_heavens = { args = {best_target} },
-        divine_lance = { args = {best_target} },
-        brandish = { args = {best_target} },
+        evade = { args = {best_target}, classification = "mobility" },
+        zeal = { args = {best_target}, classification = "melee" },
+        shield_charge = { args = {best_target}, classification = "gap_closer" },
+        spear_of_the_heavens = { args = {best_target}, classification = "ranged" },
+        divine_lance = { args = {best_target}, classification = "ranged" },
+        brandish = { args = {best_target}, classification = "melee" },
     }
 
     -- Get equipped spells for spell casting logic
@@ -499,12 +619,24 @@ safe_on_update(function()
         equipped_lookup[spell_id] = true
     end
 
+    -- Loop through spells in priority order defined in spell_priority.lua
     for _, spell_name in ipairs(spell_priority) do
         local spell = spells[spell_name]
         -- Only process spells that are equipped
         if spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id] then
             local params = spell_params[spell_name]
             if params then
+                -- Check internal cooldown for this spell (like barb)
+                local internal_cooldown = spell_internal_cooldowns[spell_name] or 0
+                if internal_cooldown > 0 then
+                    local last_cast_time = spell_last_cast_times[spell_name] or 0
+                    local time_since_last_cast = current_time - last_cast_time
+                    if time_since_last_cast < internal_cooldown then
+                        -- Spell is still on internal cooldown, skip it
+                        goto continue
+                    end
+                end
+
                 -- Check any custom pre-conditions if defined
                 local should_cast = true
                 if params.custom_check ~= nil then
@@ -513,19 +645,90 @@ safe_on_update(function()
 
                 if should_cast then
                     local args = params.args or {}
+                    local casting_target = best_target
+                    
+                    -- Melee range check with movement handling (like barb)
+                    local is_melee = params.classification == "melee"
+                    local spell_range = spell_ranges[spell_name] or (is_melee and melee_range or ranged_range)
+                    
+                    if is_melee and casting_target then
+                        local target_position = casting_target:get_position()
+                        local distance = player_position:dist_to(target_position)
+                        
+                        if distance > spell_range then
+                            -- Target is out of range for melee spell
+                            local manual_play_enabled = menu.menu_elements.manual_play:get()
+                            
+                            if manual_play_enabled then
+                                -- Manual play mode: skip spell and let user control movement
+                                if menu.menu_elements.melee_debug_mode:get() then
+                                    dbg(spell_name .. " skipped (Manual Play) - target distance: " .. string.format("%.2f", distance) .. " > " .. string.format("%.2f", spell_range))
+                                end
+                                goto continue
+                            else
+                                -- Auto movement mode: move towards the movement target
+                                if current_time >= next_move_time then
+                                    if pathfinder and pathfinder.request_move then
+                                        pathfinder.request_move(best_target_position)
+                                        next_move_time = current_time + 0.1  -- Prevent movement spam
+                                    end
+                                    
+                                    if menu.menu_elements.melee_debug_mode:get() then
+                                        dbg(spell_name .. " moving to target - distance: " .. string.format("%.2f", distance) .. " > " .. string.format("%.2f", spell_range))
+                                    end
+                                end
+                                -- Skip casting this out-of-range spell and check the next one
+                                goto continue
+                            end
+                        end
+                        
+                        if menu.menu_elements.melee_debug_mode:get() then
+                            dbg(spell_name .. " in range - distance: " .. string.format("%.2f", distance) .. " <= " .. string.format("%.2f", spell_range))
+                        end
+                    end
+                    
+                    -- Call spell's logics function with appropriate arguments
                     local cast_successful = false
+                    local cooldown = 0.05  -- Default cooldown
                     
                     if #args == 0 then
-                        cast_successful = spell.logics(area_analysis)
+                        local result1, result2 = spell.logics(area_analysis)
+                        cast_successful = result1
+                        if result2 then cooldown = result2 end
                     elseif #args == 1 then
-                        cast_successful = spell.logics(args[1], area_analysis)
+                        local result1, result2 = spell.logics(args[1], area_analysis)
+                        cast_successful = result1
+                        if result2 then cooldown = result2 end
                     end
 
                     if cast_successful then
-                        cast_end_time = now + 0.05
+                        -- Use the returned cooldown or internal cooldown, whichever is larger
+                        local actual_cooldown = math.max(cooldown, internal_cooldown)
+                        cast_end_time = current_time + actual_cooldown
+                        -- Update internal cooldown tracking for this spell (like barb)
+                        spell_last_cast_times[spell_name] = current_time
+                        
+                        if menu.menu_elements.enable_debug:get() then
+                            dbg("Cast " .. spell_name .. " - setting cast_end_time for " .. string.format("%.2f", actual_cooldown) .. "s")
+                        end
                         return
                     end
                 end
+                
+                ::continue::
+            end
+        end
+    end
+    
+    -- Auto play engage far away monsters (like sorc)
+    local is_auto_play = my_utility.is_auto_play_enabled()
+    if is_auto_play and movement_target then
+        local is_dangerous_evade_position = evade and evade.is_dangerous_position and evade.is_dangerous_position(player_position)
+        if not is_dangerous_evade_position then
+            local movement_target_position = movement_target:get_position()
+            local move_pos = movement_target_position:get_extended(player_position, 3.0)
+            if pathfinder and pathfinder.request_move then
+                pathfinder.request_move(move_pos)
             end
         end
     end

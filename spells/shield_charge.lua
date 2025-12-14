@@ -7,8 +7,11 @@ local menu_elements = {
     min_cooldown = slider_float:new(0.0, 5.0, 0.5, get_hash("paladin_rotation_shield_charge_min_cd")),
     min_range = slider_float:new(2.0, 15.0, 5.0, get_hash("paladin_rotation_shield_charge_min_range")),
     max_range = slider_float:new(5.0, 30.0, 15.0, get_hash("paladin_rotation_shield_charge_max_range")),
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_shield_charge_enemy_type")),
+    use_for_engage_only = checkbox:new(true, get_hash("paladin_rotation_shield_charge_engage_only")),
 }
 
+local spell_id = spell_data.shield_charge.spell_id
 local next_time_allowed_cast = 0.0
 
 local function menu()
@@ -16,61 +19,90 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.min_range:render("Min Range", "", 1)
-            menu_elements.max_range:render("Max Range", "", 1)
+            menu_elements.min_range:render("Min Range", "Minimum distance to target before charging", 1)
+            menu_elements.max_range:render("Max Range", "Maximum distance to target for charging", 1)
+            menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
+            menu_elements.use_for_engage_only:render("Use for Engage Only", "Only use Shield Charge to engage targets at range")
         end
         menu_elements.tree_tab:pop()
     end
 end
 
 local function logics(best_target, area_analysis)
-    if not menu_elements.main_boolean:get() then return false end
-
-    local now = my_utility.safe_get_time()
-    if now < next_time_allowed_cast then return false end
-
-    local spell_id = spell_data.shield_charge.spell_id
-    if not my_utility.is_spell_ready(spell_id) or not my_utility.is_spell_affordable(spell_id) then
-        return false
+    local menu_boolean = menu_elements.main_boolean:get()
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
+    
+    if not is_logic_allowed then 
+        return false, 0 
     end
 
     local target = best_target
     if not target or not target:is_enemy() then
-        return false
+        return false, 0
     end
 
-    local player = get_local_player and get_local_player() or nil
-    local player_pos = player and player.get_position and player:get_position() or nil
-    local target_pos = target.get_position and target:get_position() or nil
+    -- Enemy type filter check (like barb's charge)
+    if area_analysis then
+        local enemy_type_filter = menu_elements.enemy_type_filter:get()
+        -- 0: All, 1: Elite+, 2: Boss
+        if enemy_type_filter == 2 then
+            -- Boss only - check if target is boss
+            if not target:is_boss() then
+                return false, 0
+            end
+        elseif enemy_type_filter == 1 then
+            -- Elite+ - check if target is elite, champion, or boss
+            if not (target:is_elite() or target:is_champion() or target:is_boss()) then
+                return false, 0
+            end
+        end
+    end
+
+    local player = get_local_player()
+    local player_pos = player and player:get_position() or nil
+    local target_pos = target:get_position()
     
-    if player_pos and target_pos then
-        local dist_sqr = player_pos:squared_dist_to_ignore_z(target_pos)
-        local min_r = menu_elements.min_range:get()
-        local max_r = menu_elements.max_range:get()
-        
-        if dist_sqr < (min_r * min_r) or dist_sqr > (max_r * max_r) then
-            return false
+    if not player_pos or not target_pos then
+        return false, 0
+    end
+    
+    local dist = player_pos:dist_to(target_pos)
+    local min_r = menu_elements.min_range:get()
+    local max_r = menu_elements.max_range:get()
+    
+    -- Range check - must be between min and max range
+    if dist < min_r or dist > max_r then
+        return false, 0
+    end
+
+    -- Check for wall collision (like barb)
+    if target_selector and target_selector.is_wall_collision then
+        local is_wall_collision = target_selector.is_wall_collision(player_pos, target, 1.20)
+        if is_wall_collision then
+            return false, 0
+        end
+    end
+
+    local now = my_utility.safe_get_time()
+    local cooldown = menu_elements.min_cooldown:get()
+
+    -- Use prediction for moving targets
+    local cast_pos = target_pos
+    if prediction and prediction.get_future_unit_position then
+        local predicted_pos = prediction.get_future_unit_position(target, 0.2)
+        if predicted_pos then
+            cast_pos = predicted_pos
         end
     end
 
     if cast_spell and type(cast_spell.position) == "function" then
-        local cast_pos = target_pos
-        
-        -- Prediction
-        if prediction and prediction.get_future_unit_position then
-            local predicted_pos = prediction.get_future_unit_position(target, 0.2)
-            if predicted_pos then
-                cast_pos = predicted_pos
-            end
-        end
-
-        if cast_pos and cast_spell.position(spell_id, cast_pos, 0.0) then
-            next_time_allowed_cast = now + menu_elements.min_cooldown:get()
-            return true
+        if cast_spell.position(spell_id, cast_pos, 0.0) then
+            next_time_allowed_cast = now + cooldown
+            return true, cooldown
         end
     end
 
-    return false
+    return false, 0
 end
 
 return {
