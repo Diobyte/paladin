@@ -32,30 +32,19 @@ end
 -- Paladin Class ID: 7 (new class added in Season 11 / Lord of Hatred expansion)
 -- Note: If Paladin doesn't work with ID 7, try uncommenting the check below
 -- Class IDs: Sorcerer=0, Barbarian=1, Rogue=3, Druid=5, Necromancer=6, Spiritborn/Paladin=7
-local local_player = get_local_player()
-if not local_player then
-    return
-end
-
-local character_id = local_player:get_character_class_id() or -1
--- Some clients report Paladin/Spiritborn as 7, others as 9; accept both.
-local is_paladin = (character_id == 7) or (character_id == 9)
-
--- If class ID mismatches, log and continue (fallback to allow debugging on new IDs)
-if not is_paladin and console and console.print then
-    console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7 or 9); continuing load for debugging")
-end
+-- We do NOT return early here to ensure callbacks are registered even if player isn't ready yet
+local is_paladin_checked = false
 
 -- Orbwalker settings (like druid/barb) - take control of movement
 -- These MUST be called unconditionally at the top level, before any logic
 -- set_block_movement(true): We handle all movement in spell logics, not orbwalker
 -- set_clear_toggle(true): Allow the clear mode toggle to work
--- if orbwalker and orbwalker.set_block_movement then
---     pcall(function() orbwalker.set_block_movement(true) end)
--- end
--- if orbwalker and orbwalker.set_clear_toggle then
---     pcall(function() orbwalker.set_clear_toggle(true) end)
--- end
+if orbwalker and orbwalker.set_block_movement then
+    pcall(function() orbwalker.set_block_movement(true) end)
+end
+if orbwalker and orbwalker.set_clear_toggle then
+    pcall(function() orbwalker.set_clear_toggle(true) end)
+end
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -149,7 +138,13 @@ end
 local function evaluate_all_targets(player_pos, melee_range, max_range)
     -- Use target_selector.get_near_target_list() for pre-filtered list by range
     -- This matches reference repos (Druid, Spiritborn) and is more efficient
-    local enemies = target_selector.get_near_target_list(player_pos, max_range) or {}
+    local enemies = {}
+    if target_selector and target_selector.get_near_target_list then
+        enemies = target_selector.get_near_target_list(player_pos, max_range) or {}
+    else
+        -- Fallback to actors_manager if target_selector is missing
+        enemies = actors_manager.get_enemy_npcs() or {}
+    end
     
     -- Result table with all target types
     local targets = {
@@ -756,6 +751,17 @@ safe_on_update(function()
 
     local player = get_local_player()
     if not player then return end
+    
+    -- Perform class check once when player is available
+    if not is_paladin_checked then
+        local character_id = player:get_character_class_id() or -1
+        local is_paladin = (character_id == 7) or (character_id == 9)
+        if not is_paladin and console and console.print then
+            console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7 or 9); continuing load for debugging")
+        end
+        is_paladin_checked = true
+    end
+
     local player_position = player:get_position()
 
     -- =====================================================

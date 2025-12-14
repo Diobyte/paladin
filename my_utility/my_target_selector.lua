@@ -373,7 +373,12 @@ end
 local function get_target_list(source, range, collision_table, floor_table, angle_table)
 
     local new_list = {}
-    local possible_targets_list = target_selector.get_near_target_list(source, range) or {}
+    local possible_targets_list = {}
+    if target_selector and target_selector.get_near_target_list then
+        possible_targets_list = target_selector.get_near_target_list(source, range) or {}
+    else
+        possible_targets_list = actors_manager.get_enemy_npcs() or {}
+    end
 
     -- Normalize option tables to support both array-style {true, 1.0} and key-style {is_enabled=true, width=1.0}
     local function as_bool(tbl, index_key)
@@ -453,6 +458,10 @@ end
 -- victim_list(table game_object)
 local function get_most_hits_rectangle(source, length, width)
 
+    if not target_selector or not target_selector.get_most_hits_target_rectangle_area_heavy then
+        return { is_valid = false }
+    end
+
     local data = target_selector.get_most_hits_target_rectangle_area_heavy(source, length, width);
 
     local is_valid = false;
@@ -484,6 +493,10 @@ end
 -- main_target(gameobject)
 -- victim_list(table game_object)
 local function get_most_hits_circular(source, distance, radius)
+
+    if not target_selector or not target_selector.get_most_hits_target_circular_area_heavy then
+        return { is_valid = false }
+    end
 
     local data = target_selector.get_most_hits_target_circular_area_heavy(source, distance, radius);
 
@@ -684,7 +697,11 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
     -- Only scan for new targets if refresh time has passed
     if current_time - last_scan_time >= refresh_rate then
         last_scan_time = current_time
-        cached_target_list = target_selector.get_near_target_list(source_pos, scan_radius) or {}
+        if target_selector and target_selector.get_near_target_list then
+            cached_target_list = target_selector.get_near_target_list(source_pos, scan_radius) or {}
+        else
+            cached_target_list = actors_manager.get_enemy_npcs() or {}
+        end
 
         -- Filter out targets on different floors
         local filtered_list = {}
@@ -942,7 +959,12 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
 end
 
 local function analyze_target_area(source, scan_radius, normal_target_count, elite_target_count, champion_target_count, boss_target_count)
-    local target_list = target_selector.get_near_target_list(source, scan_radius) or {}
+    local target_list = {}
+    if target_selector and target_selector.get_near_target_list then
+        target_list = target_selector.get_near_target_list(source, scan_radius) or {}
+    else
+        target_list = actors_manager.get_enemy_npcs() or {}
+    end
     
     local num_bosses = 0
     local num_elites = 0

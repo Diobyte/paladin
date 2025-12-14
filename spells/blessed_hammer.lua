@@ -79,7 +79,14 @@ local function logics(target)
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     -- Count enemies in range
-    local enemies = actors_manager.get_enemy_npcs()
+    -- OPTIMIZATION: Use target_selector.get_near_target_list if available (much faster than get_enemy_npcs)
+    local enemies = {}
+    if target_selector and target_selector.get_near_target_list then
+        enemies = target_selector.get_near_target_list(player_pos, engage) or {}
+    else
+        enemies = actors_manager.get_enemy_npcs() or {}
+    end
+    
     local near = 0
     local has_priority_target = false
     local engage_sqr = engage * engage
