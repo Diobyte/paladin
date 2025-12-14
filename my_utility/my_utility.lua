@@ -6,8 +6,9 @@ local mount_buff_name_hash_c = 1923
 local shrine_conduit_buff_name = "Shine_Conduit"
 local shrine_conduit_buff_name_hash_c = 421661
 
--- Skin name patterns for infernal horde objectives
+-- Skin name patterns for infernal horde objectives (like Druid script)
 local horde_objectives = {
+    "BSK_treasure_goblin",
     "BSK_HellSeeker",
     "MarkerLocation_BSK_Occupied",
     "S05_coredemon",
@@ -30,6 +31,30 @@ local targeting_modes = {
     "Best Cluster Target",       -- 5: Target in best cluster for AoE
 }
 
+-- Activation filters for offensive skills (like Druid script)
+local activation_filters = {
+    "Any Enemy",         -- 0
+    "Elite & Boss Only", -- 1
+    "Boss Only"          -- 2
+}
+
+-- Spell delays for timing (like Druid script)
+local spell_delays = {
+    instant_cast = 0.01,   -- instant cast abilities
+    regular_cast = 0.10,   -- regular abilities with animation
+    move_delay = 0.50,     -- delay between movement commands (like druid)
+}
+
+local evaluation_range_description = "\n      Range to check for enemies around the player      \n\n"
+
+local targeting_mode_description =
+    "       Weighted Target: Targets the most valuable enemy based on type and weights     \n" ..
+    "       Closest Target: Targets the closest enemy to the player      \n" ..
+    "       Lowest Health Target: Targets the enemy with lowest HP      \n" ..
+    "       Highest Health Target: Targets the enemy with highest HP      \n" ..
+    "       Cursor Target: Targets the enemy nearest to the cursor      \n" ..
+    "       Best Cluster Target: Targets the best cluster for AoE      \n"
+
 local function safe_get_time()
     if type(get_time_since_inject) == "function" then
         return get_time_since_inject()
@@ -50,6 +75,58 @@ local function is_auto_play_enabled()
         return true
     end
     return false
+end
+
+-- Check if a spell's buff is active on player (like Druid is_spell_active)
+-- Uses spell_id as the buff name_hash
+local function is_spell_active(spell_id)
+    local local_player = get_local_player()
+    if not local_player then return false end
+    local local_player_buffs = local_player:get_buffs()
+    if not local_player_buffs then return false end
+    
+    for _, buff in ipairs(local_player_buffs) do
+        if buff.name_hash == spell_id then
+            return true
+        end
+    end
+    return false
+end
+
+-- Check if a specific buff is active (like Druid is_buff_active)
+-- Checks both spell_id (name_hash) and buff_id (type) with optional stack count
+local function is_buff_active(spell_id, buff_id, min_stack_count)
+    min_stack_count = min_stack_count or 1
+    
+    local local_player = get_local_player()
+    if not local_player then return false end
+    local local_player_buffs = local_player:get_buffs()
+    if not local_player_buffs then return false end
+    
+    for _, buff in ipairs(local_player_buffs) do
+        if buff.name_hash == spell_id and buff.type == buff_id then
+            -- Check stack count OR remaining time > 0.2
+            if (buff.stacks and buff.stacks >= min_stack_count) or (buff.get_remaining_time and buff:get_remaining_time() > 0.2) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Get stack count of a buff (like Druid buff_stack_count)
+local function buff_stack_count(spell_id, buff_id)
+    local local_player = get_local_player()
+    if not local_player then return 0 end
+    local local_player_buffs = local_player:get_buffs()
+    if not local_player_buffs then return 0 end
+    
+    for _, buff in ipairs(local_player_buffs) do
+        if buff.name_hash == spell_id and buff.type == buff_id then
+            return buff.stacks or 0
+        end
+    end
+    return 0
 end
 
 local function is_action_allowed()
@@ -531,10 +608,18 @@ local my_utility = {
     targeting_modes = targeting_modes,
     get_target_by_mode = get_target_by_mode,
     enemy_count_by_type = enemy_count_by_type,
-    -- Movement utilities (like druid script)
+    -- Movement utilities (like Druid script)
     get_melee_range = get_melee_range,
     is_in_range = is_in_range,
     spell_delays = spell_delays,
+    -- Buff utilities (like Druid script)
+    is_spell_active = is_spell_active,
+    is_buff_active = is_buff_active,
+    buff_stack_count = buff_stack_count,
+    -- Activation filters (like Druid script)
+    activation_filters = activation_filters,
+    evaluation_range_description = evaluation_range_description,
+    targeting_mode_description = targeting_mode_description,
 }
 
 return my_utility

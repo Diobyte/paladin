@@ -9,8 +9,9 @@ local function safe_get_time()
     if type(get_time_since_inject) == "function" then
         return get_time_since_inject()
     end
-    if type(get_current_time) == "function" then
-        return get_current_time()
+    -- Fallback: use get_gametime() which is documented in the API
+    if type(get_gametime) == "function" then
+        return get_gametime()
     end
     return 0
 end
