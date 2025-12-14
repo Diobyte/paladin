@@ -38,11 +38,12 @@ if not local_player then
 end
 
 local character_id = local_player:get_character_class_id() or -1
-local is_paladin = character_id == 7 -- Paladin class ID (Season 11 target)
+-- Some clients report Paladin/Spiritborn as 7, others as 9; accept both.
+local is_paladin = (character_id == 7) or (character_id == 9)
 
--- If class ID mismatches, log and continue (some clients use different IDs). This prevents a silent early return.
+-- If class ID mismatches, log and continue (fallback to allow debugging on new IDs)
 if not is_paladin and console and console.print then
-    console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7); continuing load for debugging")
+    console.print("Paladin_Rotation: unexpected class_id=" .. tostring(character_id) .. " (expected 7 or 9); continuing load for debugging")
 end
 
 -- Orbwalker settings (like druid/barb) - take control of movement
@@ -1088,7 +1089,8 @@ safe_on_render(function()
     local y = pos2d.y - 120
     local line_height = 16
     for i, text in ipairs(lines) do
-        graphics.text_2d(text, vec2:new(x, y + (i - 1) * line_height), 16, color_white(220))
+        -- vec2 constructor is vec2(x, y) per API
+        graphics.text_2d(text, vec2(x, y + (i - 1) * line_height), 16, color_white(220))
     end
 end)
 
