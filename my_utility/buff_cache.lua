@@ -4,6 +4,17 @@ local M = {}
 local cache = {}
 local DEFAULT_TTL = 0.2 -- seconds
 
+-- Safe time getter with fallback (matches my_utility pattern)
+local function safe_get_time()
+    if type(get_time_since_inject) == "function" then
+        return get_time_since_inject()
+    end
+    if type(get_current_time) == "function" then
+        return get_current_time()
+    end
+    return 0
+end
+
 -- Resolve a stable key for a game object
 local function get_object_key(obj)
     if not obj then return nil end
@@ -19,7 +30,7 @@ end
 function M.get_buffs(obj, ttl)
     local key = get_object_key(obj)
     if not key then return nil end
-    local now = get_time_since_inject()
+    local now = safe_get_time()
     local entry = cache[key]
     local expire = ttl or DEFAULT_TTL
     if entry and (now - entry.t) <= expire then

@@ -66,18 +66,46 @@ local function logics()
     local engage = menu_elements.engage_range:get()
     local engage_sqr = engage * engage
     local min_enemies = menu_elements.min_enemies:get()
+    local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     -- Count enemies in range (like barb's HotA min targets)
     local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
     local near = 0
+    local has_priority_target = false
 
     for _, e in ipairs(enemies) do
-        if e and e:is_enemy() then
+        local is_enemy = false
+        if e then
+            local ok, res = pcall(function() return e:is_enemy() end)
+            is_enemy = ok and res or false
+        end
+        if is_enemy then
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_sqr then
                 near = near + 1
+                -- Check for priority targets based on filter
+                if enemy_type_filter == 2 then
+                    -- Boss only
+                    local ok, res = pcall(function() return e:is_boss() end)
+                    if ok and res then has_priority_target = true end
+                elseif enemy_type_filter == 1 then
+                    -- Elite/Champion/Boss
+                    local ok_elite, res_elite = pcall(function() return e:is_elite() end)
+                    local ok_champ, res_champ = pcall(function() return e:is_champion() end)
+                    local ok_boss, res_boss = pcall(function() return e:is_boss() end)
+                    if (ok_elite and res_elite) or (ok_champ and res_champ) or (ok_boss and res_boss) then
+                        has_priority_target = true
+                    end
+                else
+                    has_priority_target = true  -- Any enemy counts
+                end
             end
         end
+    end
+
+    -- Check enemy type filter (must have at least one priority target in range)
+    if enemy_type_filter > 0 and not has_priority_target then
+        return false, 0
     end
 
     if near < min_enemies then

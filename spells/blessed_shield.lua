@@ -105,7 +105,12 @@ local function logics(target)
         local near = 0
 
         for _, e in ipairs(enemies) do
-            if e and e:is_enemy() then
+            local is_enemy = false
+            if e then
+                local ok, res = pcall(function() return e:is_enemy() end)
+                is_enemy = ok and res or false
+            end
+            if is_enemy then
                 local pos = e:get_position()
                 if pos and pos:squared_dist_to_ignore_z(target_pos) <= ricochet_range_sqr then
                     near = near + 1

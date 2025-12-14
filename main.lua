@@ -301,7 +301,7 @@ safe_on_render_menu(function()
     menu.menu_elements.bypass_equipped_check:render("Bypass Equipped Check", "DEBUG: Skip checking if spell is equipped - helps identify spell ID issues")
 
     -- Get equipped spells
-    local equipped_spells = get_equipped_spell_ids()
+    local equipped_spells = get_equipped_spell_ids() or {}
 
     -- Create a lookup table for equipped spells
     local equipped_lookup = {}
@@ -333,52 +333,7 @@ safe_on_render_menu(function()
 end)
 
 local cast_end_time = 0.0
-local next_move_time = 0.0  -- Timer to prevent spamming movement commands
 local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
-
--- Spell classification for targeting (melee vs ranged)
-local spell_classification = {
-    zeal = "melee",
-    clash = "melee",           -- Shield bash - melee
-    brandish = "melee",
-    shield_charge = "gap_closer",
-    advance = "gap_closer",    -- Lunge forward
-    holy_bolt = "ranged",
-    blessed_hammer = "ranged_aoe",
-    blessed_shield = "extended_melee", -- Extended melee (5.5-6.0), ricochets 3x
-    falling_star = "ranged_aoe",
-    arbiter_of_justice = "ranged_aoe",
-    spear_of_the_heavens = "ranged",
-    divine_lance = "melee",    -- Short range stab
-    rally = "buff",
-    defiance_aura = "buff",
-    fanaticism_aura = "buff",
-    holy_light_aura = "buff",
-    condemn = "ranged_aoe",    -- Self-centered pull
-    consecration = "ranged_aoe", -- Self-centered ground effect
-    heavens_fury = "ranged_aoe", -- Self-centered AoE
-    zenith = "ranged_aoe",     -- Self-centered cleave (cast_type = "self")
-}
-
--- Spell range configuration
-local spell_ranges = {
-    zeal = 3.5,
-    clash = 3.5,               -- Shield bash - melee range
-    brandish = 4.0,
-    shield_charge = 15.0,
-    advance = 10.0,            -- Lunge range
-    holy_bolt = 15.0,          -- Ranged throw
-    blessed_hammer = 12.0,     -- Spiral AoE around player
-    blessed_shield = 6.0,      -- Extended melee (5.5-6.0 range)
-    falling_star = 15.0,
-    arbiter_of_justice = 15.0,
-    spear_of_the_heavens = 12.0,
-    divine_lance = 5.0,        -- Short melee impale
-    condemn = 8.0,             -- Self-centered pull radius
-    consecration = 6.0,        -- Self-centered ground AoE
-    heavens_fury = 10.0,       -- Self-centered AoE + seeking beams
-    zenith = 6.0,              -- Melee cleave range
-}
 
 -- Internal cooldowns (minimum time between casts of same spell)
 -- These control how often each spell can be CHECKED for casting
@@ -462,14 +417,8 @@ safe_on_update(function()
     if not player then return end
     local player_position = player:get_position()
 
-    -- Define targeting ranges
-    local melee_range = 3.5
-    local ranged_range = 12.0
-    local screen_range = 16.0
-
     local best_target = nil
     local movement_target = nil
-    local enemy_count = 1
 
     if menu.menu_elements.weighted_targeting_enabled:get() then
         local scan_radius = menu.menu_elements.scan_radius:get()
@@ -543,85 +492,12 @@ safe_on_update(function()
         local max_range = safe_get_menu_element(menu.menu_elements.max_targeting_range, 30)
         local cluster_radius = safe_get_menu_element(menu.menu_elements.cluster_radius, 6.0)
         local prefer_elites = safe_get_menu_element(menu.menu_elements.prefer_elites, true)
-        best_target, enemy_count = get_best_target(max_range, cluster_radius, prefer_elites)
+        best_target = get_best_target(max_range, cluster_radius, prefer_elites)
         movement_target = best_target
     end
 
     if not best_target then
         return
-    end
-
-    local best_target_position = best_target:get_position()
-
-    local combo_enemy_count = safe_get_menu_element(menu.menu_elements.combo_enemy_count, 4)
-    local combo_window = safe_get_menu_element(menu.menu_elements.combo_window, 0.8)
-
-    local health_pct = my_utility.get_health_pct()
-    local boss_defiance_hp_pct = safe_get_menu_element(menu.menu_elements.boss_defiance_hp_pct, 0.50)
-
-    local treat_elite_as_boss = safe_get_menu_element(menu.menu_elements.treat_elite_as_boss, true)
-    -- Nil-safe type checks per API docs (gameobject methods)
-    local is_elite = false
-    local is_champion = false
-    local is_boss = false
-    if best_target then
-        local ok_elite, res_elite = pcall(function() return best_target:is_elite() end)
-        local ok_champ, res_champ = pcall(function() return best_target:is_champion() end)
-        local ok_boss, res_boss = pcall(function() return best_target:is_boss() end)
-        is_elite = ok_elite and res_elite or false
-        is_champion = ok_champ and res_champ or false
-        is_boss = ok_boss and res_boss or false
-    end
-    local boss_or_elite_focus = best_target ~= nil and (is_boss or is_champion or (treat_elite_as_boss and is_elite))
-
-    -- Perform area analysis once per update for AoE spell conditions
-    -- Note: Reuse target count values from weighted targeting block above if available
-    local area_normal_count, area_elite_count, area_champion_count, area_boss_count
-    if menu.menu_elements.custom_enemy_sliders_enabled:get() then
-        area_normal_count = menu.menu_elements.normal_target_count:get()
-        area_elite_count = menu.menu_elements.elite_target_count:get()
-        area_champion_count = menu.menu_elements.champion_target_count:get()
-        area_boss_count = menu.menu_elements.boss_target_count:get()
-    else
-        area_normal_count = 1
-        area_elite_count = 5
-        area_champion_count = 5
-        area_boss_count = 5
-    end
-    
-    local area_analysis = my_target_selector.analyze_target_area(
-        player_position,
-        menu.menu_elements.scan_radius:get(),
-        area_normal_count,
-        area_elite_count,
-        area_champion_count,
-        area_boss_count
-    )
-
-    -- Helper function to check AoE conditions for buff/debuff spells
-    local function check_aoe_conditions(spell_menu_elements, area_analysis)
-        if not spell_menu_elements then return true end
-        if not area_analysis then return true end
-        
-        -- Check enemy type filter first
-        local enemy_type_filter = spell_menu_elements.enemy_type_filter and spell_menu_elements.enemy_type_filter:get() or 0
-        
-        -- Filter: 0 = Any, 1 = Elite/Champ/Boss, 2 = Boss
-        if enemy_type_filter == 2 then
-            -- Boss only
-            return (area_analysis.num_bosses or 0) > 0
-        elseif enemy_type_filter == 1 then
-            -- Elite/Champ/Boss
-            return (area_analysis.num_elites or 0) > 0 or (area_analysis.num_champions or 0) > 0 or (area_analysis.num_bosses or 0) > 0
-        end
-        
-        -- Filter is "Any" - check minimum targets in area if enabled
-        if spell_menu_elements.use_minimum_weight and not spell_menu_elements.use_minimum_weight:get() then
-            return true  -- Feature disabled, always allow cast
-        end
-        
-        local minimum_targets = spell_menu_elements.minimum_weight and spell_menu_elements.minimum_weight:get() or 1
-        return (area_analysis.total_target_count or 0) >= minimum_targets
     end
 
     -- Define spell parameters for consistent argument passing based on spell type
@@ -655,7 +531,7 @@ safe_on_update(function()
     }
 
     -- Get equipped spells for spell casting logic
-    local equipped_spells = get_equipped_spell_ids()
+    local equipped_spells = get_equipped_spell_ids() or {}
 
     -- Debug: Print equipped spell IDs once
     if menu.menu_elements.enable_debug:get() then
@@ -686,8 +562,10 @@ safe_on_update(function()
         
         if menu.menu_elements.enable_debug:get() and spell_data[spell_name] then
             if not spell_equipped then
-                -- Only log once per second to avoid spam
-                if not _G.paladin_last_equip_debug or (current_time - _G.paladin_last_equip_debug) > 2.0 then
+                -- Only log once per 2 seconds to avoid spam
+                _G.paladin_last_equip_debug = _G.paladin_last_equip_debug or {}
+                if not _G.paladin_last_equip_debug[spell_name] or (current_time - _G.paladin_last_equip_debug[spell_name]) > 2.0 then
+                    _G.paladin_last_equip_debug[spell_name] = current_time
                     dbg(spell_name .. " not equipped (spell_id: " .. tostring(spell_data[spell_name].spell_id) .. ")" .. (bypass_equipped and " [BYPASSED]" or ""))
                 end
             end

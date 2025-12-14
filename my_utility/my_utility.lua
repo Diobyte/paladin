@@ -89,12 +89,16 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false
     end
 
-    if utility and utility.is_spell_affordable and not utility.is_spell_affordable(spell_id) then
-        return false
+    -- Check if player has enough resources for the spell using the correct API
+    local local_player = get_local_player()
+    if local_player then
+        local ok, has_resources = pcall(function() return local_player:has_enough_resources_for_spell(spell_id) end)
+        if ok and has_resources == false then
+            return false
+        end
     end
 
     -- Evade abort
-    local local_player = get_local_player()
     if local_player then
         local player_position = local_player:get_position()
         if evade and evade.is_dangerous_position and evade.is_dangerous_position(player_position) then
@@ -129,10 +133,14 @@ local function is_spell_ready(spell_id)
 end
 
 local function is_spell_affordable(spell_id)
-    if utility and type(utility.is_spell_affordable) == "function" then
-        return utility.is_spell_affordable(spell_id)
+    -- Use the correct API: player:has_enough_resources_for_spell(spell_id)
+    local player = get_local_player and get_local_player() or nil
+    if not player then return true end  -- Assume affordable if no player
+    local ok, result = pcall(function() return player:has_enough_resources_for_spell(spell_id) end)
+    if ok then
+        return result
     end
-    return true
+    return true  -- Assume affordable if method doesn't exist
 end
 
 local function get_resource_pct()
@@ -165,9 +173,21 @@ local function enemy_count_in_radius(radius, origin)
     local radius_sqr = radius * radius
 
     for _, e in ipairs(enemies) do
-        local pos = e:get_position()
-        if pos and origin and pos:squared_dist_to_ignore_z(origin) <= radius_sqr then
-            count = count + 1
+        if e then
+            -- Filter out dead and immune enemies per API guidelines
+            local is_dead = false
+            local is_immune = false
+            local ok_dead, res_dead = pcall(function() return e:is_dead() end)
+            local ok_immune, res_immune = pcall(function() return e:is_immune() end)
+            is_dead = ok_dead and res_dead or false
+            is_immune = ok_immune and res_immune or false
+            
+            if not is_dead and not is_immune then
+                local pos = e:get_position()
+                if pos and origin and pos:squared_dist_to_ignore_z(origin) <= radius_sqr then
+                    count = count + 1
+                end
+            end
         end
     end
 
@@ -182,7 +202,8 @@ local function is_target_within_angle(origin, reference, target, max_angle)
     -- Fallback for zero-length vectors
     if not v1 or not v2 then return true end
 
-    local dot = v1:dot_product(v2)
+    -- Manual dot product calculation (vec3 doesn't have dot_product per API, only vec2 does)
+    local dot = v1:x() * v2:x() + v1:y() * v2:y() + v1:z() * v2:z()
     -- Clamp to valid range to avoid NaNs due to precision
     if dot > 1 then dot = 1 elseif dot < -1 then dot = -1 end
     local angle = math.deg(math.acos(dot))
