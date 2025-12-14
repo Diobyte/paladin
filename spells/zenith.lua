@@ -10,10 +10,11 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_zenith_enabled")),
     min_cooldown = slider_float:new(0.0, 30.0, 0.3, get_hash("paladin_rotation_zenith_min_cd")),  -- React fast when ult is up
+    melee_range = slider_float:new(2.0, 8.0, 5.0, get_hash("paladin_rotation_zenith_melee_range")),  -- Cleave AoE radius
+    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_zenith_min_enemies")),  -- 1 = use on any target
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_zenith_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_zenith_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 8.0, get_hash("paladin_rotation_zenith_min_weight")),
-    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_zenith_min_enemies")),  -- 1 = use on any target
 }
 
 local spell_id = spell_data.zenith.spell_id
@@ -24,6 +25,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Ultimate - 450% cleave, recast 400% + Knockdown (CD: 25s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
+            menu_elements.melee_range:render("Melee Range", "Radius to check for enemies before casting", 1)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies in melee range to cast")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
@@ -50,8 +52,8 @@ local function logics()
         return false, 0
     end
     
-    -- Zenith has melee/short range cleave (~5 yard radius)
-    local melee_range = 6.0
+    -- Zenith has configurable melee/short range cleave
+    local melee_range = menu_elements.melee_range:get()
     local melee_range_sqr = melee_range * melee_range
     local min_enemies = menu_elements.min_enemies:get()
     local enemy_type_filter = menu_elements.enemy_type_filter:get()

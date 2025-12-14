@@ -10,10 +10,11 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_heavens_fury_enabled")),
     min_cooldown = slider_float:new(0.0, 40.0, 0.5, get_hash("paladin_rotation_heavens_fury_min_cd")),  -- React fast when ult is up
+    engage_range = slider_float:new(4.0, 15.0, 10.0, get_hash("paladin_rotation_heavens_fury_engage_range")),  -- AoE check radius
+    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_heavens_fury_min_enemies")),  -- 1 = use on any pack
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_heavens_fury_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_heavens_fury_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 10.0, get_hash("paladin_rotation_heavens_fury_min_weight")),
-    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_heavens_fury_min_enemies")),  -- 1 = use on any pack
 }
 
 local spell_id = spell_data.heavens_fury.spell_id
@@ -24,6 +25,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Ultimate - 200%/s AoE + 60% seeking beams (CD: 30s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
+            menu_elements.engage_range:render("Engage Range", "Radius to check for enemies before casting", 1)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
@@ -50,8 +52,8 @@ local function logics()
         return false, 0
     end
     
-    -- Check for nearby enemies (initial AoE range ~6 yards)
-    local engage_range = 10.0
+    -- Check for nearby enemies using configurable engage range
+    local engage_range = menu_elements.engage_range:get()
     local engage_range_sqr = engage_range * engage_range
     local min_enemies = menu_elements.min_enemies:get()
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
