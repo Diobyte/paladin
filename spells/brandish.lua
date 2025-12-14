@@ -55,9 +55,7 @@ local function logics(target)
     local in_range = my_utility.is_in_range(target, cast_range)
     
     if not in_range then
-        -- Out of range - move toward target (Spiritborn pattern)
-        local target_pos = target:get_position()
-        pathfinder.request_move(target_pos)
+        -- Out of range - movement handled by main.lua
         return false
     end
 

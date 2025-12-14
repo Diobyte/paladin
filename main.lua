@@ -496,6 +496,9 @@ end)
 
 local cast_end_time = 0.0
 local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
+local next_time_allowed_move = 0.0  -- Movement throttle to prevent oscillation
+local move_delay = 0.35  -- Time between movement commands (Druid pattern)
+local current_move_target = nil  -- Track which target we're moving toward
 
 -- Internal cooldowns (minimum time between casts of same spell)
 -- These control how often each spell can be CHECKED for casting
@@ -548,6 +551,55 @@ local spell_internal_cooldowns = {
     -- MOBILITY - Moderate ICD, positioning not DPS
     shield_charge = 0.50,
 }
+
+-- =====================================================
+-- USE_ABILITY FUNCTION (Druid Pattern)
+-- Centralized spell casting with proper target handling
+-- This prevents multiple spells from fighting over movement
+-- =====================================================
+local function use_ability(spell_name, spell, spell_target, delay_after_cast)
+    -- Check if spell is enabled
+    if not spell.menu_elements or not spell.menu_elements.main_boolean then
+        -- Self-cast spells without main_boolean (shouldn't happen)
+        if spell.logics() then
+            return true
+        end
+        return false
+    end
+    
+    if not spell.menu_elements.main_boolean:get() then
+        return false
+    end
+    
+    -- For targeted spells, we need a valid target
+    -- Self-cast spells (auras, consecration, etc.) handle nil target internally
+    local is_targeted_spell = spell.menu_elements.targeting_mode ~= nil
+    
+    if is_targeted_spell then
+        -- Targeted spell - MUST have a target to proceed
+        if not spell_target then
+            return false
+        end
+        
+        -- Validate target
+        if spell_target:is_dead() or spell_target:is_immune() or spell_target:is_untargetable() then
+            return false
+        end
+        
+        -- Call logics with target
+        if spell.logics(spell_target) then
+            return true
+        end
+    else
+        -- Self-cast spell (auras, consecration, etc.)
+        -- These don't need a target - call logics directly
+        if spell.logics(spell_target) then
+            return true
+        end
+    end
+    
+    return false
+end
 
 safe_on_update(function()
     if not safe_get_menu_element(menu.menu_elements.main_boolean, false) then
@@ -618,6 +670,10 @@ safe_on_update(function()
     -- Loop through spells in priority order defined in spell_priority.lua
     local bypass_equipped = menu.menu_elements.bypass_equipped_check:get()
     
+    -- Track if any spell requested movement this frame
+    local move_requested = false
+    local move_target_pos = nil
+    
     for _, spell_name in ipairs(spell_priority) do
         local spell = spells[spell_name]
         -- Only process spells that are equipped (or bypass if debug enabled)
@@ -660,18 +716,19 @@ safe_on_update(function()
                 spell_target = default_target
             end
             
-            -- Call spell's logics function with target (Druid pattern)
-            -- Self-cast spells handle nil target gracefully
-            local cast_successful = spell.logics(spell_target)
+            -- Use the centralized use_ability function (Druid pattern)
+            local cast_successful = use_ability(spell_name, spell, spell_target, my_utility.spell_delays.regular_cast)
 
             if cast_successful then
                 -- Set cast_end_time to a SHORT animation lock (like Druid pattern)
                 -- This prevents animation canceling, NOT spell rotation
-                -- The actual per-spell cooldown is handled by spell_last_cast_times
                 cast_end_time = current_time + my_utility.spell_delays.regular_cast
                 
                 -- Update internal cooldown tracking for this spell
                 spell_last_cast_times[spell_name] = current_time
+                
+                -- Clear move target since we just cast
+                current_move_target = nil
                 
                 if menu.menu_elements.enable_debug:get() then
                     dbg("Cast " .. spell_name)
@@ -683,12 +740,23 @@ safe_on_update(function()
         end
     end
     
-    -- NOTE: Movement is handled by individual spells when they are out of range
-    -- Main.lua should NOT control movement - this prevents conflicts with spell-specific movement
-    -- and matches the Druid script's design pattern where orbwalker handles base movement
-    -- and spells only move when they specifically need to close distance for casting
+    -- MOVEMENT HANDLING (Druid Pattern):
+    -- Only move toward closest target if no spell was cast this frame
+    -- This prevents oscillation - we only move once per move_delay
+    if default_target and current_time >= next_time_allowed_move then
+        local target_pos = default_target:get_position()
+        if target_pos then
+            -- Check if we're not in melee range of any target
+            local melee_range = my_utility.get_melee_range()
+            if not my_utility.is_in_range(default_target, melee_range) then
+                pathfinder.request_move(target_pos)
+                next_time_allowed_move = current_time + move_delay
+                current_move_target = default_target
+            end
+        end
+    end
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.4 (Bug Fixes & Spiritborn Patterns - Dec 2025)")
+    console.print("Paladin_Rotation | Version 1.5 (Druid Targeting Pattern - Dec 2025)")
 end
