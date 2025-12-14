@@ -15,7 +15,7 @@ local menu_elements = {
     min_cooldown = slider_float:new(0.0, 1.0, 0.0, get_hash("paladin_rotation_blessed_hammer_min_cd")),  -- META: 0 = maximum spam rate
     engage_range = slider_float:new(2.0, 25.0, 7.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),  -- Reduced to 7.0 for effective spiral hits
     min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),  -- 0 = spam freely (meta)
-    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
+    min_enemies = slider_int:new(0, 15, 1, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_enemy_type")),
     -- Optional pack-size gate to avoid wasting casts on single stragglers
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_use_min_weight")),
@@ -194,10 +194,11 @@ local function logics(target)
     -- Try targeted cast first if we have a target (more reliable for "attack" actions)
     -- Fallback to self-cast if no target or targeted cast fails
     local cast_success = false
-    if target and cast_spell.target(target, spell_id, 0.0, false) then
-        cast_success = true
-        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast TARGET successful - ID: " .. spell_id) end
-    elseif cast_spell.self(spell_id, 0.0) then
+    
+    -- FIX: Blessed Hammer is a self-cast spell (spirals out). 
+    -- Using cast_spell.target might cause issues if the API expects self-cast.
+    -- We strictly use cast_spell.self() as per spell_data.
+    if cast_spell.self(spell_id, 0.0) then
         cast_success = true
         if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast SELF successful - ID: " .. spell_id) end
     end

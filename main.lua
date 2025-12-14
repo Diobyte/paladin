@@ -12,6 +12,7 @@
 --    - Target Selector: Robust clustering and weighting logic confirmed.
 --    - Spell Logic: Correctly integrates with centralized movement.
 --    - Fairness: Internal cooldowns ensure rotation diversity.
+--    - FIX: Blessed Hammer now strictly uses cast_spell.self() to prevent targeting issues.
 --
 -- FEATURES:
 -- 1. Centralized Target Evaluation (evaluate_all_targets):
