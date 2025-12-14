@@ -44,6 +44,12 @@ local is_paladin = character_id == 7 -- Paladin class ID
 --     return
 -- end
 
+-- Orbwalker settings (like druid/barb) - take control of movement
+if orbwalker then
+    orbwalker.set_block_movement(true)  -- We handle movement ourselves
+    orbwalker.set_clear_toggle(true)    -- Allow clear mode toggle
+end
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local spell_priority = require("spell_priority")
@@ -641,6 +647,25 @@ safe_on_update(function()
         local move_pos = movement_target_position:get_extended(player_position, 3.0)
         if pathfinder and pathfinder.request_move then
             pathfinder.request_move(move_pos)
+        end
+    end
+    
+    -- Orbwalker mode movement (like druid script) - move toward targets when not in auto_play
+    -- This handles manual play modes (pvp/clear) where we still want to engage enemies
+    if not is_auto_play and movement_target then
+        local manual_play = menu.menu_elements.manual_play:get()
+        if not manual_play then
+            -- Not in manual play mode - automatically move toward targets
+            local movement_target_position = movement_target:get_position()
+            if movement_target_position then
+                local dist_sqr = player_position:squared_dist_to_ignore_z(movement_target_position)
+                local engage_range = 6.0  -- Move closer when further than 6 units
+                if dist_sqr > (engage_range * engage_range) then
+                    if pathfinder and pathfinder.request_move then
+                        pathfinder.request_move(movement_target_position)
+                    end
+                end
+            end
         end
     end
 end)

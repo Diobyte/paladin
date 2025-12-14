@@ -10,7 +10,6 @@ local menu_elements =
     cluster_radius      = slider_float:new(2.0, 15.0, 6.0, get_hash("paladin_rotation_cluster_radius")),
     combo_enemy_count   = slider_int:new(1, 15, 4, get_hash("paladin_rotation_combo_enemy_count")),
     combo_window        = slider_float:new(0.1, 2.0, 0.8, get_hash("paladin_rotation_combo_window")),
-    evade_min_delay     = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_evade_min_delay")),
     rally_resource_pct  = slider_float:new(0.0, 1.0, 0.40, get_hash("paladin_rotation_rally_resource_pct")),
     holy_bolt_resource_pct = slider_float:new(0.0, 1.0, 0.35, get_hash("paladin_rotation_holy_bolt_resource_pct")),
     boss_defiance_hp_pct = slider_float:new(0.0, 1.0, 0.50, get_hash("paladin_rotation_boss_defiance_hp_pct")),

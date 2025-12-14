@@ -15,7 +15,7 @@ local buff_name_patterns = spell_data.holy_light_aura.buff_name_patterns or {"ho
 
 -- Check if player has holy light buff active using API-compliant method
 -- Priority: 1) buff_id hash match, 2) name pattern match
--- API: buff.name_hash (int), buff.duration, buff:get_remaining_time(), buff:is_active_buff(), buff:get_name()
+-- API: buff.name_hash (int), buff.duration, buff:get_remaining_time(), buff:is_active_buff(), buff:name()
 local function has_holy_light_buff()
     local player = get_local_player()
     if not player then return false, 0 end
@@ -41,8 +41,8 @@ local function has_holy_light_buff()
                 if buff.get_remaining_time then
                     local remaining = buff:get_remaining_time()
                     if remaining and remaining > 0 then
-                        -- Try to match by name patterns
-                        local name = buff.get_name and buff:get_name() or ""
+                        -- Try to match by name patterns (using buff:name() per API examples)
+                        local name = buff.name and buff:name() or ""
                         if name and type(name) == "string" then
                             local name_lower = name:lower()
                             for _, pattern in ipairs(buff_name_patterns) do

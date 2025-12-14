@@ -67,6 +67,20 @@ local function logics()
             is_enemy = ok and res or false
         end
         if is_enemy then
+            -- Filter out dead, immune, and untargetable targets per API guidelines
+            local is_dead = false
+            local is_immune = false
+            local is_untargetable = false
+            local ok_dead, res_dead = pcall(function() return e:is_dead() end)
+            local ok_immune, res_immune = pcall(function() return e:is_immune() end)
+            local ok_untarget, res_untarget = pcall(function() return e:is_untargetable() end)
+            is_dead = ok_dead and res_dead or false
+            is_immune = ok_immune and res_immune or false
+            is_untargetable = ok_untarget and res_untarget or false
+            if is_dead or is_immune or is_untargetable then
+                goto continue_heavens_fury
+            end
+
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_range_sqr then
                 near = near + 1
@@ -85,6 +99,7 @@ local function logics()
                     has_priority_target = true
                 end
             end
+            ::continue_heavens_fury::
         end
     end
 

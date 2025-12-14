@@ -18,6 +18,8 @@ local menu_elements = {
 
 local spell_id = spell_data.zeal.spell_id
 local next_time_allowed_cast = 0.0
+local next_time_allowed_move = 0.0
+local move_delay = 0.25  -- Delay between movement commands (like druid script)
 
 local function menu()
     if menu_elements.tree_tab:push("Zeal") then
@@ -53,6 +55,21 @@ local function logics(target)
     if not is_target_enemy then
         return false, 0
     end
+    
+    -- Filter out dead, immune, and untargetable targets per API guidelines
+    local is_dead = false
+    local is_immune = false
+    local is_untargetable = false
+    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
+    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
+    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
+    is_dead = ok_dead and res_dead or false
+    is_immune = ok_immune and res_immune or false
+    is_untargetable = ok_untarget and res_untarget or false
+    
+    if is_dead or is_immune or is_untargetable then
+        return false, 0
+    end
 
     local player = get_local_player()
     if not player then
@@ -84,13 +101,22 @@ local function logics(target)
         end
     end
 
-    -- Zeal is a melee multi-strike skill, check range
+    -- Zeal is a melee multi-strike skill, check range and move if needed
     local player_pos = player:get_position()
     local target_pos = target:get_position()
+    local melee_range = 3.5
     
     if player_pos and target_pos then
         local dist_sqr = player_pos:squared_dist_to_ignore_z(target_pos)
-        if dist_sqr > (3.5 * 3.5) then -- 3.5 melee range
+        if dist_sqr > (melee_range * melee_range) then
+            -- Out of range - move toward target (like druid script)
+            local current_time = my_utility.safe_get_time()
+            if current_time >= next_time_allowed_move then
+                if pathfinder and pathfinder.force_move_raw then
+                    pathfinder.force_move_raw(target_pos)
+                    next_time_allowed_move = current_time + move_delay
+                end
+            end
             return false, 0
         end
         

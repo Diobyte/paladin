@@ -10,18 +10,22 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_divine_lance_enabled")),
     min_cooldown = slider_float:new(0.0, 5.0, 0.15, get_hash("paladin_rotation_divine_lance_min_cd")),  -- Fast spender
+    cast_range = slider_float:new(3.0, 10.0, 5.0, get_hash("paladin_rotation_divine_lance_cast_range")),  -- Melee impale range
     min_resource = slider_int:new(0, 100, 20, get_hash("paladin_rotation_divine_lance_min_resource")),  -- Only need some Faith
     prediction_time = slider_float:new(0.1, 0.8, 0.25, get_hash("paladin_rotation_divine_lance_prediction")),  -- Faster prediction
 }
 
 local spell_id = spell_data.divine_lance.spell_id
 local next_time_allowed_cast = 0.0
+local next_time_allowed_move = 0.0
+local move_delay = 0.25  -- Delay between movement commands (like druid script)
 
 local function menu()
     if menu_elements.tree_tab:push("Divine Lance") then
         menu_elements.main_boolean:render("Enable", "Core Skill - Stab 2x for 90% each (Faith Cost: 25)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
+            menu_elements.cast_range:render("Cast Range", "Range to cast impale", 1)
             menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this %")
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
         end
@@ -48,6 +52,21 @@ local function logics(target)
     if not is_target_enemy then
         return false, 0
     end
+    
+    -- Filter out dead, immune, and untargetable targets per API guidelines
+    local is_dead = false
+    local is_immune = false
+    local is_untargetable = false
+    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
+    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
+    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
+    is_dead = ok_dead and res_dead or false
+    is_immune = ok_immune and res_immune or false
+    is_untargetable = ok_untarget and res_untarget or false
+    
+    if is_dead or is_immune or is_untargetable then
+        return false, 0
+    end
 
     -- Resource check (Faith Cost: 25)
     local min_resource = menu_elements.min_resource:get()
@@ -61,6 +80,25 @@ local function logics(target)
     local cast_pos = target:get_position()
     if not cast_pos then 
         return false, 0 
+    end
+    
+    -- Range check for Divine Lance (melee impale skill)
+    local player = get_local_player()
+    local player_pos = player and player:get_position() or nil
+    if player_pos then
+        local cast_range = menu_elements.cast_range:get()
+        local dist_sqr = player_pos:squared_dist_to_ignore_z(cast_pos)
+        if dist_sqr > (cast_range * cast_range) then
+            -- Out of range - move toward target (like druid script)
+            local current_time = my_utility.safe_get_time()
+            if current_time >= next_time_allowed_move then
+                if pathfinder and pathfinder.force_move_raw then
+                    pathfinder.force_move_raw(cast_pos)
+                    next_time_allowed_move = current_time + move_delay
+                end
+            end
+            return false, 0
+        end
     end
 
     local now = my_utility.safe_get_time()

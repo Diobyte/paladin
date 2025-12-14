@@ -23,8 +23,9 @@ local function safe_get_time()
     if type(get_time_since_inject) == "function" then
         return get_time_since_inject()
     end
-    if type(get_current_time) == "function" then
-        return get_current_time()
+    -- Fallback: use get_gametime() which is documented in the API
+    if type(get_gametime) == "function" then
+        return get_gametime()
     end
     return 0
 end
@@ -196,8 +197,8 @@ end
 
 local function is_target_within_angle(origin, reference, target, max_angle)
     -- Compute direction vectors using coordinates (Lua 5.1 friendly)
-    local v1 = vec3.new(reference:x() - origin:x(), reference:y() - origin:y(), reference:z() - origin:z()):normalize()
-    local v2 = vec3.new(target:x() - origin:x(), target:y() - origin:y(), target:z() - origin:z()):normalize()
+    local v1 = vec3(reference:x() - origin:x(), reference:y() - origin:y(), reference:z() - origin:z()):normalize()
+    local v2 = vec3(target:x() - origin:x(), target:y() - origin:y(), target:z() - origin:z()):normalize()
 
     -- Fallback for zero-length vectors
     if not v1 or not v2 then return true end
@@ -217,7 +218,7 @@ local function generate_points_around_target(target_position, radius, num_points
         local angle = (i - 1) * (2 * math.pi / num_points)
         local x = target_position:x() + radius * math.cos(angle)
         local y = target_position:y() + radius * math.sin(angle)
-        table.insert(points, vec3.new(x, y, target_position:z()))
+        table.insert(points, vec3(x, y, target_position:z()))
     end
     return points
 end
@@ -294,6 +295,31 @@ local function should_pop_cds()
     return elite_units > 0, champion_units > 0, boss_units > 0
 end
 
+-- Get melee range (like druid script)
+local function get_melee_range()
+    local melee_range = 3.5  -- Standard melee range for Paladin
+    return melee_range
+end
+
+-- Check if target is in range (like druid script)
+local function is_in_range(target, range)
+    if not target then return false end
+    local target_position = target:get_position()
+    if not target_position then return false end
+    local player_position = get_player_position and get_player_position() or nil
+    if not player_position then return false end
+    local target_distance_sqr = player_position:squared_dist_to_ignore_z(target_position)
+    local range_sqr = (range * range)
+    return target_distance_sqr < range_sqr
+end
+
+-- Movement delays for melee spells
+local spell_delays = {
+    instant_cast = 0.01,   -- instant cast abilities
+    regular_cast = 0.10,   -- regular abilities with animation
+    move_delay = 0.25,     -- delay between movement commands
+}
+
 local my_utility = {
     plugin_label = plugin_label,
     safe_get_time = safe_get_time,
@@ -310,6 +336,10 @@ local my_utility = {
     get_best_point = get_best_point,
     should_pop_cds = should_pop_cds,
     horde_objectives = horde_objectives,
+    -- New movement utilities (like druid script)
+    get_melee_range = get_melee_range,
+    is_in_range = is_in_range,
+    spell_delays = spell_delays,
 }
 
 return my_utility

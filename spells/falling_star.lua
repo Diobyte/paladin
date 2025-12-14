@@ -58,6 +58,21 @@ local function logics(target)
     if not is_target_enemy then
         return false, 0
     end
+    
+    -- Filter out dead, immune, and untargetable targets per API guidelines
+    local is_dead = false
+    local is_immune = false
+    local is_untargetable = false
+    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
+    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
+    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
+    is_dead = ok_dead and res_dead or false
+    is_immune = ok_immune and res_immune or false
+    is_untargetable = ok_untarget and res_untarget or false
+    
+    if is_dead or is_immune or is_untargetable then
+        return false, 0
+    end
 
     -- Check minimum range (don't leap if already on top of target, unless min_range is 0)
     local player = get_local_player()
