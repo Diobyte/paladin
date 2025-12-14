@@ -1069,11 +1069,16 @@ safe_on_render(function()
     if orbwalker and orbwalker.get_orb_mode then
         local ok, m = pcall(function() return orbwalker.get_orb_mode() end)
         if ok then
-            if m == orb_mode.none then mode = "none"
-            elseif m == orb_mode.pvp then mode = "pvp"
-            elseif m == orb_mode.clear then mode = "clear"
-            elseif m == orb_mode.flee then mode = "flee"
-            else mode = tostring(m)
+            -- Guard when orb_mode enum is unavailable in environment
+            if type(orb_mode) == "table" then
+                if m == orb_mode.none then mode = "none"
+                elseif m == orb_mode.pvp then mode = "pvp"
+                elseif m == orb_mode.clear then mode = "clear"
+                elseif m == orb_mode.flee then mode = "flee"
+                else mode = tostring(m)
+                end
+            else
+                mode = tostring(m)
             end
         end
     end
