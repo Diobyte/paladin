@@ -1,3 +1,35 @@
+if package and package.loaded then
+    package.loaded["menu"] = nil
+    package.loaded["spell_priority"] = nil
+    package.loaded["my_utility/my_utility"] = nil
+    package.loaded["my_utility/spell_data"] = nil
+    package.loaded["my_utility/my_target_selector"] = nil
+    package.loaded["spells/advance"] = nil
+    package.loaded["spells/arbiter_of_justice"] = nil
+    package.loaded["spells/blessed_hammer"] = nil
+    package.loaded["spells/blessed_shield"] = nil
+    package.loaded["spells/brandish"] = nil
+    package.loaded["spells/clash"] = nil
+    package.loaded["spells/condemn"] = nil
+    package.loaded["spells/consecration"] = nil
+    package.loaded["spells/defiance_aura"] = nil
+    package.loaded["spells/divine_lance"] = nil
+    package.loaded["spells/falling_star"] = nil
+    package.loaded["spells/fanaticism_aura"] = nil
+    package.loaded["spells/heavens_fury"] = nil
+    package.loaded["spells/holy_bolt"] = nil
+    package.loaded["spells/holy_light_aura"] = nil
+    package.loaded["spells/rally"] = nil
+    package.loaded["spells/shield_charge"] = nil
+    package.loaded["spells/spear_of_the_heavens"] = nil
+    package.loaded["spells/zeal"] = nil
+    package.loaded["spells/zenith"] = nil
+    package.loaded["spells/aegis"] = nil
+    package.loaded["spells/fortress"] = nil
+    package.loaded["spells/judgement"] = nil
+    package.loaded["spells/purify"] = nil
+end
+
 local local_player = get_local_player();
 if local_player == nil then
     return
@@ -5,7 +37,7 @@ end
 
 local character_id = local_player:get_character_class_id();
 console.print("Character Class ID: " .. character_id);
-local is_paladin = character_id == 7 or character_id == 9;  -- Paladin is class 7 or 9 (added in Season 11)
+local is_paladin = character_id == 7 or character_id == 8 or character_id == 9;  -- Paladin is class 7, 8, or 9 (added in Season 11)
 if not is_paladin then
     return
 end;
@@ -19,6 +51,26 @@ local my_utility = require("my_utility/my_utility");
 local spell_data = require("my_utility/spell_data");
 local spell_priority = require("spell_priority");
 local menu = require("menu")
+
+local function safe_on_render_menu(cb)
+    if type(_G.safe_on_render_menu) == "function" then
+        return _G.safe_on_render_menu(cb)
+    end
+    if type(_G.on_render_menu) == "function" then
+        return _G.on_render_menu(cb)
+    end
+    return false
+end
+
+local function safe_on_update(cb)
+    if type(_G.safe_on_update) == "function" then
+        return _G.safe_on_update(cb)
+    end
+    if type(_G.on_update) == "function" then
+        return _G.on_update(cb)
+    end
+    return false
+end
 
 local spells =
 {
@@ -48,8 +100,8 @@ local spells =
     purify = require("spells/purify"),
 }
 
-on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("Paladin [Dirty] v1.0.0") then
+safe_on_render_menu(function()
+    if not menu.menu_elements.main_tree:push("Paladin [Dirty] v1.5.6") then
         return;
     end;
 
@@ -154,7 +206,7 @@ on_render_menu(function()
     menu.menu_elements.main_tree:pop();
 end)
 
-on_update(function()
+safe_on_update(function()
     if not menu.menu_elements.main_boolean:get() then
         return
     end

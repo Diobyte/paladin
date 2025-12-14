@@ -1,5 +1,5 @@
 -- Paladin Spell Data for Diablo 4 Season 11
--- Class ID: 7 or 9 (added in Season 11)
+-- Class ID: 7, 8, or 9 (added in Season 11)
 -- Class Resource: Faith
 -- Primary Stat: Strength
 -- Damage Types: Holy, Physical
