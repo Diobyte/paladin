@@ -12,7 +12,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_condemn_enabled")),
     debug_mode = checkbox:new(false, get_hash("paladin_rotation_condemn_debug_mode")),
-    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_condemn_targeting_mode")),
+    -- targeting_mode removed to allow self-cast logic to run even without a valid target
     min_cooldown = slider_float:new(0.0, 20.0, 0.15, get_hash("paladin_rotation_condemn_min_cd")),  -- META: ARBITER TRIGGER - cast ASAP when available
     pull_range = slider_float:new(4.0, 12.0, 8.0, get_hash("paladin_rotation_condemn_pull_range")),  -- Condemn AoE radius
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_condemn_min_enemies")),  -- 1 = always cast for Arbiter, even single target
@@ -29,7 +29,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "ARBITER TRIGGER - Pull + Stun + 240% (CD: 15s)")
         if menu_elements.main_boolean:get() then
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
-            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
+            -- menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "Lower = more Arbiter uptime (CRITICAL)", 2)
             menu_elements.pull_range:render("Pull Range", "Radius to check for enemies before casting", 1)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast (1 = always)")

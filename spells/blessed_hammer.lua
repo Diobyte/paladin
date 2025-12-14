@@ -11,7 +11,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
     debug_mode = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_debug_mode")),
-    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_targeting_mode")),  -- Default: 0 = Ranged Target (since user considers it ranged)
+    -- targeting_mode removed to allow self-cast logic to run even without a valid target from main.lua
     min_cooldown = slider_float:new(0.0, 1.0, 0.0, get_hash("paladin_rotation_blessed_hammer_min_cd")),  -- META: 0 = maximum spam rate
     engage_range = slider_float:new(2.0, 25.0, 7.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),  -- Reduced to 7.0 for effective spiral hits
     min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),  -- 0 = spam freely (meta)
@@ -31,7 +31,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Core Skill - Spiraling hammer (Faith Cost: 10)")
         if menu_elements.main_boolean:get() then
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
-            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
+            -- menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.engage_range:render("Engage Range", "Max distance to enemies for casting", 1)
             menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this % (0 = spam freely)")
@@ -92,7 +92,7 @@ local function logics(target)
         local in_range = my_utility.is_in_range(target, engage)
         if not in_range then
             my_utility.move_to_target(target:get_position(), target:get_id())
-            if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving to target - out of engage range") end
+            if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving to target - out of engage range (" .. string.format("%.1f", target:get_position():dist_to(player_pos)) .. " > " .. engage .. ")") end
             return false, 0
         end
     end
@@ -190,14 +190,25 @@ local function logics(target)
         cooldown = my_utility.spell_delays.regular_cast
     end
 
-    if cast_spell.self(spell_id, 0.0) then
+    -- Try targeted cast first if we have a target (more reliable for "attack" actions)
+    -- Fallback to self-cast if no target or targeted cast fails
+    local cast_success = false
+    if target and cast_spell.target(target, spell_id, 0.0, false) then
+        cast_success = true
+        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast TARGET successful - ID: " .. spell_id) end
+    elseif cast_spell.self(spell_id, 0.0) then
+        cast_success = true
+        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast SELF successful - ID: " .. spell_id) end
+    end
+
+    if cast_success then
         local current_time = my_utility.safe_get_time()
         next_time_allowed_cast = current_time + cooldown
         if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast successful - Enemies: " .. near) end
         return true, cooldown
     end
 
-    if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast failed") end
+    if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast failed - ID: " .. spell_id) end
     return false, 0
 end
 
