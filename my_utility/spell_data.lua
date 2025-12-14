@@ -105,9 +105,12 @@ local spell_data = {
     -- =====================================================
     -- AURA SKILLS (Maintained Buffs)
     -- Toggle on for persistent effects, duration-based
+    -- buff_id may differ from spell_id - buff hash is used for buff detection
     -- =====================================================
     defiance_aura = {
         spell_id = 2187578,  -- Verified via builds
+        buff_id = 2187578,   -- Buff hash for detection (same as spell_id, verify in-game)
+        buff_name_patterns = {"defiance", "resolve"},  -- Fallback name patterns
         category = "aura",
         cast_type = "self",      -- Self-cast buff
         duration = 12.0,
@@ -116,6 +119,8 @@ local spell_data = {
     },
     fanaticism_aura = {
         spell_id = 2187741,  -- Verified: wowhead.com/diablo-4/skill/fanaticism-aura-2187741
+        buff_id = 2187741,   -- Buff hash for detection (same as spell_id, verify in-game)
+        buff_name_patterns = {"fanatic", "fanaticism"},  -- Fallback name patterns
         category = "aura",
         cast_type = "self",      -- Self-cast buff
         duration = 12.0,
@@ -124,6 +129,8 @@ local spell_data = {
     },
     holy_light_aura = {
         spell_id = 2297097,  -- Verified: wowhead.com/diablo-4/skill/holy-light-aura-2297097
+        buff_id = 2297097,   -- Buff hash for detection (same as spell_id, verify in-game)
+        buff_name_patterns = {"holy_light", "holylight", "light_aura"},  -- Fallback name patterns
         category = "aura",
         cast_type = "self",      -- Self-cast buff
         duration = 12.0,

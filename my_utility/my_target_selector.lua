@@ -326,9 +326,11 @@ local function get_target_list(source, range, collision_table, floor_table, angl
             local unit_position = unit:get_position()
             local is_valid_unit = true
 
-            -- Collision (wall) filter
-            if collision_enabled and prediction.is_wall_collision(source, unit_position, collision_width) then
-                is_valid_unit = false
+            -- Collision (wall) filter - use target_selector API per documentation
+            if collision_enabled and target_selector and target_selector.is_wall_collision then
+                if target_selector.is_wall_collision(source, unit, collision_width) then
+                    is_valid_unit = false
+                end
             end
 
             -- Floor/height filter (use x-difference heuristic as in original)
@@ -496,6 +498,43 @@ local last_scan_time = 0
 local cached_weighted_target = nil
 local cached_target_list = {}
 
+-- Safe wrapper for gameobject type checks
+local function safe_is_boss(unit)
+    if not unit then return false end
+    local ok, res = pcall(function() return unit:is_boss() end)
+    return ok and res or false
+end
+
+local function safe_is_elite(unit)
+    if not unit then return false end
+    local ok, res = pcall(function() return unit:is_elite() end)
+    return ok and res or false
+end
+
+local function safe_is_champion(unit)
+    if not unit then return false end
+    local ok, res = pcall(function() return unit:is_champion() end)
+    return ok and res or false
+end
+
+local function safe_get_position(unit)
+    if not unit then return nil end
+    local ok, res = pcall(function() return unit:get_position() end)
+    return ok and res or nil
+end
+
+local function safe_get_skin_name(unit)
+    if not unit then return "" end
+    local ok, res = pcall(function() return unit:get_skin_name() end)
+    return ok and res or ""
+end
+
+local function safe_get_current_health(unit)
+    if not unit then return 0 end
+    local ok, res = pcall(function() return unit:get_current_health() end)
+    return ok and res or 0
+end
+
 local function get_weighted_target(source, scan_radius, min_targets, comparison_radius, boss_weight, elite_weight, champion_weight, any_weight, refresh_rate, damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight, cluster_min_target_count, normal_target_count, champion_target_count, elite_target_count, boss_target_count, debug_enabled)
     local current_time = get_time_since_inject()
     
@@ -517,16 +556,16 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
             local target_count_value = normal_target_count or 1
             local unit_type = "Normal"
             
-            -- Assign weight and target count based on target type
-            if unit:is_boss() then
+            -- Assign weight and target count based on target type (using safe wrappers)
+            if safe_is_boss(unit) then
                 base_weight = boss_weight
                 target_count_value = boss_target_count or 5
                 unit_type = "Boss"
-            elseif unit:is_elite() then
+            elseif safe_is_elite(unit) then
                 base_weight = elite_weight
                 target_count_value = elite_target_count or 5
                 unit_type = "Elite"
-            elseif unit:is_champion() then
+            elseif safe_is_champion(unit) then
                 base_weight = champion_weight
                 target_count_value = champion_target_count or 5
                 unit_type = "Champion"
@@ -565,10 +604,10 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
                 table.insert(buff_modifications, "Vulnerable(+" .. vulnerable_debuff_weight .. ")")
             end
             
-            -- Check if unit is an infernal horde objective
-            local unit_name = unit:get_skin_name()
+            -- Check if unit is an infernal horde objective (using safe wrappers)
+            local unit_name = safe_get_skin_name(unit)
             for _, objective_name in ipairs(my_utility.horde_objectives) do
-                if unit_name:match(objective_name) and unit:get_current_health() > 1 then
+                if unit_name:match(objective_name) and safe_get_current_health(unit) > 1 then
                     base_weight = base_weight + horde_objective_weight
                     table.insert(buff_modifications, "HordeObjective(+" .. horde_objective_weight .. ")")
                     break
@@ -583,14 +622,17 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
                 console.print("[WEIGHTED TARGET DEBUG] " .. unit_type .. " - Weight: " .. original_weight .. " -> " .. base_weight .. ", TargetCount: " .. target_count_value .. buff_text)
             end
             
-            -- Store unit with its calculated weight and target count value
-            table.insert(weighted_targets, {
-                unit = unit,
-                weight = base_weight,
-                target_count = target_count_value,
-                position = unit:get_position(),
-                unit_type = unit_type
-            })
+            -- Store unit with its calculated weight and target count value (using safe wrapper)
+            local unit_pos = safe_get_position(unit)
+            if unit_pos then
+                table.insert(weighted_targets, {
+                    unit = unit,
+                    weight = base_weight,
+                    target_count = target_count_value,
+                    position = unit_pos,
+                    unit_type = unit_type
+                })
+            end
         end
         
         if debug_enabled then
@@ -712,13 +754,14 @@ local function analyze_target_area(source, scan_radius, normal_target_count, eli
     local total_target_count = 0
     
     for _, unit in ipairs(target_list) do
-        if unit:is_boss() then
+        -- Use safe wrappers for type checks
+        if safe_is_boss(unit) then
             num_bosses = num_bosses + 1
             total_target_count = total_target_count + (boss_target_count or 5)
-        elseif unit:is_elite() then
+        elseif safe_is_elite(unit) then
             num_elites = num_elites + 1
             total_target_count = total_target_count + (elite_target_count or 5)
-        elseif unit:is_champion() then
+        elseif safe_is_champion(unit) then
             num_champions = num_champions + 1
             total_target_count = total_target_count + (champion_target_count or 5)
         else

@@ -6,10 +6,15 @@ local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
 -- Constants
-local AURA_DURATION = 12.0  -- Default duration in seconds
+local AURA_DURATION = spell_data.holy_light_aura.duration or 12.0
 local BUFFER_TIME = 2.0      -- Buffer time to recast before aura expires (increased for reliability)
 
+local spell_id = spell_data.holy_light_aura.spell_id
+local buff_id = spell_data.holy_light_aura.buff_id
+local buff_name_patterns = spell_data.holy_light_aura.buff_name_patterns or {"holy_light", "holylight", "light_aura"}
+
 -- Check if player has holy light buff active using API-compliant method
+-- Priority: 1) buff_id hash match, 2) name pattern match
 -- API: buff.name_hash (int), buff.duration, buff:get_remaining_time(), buff:is_active_buff(), buff:get_name()
 local function has_holy_light_buff()
     local player = get_local_player()
@@ -19,18 +24,32 @@ local function has_holy_light_buff()
     if not buffs then return false, 0 end
     
     for _, buff in ipairs(buffs) do
-        -- First check if buff is active
-        if buff and buff.is_active_buff and buff:is_active_buff() then
-            -- Check remaining time
-            if buff.get_remaining_time then
-                local remaining = buff:get_remaining_time()
-                if remaining and remaining > 0 then
-                    -- Try to match by name if available
-                    local name = buff.get_name and buff:get_name() or ""
-                    if name and type(name) == "string" then
-                        local name_lower = name:lower()
-                        if name_lower:find("holy") or name_lower:find("light") or name_lower:find("regen") then
-                            return true, remaining
+        if buff then
+            -- First priority: Check buff_id hash match (most reliable)
+            if buff_id and buff.name_hash and buff.name_hash == buff_id then
+                local remaining = 0
+                if buff.get_remaining_time then
+                    remaining = buff:get_remaining_time() or 0
+                end
+                if remaining > 0 then
+                    return true, remaining
+                end
+            end
+            
+            -- Second priority: Check if buff is active and match by name patterns
+            if buff.is_active_buff and buff:is_active_buff() then
+                if buff.get_remaining_time then
+                    local remaining = buff:get_remaining_time()
+                    if remaining and remaining > 0 then
+                        -- Try to match by name patterns
+                        local name = buff.get_name and buff:get_name() or ""
+                        if name and type(name) == "string" then
+                            local name_lower = name:lower()
+                            for _, pattern in ipairs(buff_name_patterns) do
+                                if name_lower:find(pattern) then
+                                    return true, remaining
+                                end
+                            end
                         end
                     end
                 end
@@ -51,7 +70,6 @@ local menu_elements = {
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_holy_light_aura_min_weight")),
 }
 
-local spell_id = spell_data.holy_light_aura.spell_id
 local next_time_allowed_cast = 0.0
 local last_cast_time = 0.0
 local is_aura_active = false

@@ -3,6 +3,8 @@ if package and package.loaded then
     package.loaded["spell_priority"] = nil
     package.loaded["my_utility/my_utility"] = nil
     package.loaded["my_utility/spell_data"] = nil
+    package.loaded["my_utility/buff_cache"] = nil
+    package.loaded["my_utility/my_target_selector"] = nil
     package.loaded["spells/holy_bolt"] = nil
     package.loaded["spells/blessed_hammer"] = nil
     package.loaded["spells/blessed_shield"] = nil
@@ -558,9 +560,18 @@ safe_on_update(function()
     local boss_defiance_hp_pct = safe_get_menu_element(menu.menu_elements.boss_defiance_hp_pct, 0.50)
 
     local treat_elite_as_boss = safe_get_menu_element(menu.menu_elements.treat_elite_as_boss, true)
-    local is_elite = best_target and best_target.is_elite and best_target:is_elite() or false
-    local is_champion = best_target and best_target.is_champion and best_target:is_champion() or false
-    local is_boss = best_target and best_target.is_boss and best_target:is_boss() or false
+    -- Nil-safe type checks per API docs (gameobject methods)
+    local is_elite = false
+    local is_champion = false
+    local is_boss = false
+    if best_target then
+        local ok_elite, res_elite = pcall(function() return best_target:is_elite() end)
+        local ok_champ, res_champ = pcall(function() return best_target:is_champion() end)
+        local ok_boss, res_boss = pcall(function() return best_target:is_boss() end)
+        is_elite = ok_elite and res_elite or false
+        is_champion = ok_champ and res_champ or false
+        is_boss = ok_boss and res_boss or false
+    end
     local boss_or_elite_focus = best_target ~= nil and (is_boss or is_champion or (treat_elite_as_boss and is_elite))
 
     -- Perform area analysis once per update for AoE spell conditions

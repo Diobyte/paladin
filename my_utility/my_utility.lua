@@ -52,13 +52,6 @@ local function is_action_allowed()
         return false
     end
 
-    -- Check if busy with another spell
-    local active_spell_id = local_player:get_active_spell_id()
-    if active_spell_id and active_spell_id ~= 0 then
-        -- Allow certain spells to interrupt, otherwise block
-        -- This helps prevent animation canceling issues
-    end
-
     local is_mounted = false
     local is_shrine_conduit = false
     local local_player_buffs = local_player:get_buffs()
@@ -214,8 +207,18 @@ local function get_best_point(target_position, circle_radius, current_hit_list)
     local hit_table = {}
 
     local player_position = get_player_position and get_player_position() or nil
+    local radius_sqr = circle_radius * circle_radius
+    
     for _, point in ipairs(points) do
-        local hit_list = utility and utility.get_units_inside_circle_list and utility.get_units_inside_circle_list(point, circle_radius) or {}
+        -- Use actors_manager (documented API) instead of utility.get_units_inside_circle_list
+        local all_enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
+        local hit_list = {}
+        for _, enemy in ipairs(all_enemies) do
+            local enemy_pos = enemy:get_position()
+            if enemy_pos and point:squared_dist_to_ignore_z(enemy_pos) <= radius_sqr then
+                table.insert(hit_list, enemy)
+            end
+        end
 
         local hit_list_collision_less = {}
         for _, obj in ipairs(hit_list) do

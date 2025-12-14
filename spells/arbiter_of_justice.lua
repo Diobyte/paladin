@@ -82,7 +82,7 @@ local function logics(target)
 
     -- Try direct target cast first
     if cast_spell and type(cast_spell.target) == "function" then
-        if cast_spell.target(target, spell_id, 0.05, false) then
+        if cast_spell.target(target, spell_id, 0.0, false) then
             next_time_allowed_cast = now + cooldown
             return true, cooldown
         end
@@ -101,7 +101,7 @@ local function logics(target)
             end
         end
 
-        if pos and cast_spell.position(spell_id, pos, 0.05) then
+        if pos and cast_spell.position(spell_id, pos, 0.0) then
             next_time_allowed_cast = now + cooldown
             return true, cooldown
         end
@@ -109,7 +109,7 @@ local function logics(target)
 
     -- Last resort - self cast
     if cast_spell and type(cast_spell.self) == "function" then
-        if cast_spell.self(spell_id, 0.05) then
+        if cast_spell.self(spell_id, 0.0) then
             next_time_allowed_cast = now + cooldown
             return true, cooldown
         end

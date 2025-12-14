@@ -114,7 +114,7 @@ local function logics(target)
     local cooldown = menu_elements.min_cooldown:get()
 
     if cast_spell and type(cast_spell.position) == "function" then
-        if cast_spell.position(spell_id, pos, 0.05) then
+        if cast_spell.position(spell_id, pos, 0.0) then
             next_time_allowed_cast = now + cooldown
             return true, cooldown
         end
