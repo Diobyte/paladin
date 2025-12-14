@@ -1,3 +1,6 @@
+-- Holy Light Aura - Aura Skill
+-- Healing aura granting Life Regeneration to you and nearby allies.
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -15,7 +18,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Holy Light Aura") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Healing Aura - Life Regeneration buff")
         if menu_elements.main_boolean:get() then
             menu_elements.recast_interval:render("Recast Interval", "Time between recasts", 1)
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")

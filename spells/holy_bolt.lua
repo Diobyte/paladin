@@ -1,3 +1,8 @@
+-- Holy Bolt - Basic Skill (Judicator)
+-- Generate Faith: 16 | Lucky Hit: 44%
+-- Throw a Holy hammer, dealing 90% damage.
+-- Holy Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local menu_module = require("menu")
@@ -6,6 +11,8 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_holy_bolt_enabled")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_holy_bolt_min_cd")),
+    use_for_judgement = checkbox:new(false, get_hash("paladin_rotation_holy_bolt_judgement_mode")),
+    resource_threshold = slider_int:new(0, 100, 25, get_hash("paladin_rotation_holy_bolt_resource_threshold")),
     prediction_time = slider_float:new(0.1, 0.8, 0.3, get_hash("paladin_rotation_holy_bolt_prediction")),
 }
 
@@ -33,9 +40,13 @@ end
 
 local function menu()
     if menu_elements.tree_tab:push("Holy Bolt") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Basic Generator - Throw hammer for 90% (Generate 16 Faith)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
+            menu_elements.use_for_judgement:render("Judgement Build (Captain America)", "Always use to apply Judgement before Blessed Shield (ignore resource threshold)")
+            if not menu_elements.use_for_judgement:get() then
+                menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (set 0 for always)")
+            end
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
         end
         menu_elements.tree_tab:pop()
@@ -52,6 +63,19 @@ local function logics(target)
 
     if not target then
         return false, 0
+    end
+
+    -- JUDGEMENT BUILD MODE (Captain America): Always cast to apply Judgement
+    -- GENERATOR MODE: Only cast when Faith is LOW
+    local judgement_mode = menu_elements.use_for_judgement:get()
+    if not judgement_mode then
+        local threshold = menu_elements.resource_threshold:get()
+        if threshold > 0 then
+            local resource_pct = my_utility.get_resource_pct()
+            if resource_pct and (resource_pct * 100) >= threshold then
+                return false, 0  -- Faith is high enough, let spenders handle it
+            end
+        end
     end
 
     local is_target_enemy = false

@@ -1,3 +1,8 @@
+-- Blessed Hammer - Core Skill (Judicator)
+-- Faith Cost: 10 | Lucky Hit: 24%
+-- Throw a Blessed Hammer that spirals out, dealing 115% damage.
+-- Holy Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -6,6 +11,7 @@ local menu_elements = {
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.1, get_hash("paladin_rotation_blessed_hammer_min_cd")),
     engage_range = slider_float:new(2.0, 25.0, 12.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),
+    min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_use_min_weight")),
@@ -17,10 +23,11 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Blessed Hammer") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Core Skill - Spiraling hammer (Faith Cost: 10)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.engage_range:render("Engage Range", "", 1)
+            menu_elements.engage_range:render("Engage Range", "Max distance to enemies for casting", 1)
+            menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this % (0 = spam freely)")
             menu_elements.min_enemies:render("Min Enemies to Cast", "Minimum number of enemies nearby to cast")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
@@ -44,6 +51,15 @@ local function logics()
     local player_pos = player and player:get_position() or nil
     if not player_pos then
         return false, 0
+    end
+    
+    -- Resource check (Faith Cost: 10 - optional, default 0 = spam freely)
+    local min_resource = menu_elements.min_resource:get()
+    if min_resource > 0 then
+        local resource_pct = my_utility.get_resource_pct()
+        if resource_pct and (resource_pct * 100) < min_resource then
+            return false, 0
+        end
     end
     
     local engage = menu_elements.engage_range:get()

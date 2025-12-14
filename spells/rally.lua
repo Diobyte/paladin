@@ -1,3 +1,7 @@
+-- Rally - Valor Skill (Zealot)
+-- Charges: 3 | Cooldown: 16s
+-- Rally forth, gaining 20% Movement Speed for 8 seconds and generate 22 Faith.
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -5,11 +9,8 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_rally_enabled")),
     recast_interval = slider_float:new(0.5, 30.0, 4.0, get_hash("paladin_rotation_rally_min_cd")),
-    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_rally_enemy_type")),
-    use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_rally_use_min_weight")),
-    minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_rally_min_weight")),
-    use_resource_threshold = checkbox:new(false, get_hash("paladin_rotation_rally_use_resource")),
     resource_threshold = slider_int:new(0, 100, 40, get_hash("paladin_rotation_rally_resource_threshold")),
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_rally_enemy_type")),
 }
 
 local spell_id = spell_data.rally.spell_id
@@ -17,18 +18,11 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Rally") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Generate 22 Faith + 20% Move Speed for 8s (3 charges)")
         if menu_elements.main_boolean:get() then
-            menu_elements.recast_interval:render("Recast Interval", "Time between recasts", 2)
+            menu_elements.recast_interval:render("Recast Interval", "Time between uses", 2)
+            menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (0 = always use for move speed)")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
-            menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
-            if menu_elements.use_minimum_weight:get() then
-                menu_elements.minimum_weight:render("Minimum Weight", "", 1)
-            end
-            menu_elements.use_resource_threshold:render("Use Resource Threshold", "Only cast when resource below threshold")
-            if menu_elements.use_resource_threshold:get() then
-                menu_elements.resource_threshold:render("Resource Threshold (%)", "Cast when resource below this %")
-            end
         end
         menu_elements.tree_tab:pop()
     end
@@ -42,17 +36,19 @@ local function logics()
         return false, 0 
     end
 
-    -- Resource threshold check (like barb's rallying cry)
-    if menu_elements.use_resource_threshold:get() then
+    -- GENERATOR LOGIC: Only cast when Faith is LOW (or threshold is 0 for move speed build)
+    local threshold = menu_elements.resource_threshold:get()
+    if threshold > 0 then
         local player = get_local_player()
         if player then
             local current_resource = player:get_primary_resource_current()
             local max_resource = player:get_primary_resource_max()
-            local resource_pct = (current_resource / max_resource) * 100
-            local threshold = menu_elements.resource_threshold:get()
-            
-            if resource_pct >= threshold then
-                return false, 0
+            if max_resource > 0 then
+                local resource_pct = (current_resource / max_resource) * 100
+                
+                if resource_pct >= threshold then
+                    return false, 0  -- Faith is high enough, skip
+                end
             end
         end
     end

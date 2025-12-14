@@ -1,8 +1,7 @@
 -- Condemn - Justice Skill (Disciple)
--- "Harness the Light and Pull enemies in after 1.5 seconds, briefly Stunning them and dealing 240% damage"
--- Cooldown: 15 seconds
+-- Cooldown: 15s | Lucky Hit: 26%
+-- Harness the Light and Pull enemies in after 1.5 seconds, briefly Stunning them and dealing 240% damage.
 -- Holy Damage
--- Targeting: cast_spell.self() - AoE centered on player
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -22,7 +21,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Condemn") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Justice - Pull + Stun for 240% (CD: 15s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast")

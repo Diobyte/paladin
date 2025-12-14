@@ -1,3 +1,8 @@
+-- Falling Star - Valor Skill (Disciple/Mobility)
+-- Cooldown: 12s | Lucky Hit: 24%
+-- Soar into the air with angelic wings and dive onto the battlefield, dealing 80% damage on takeoff and 240% damage on landing.
+-- Holy Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -16,7 +21,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Falling Star") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Valor Mobility - 80% takeoff + 240% landing (CD: 12s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)

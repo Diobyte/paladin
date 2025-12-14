@@ -339,20 +339,23 @@ local spell_classification = {
     zeal = "melee",
     clash = "melee",           -- Shield bash - melee
     brandish = "melee",
-    blessed_shield = "melee", -- Casted melee skill
     shield_charge = "gap_closer",
     advance = "gap_closer",    -- Lunge forward
     holy_bolt = "ranged",
     blessed_hammer = "ranged_aoe",
-    blessed_shield = "ranged", -- Bouncing shield - ranged
+    blessed_shield = "extended_melee", -- Extended melee (5.5-6.0), ricochets 3x
     falling_star = "ranged_aoe",
     arbiter_of_justice = "ranged_aoe",
     spear_of_the_heavens = "ranged",
-    divine_lance = "ranged",
+    divine_lance = "melee",    -- Short range stab
     rally = "buff",
     defiance_aura = "buff",
     fanaticism_aura = "buff",
     holy_light_aura = "buff",
+    condemn = "ranged_aoe",    -- Self-centered pull
+    consecration = "ranged_aoe", -- Self-centered ground effect
+    heavens_fury = "ranged_aoe", -- Self-centered AoE
+    zenith = "melee",          -- Melee cleave
 }
 
 -- Spell range configuration
@@ -360,56 +363,69 @@ local spell_ranges = {
     zeal = 3.5,
     clash = 3.5,               -- Shield bash - melee range
     brandish = 4.0,
-    blessed_shield = 3.5,     -- Melee casted skill
     shield_charge = 15.0,
     advance = 10.0,            -- Lunge range
-    holy_bolt = 12.0,
-    blessed_hammer = 12.0,
-    blessed_shield = 12.0,     -- Shield throw range
+    holy_bolt = 15.0,          -- Ranged throw
+    blessed_hammer = 12.0,     -- Spiral AoE around player
+    blessed_shield = 6.0,      -- Extended melee (5.5-6.0 range)
     falling_star = 15.0,
-    arbiter_of_justice = 12.0,
+    arbiter_of_justice = 15.0,
     spear_of_the_heavens = 12.0,
-    divine_lance = 10.0,
+    divine_lance = 5.0,        -- Short melee impale
+    condemn = 8.0,             -- Self-centered pull radius
+    consecration = 6.0,        -- Self-centered ground AoE
+    heavens_fury = 10.0,       -- Self-centered AoE + seeking beams
+    zenith = 6.0,              -- Melee cleave range
 }
 
 -- Internal cooldowns (minimum time between casts of same spell)
--- Blessed Hammer should have very short cooldown to spam
--- Other spells have longer cooldowns to let hammer spam between uses
+-- These control how often each spell can be CHECKED for casting
+-- Lower values = more frequent checks = higher priority in practice
+--
+-- MAX DPS OPTIMIZATION:
+-- - Core spam (blessed_hammer) has SHORT ICD so it casts frequently
+-- - Burst abilities have MODERATE ICD so they weave in without blocking spam
+-- - Generators have SHORT ICD but their logics() blocks when Faith is high
 local spell_internal_cooldowns = {
-    -- Core spam skill - match animation time so other spells can interleave
-    -- After casting hammer, other priority spells get checked before next hammer
-    blessed_hammer = 0.15,
-    blessed_shield = 0.25,  -- Bouncing shield, slightly longer
+    -- CORE SPAM - Very short ICD for maximum spam rate
+    -- 0.1s matches typical animation time, allows ~10 casts/second theoretical
+    blessed_hammer = 0.10,  -- Primary spam skill - cast as fast as possible
     
-    -- Ultimates - use when available (game handles actual CD)
-    -- Short internal CD so they cast ASAP when available
-    arbiter_of_justice = 0.3,
-    heavens_fury = 0.3,
-    zenith = 0.3,
+    -- ALTERNATIVE CORE SPENDERS - Slightly longer to not compete with main
+    blessed_shield = 0.20,  -- Higher cost, use when ricochet value
+    zeal = 0.15,            -- Fast melee combo
+    divine_lance = 0.20,    -- Mobility spender
     
-    -- Auras - check frequently, their logics() handles duration
-    -- They only cast when buff expires (handled in spell logic)
-    fanaticism_aura = 0.5,
-    defiance_aura = 0.5,
-    holy_light_aura = 0.5,
-    rally = 1.0,
+    -- ULTIMATES - Short ICD, game handles actual cooldown
+    -- We want these to cast IMMEDIATELY when available
+    arbiter_of_justice = 0.25,
+    heavens_fury = 0.25,
+    zenith = 0.25,
     
-    -- Burst abilities - moderate cooldowns to fit between hammer spam
-    falling_star = 1.5,
-    spear_of_the_heavens = 1.0,
-    condemn = 2.0,
-    divine_lance = 0.6,
-    brandish = 0.4,
-    consecration = 2.0,
+    -- AURAS - Moderate ICD, buff duration handled in spell logic
+    -- Check every 0.5s is plenty for buff maintenance
+    fanaticism_aura = 0.50,
+    defiance_aura = 0.50,
+    holy_light_aura = 0.50,
     
-    -- Mobility - use sparingly
-    shield_charge = 1.5,
-    advance = 0.8,
+    -- BURST COOLDOWNS - These have game cooldowns (12-18s)
+    -- ICD just prevents spam-checking, actual CD is in-game
+    -- Lower ICD = faster reaction when off cooldown
+    falling_star = 0.30,        -- Mobility burst - react fast
+    spear_of_the_heavens = 0.30, -- Ranged burst
+    condemn = 0.40,             -- Pull/stun setup
+    consecration = 0.50,        -- Ground effect, less urgent
     
-    -- Basic attacks - short cooldowns (fillers)
-    zeal = 0.2,
-    holy_bolt = 0.2,
-    clash = 0.2,  -- Shield bash generator
+    -- GENERATORS - Short ICD, but logics() has resource threshold
+    -- They only cast when Faith is LOW (below threshold)
+    clash = 0.15,      -- Shield bash - fast generator
+    rally = 0.50,      -- Has charges, check less often
+    advance = 0.25,    -- Gap closer + gen
+    holy_bolt = 0.15,  -- Ranged filler
+    brandish = 0.15,   -- Melee arc filler
+    
+    -- MOBILITY - Moderate ICD, positioning not DPS
+    shield_charge = 0.50,
 }
 
 safe_on_update(function()

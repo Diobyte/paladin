@@ -1,56 +1,86 @@
--- Paladin Rotation Priority - Hammerkuna Build (D4 Season 11)
+-- Paladin Rotation Priority - Optimized for MAX DPS (D4 Season 11)
 --
--- HAMMERKUNA BUILD ROTATION:
--- The core mechanic is SPAM Blessed Hammer constantly while weaving in other abilities.
--- Blessed Hammer creates spiraling hammers around you that deal massive AoE damage.
--- Falling Star provides mobility and burst AoE.
--- Auras provide passive buffs (only recast when expired - handled by spell logic).
+-- =====================================================
+-- MAX DPS ROTATION PHILOSOPHY:
+-- =====================================================
+-- 1. BUFFS FIRST: Auras provide multiplicative damage bonuses - always maintain
+-- 2. ULTIMATES ON CD: Highest damage per cast - use immediately when available
+-- 3. BURST COOLDOWNS: High-damage cooldown abilities weave between spam
+-- 4. CORE SPAM: Primary damage dealer - spam as fast as possible
+-- 5. GENERATORS ONLY WHEN NEEDED: Spell logic checks resource threshold
 --
--- KEY INSIGHT: Unlike other builds where you prioritize cooldowns first,
--- Hammerkuna wants to SPAM blessed_hammer as the primary damage dealer.
--- Other spells should only cast when their conditions are met AND not block hammer spam.
+-- The key insight: Each spell's logics() function handles its OWN conditions
+-- (resource checks, range checks, enemy counts). Priority order just determines
+-- which spell gets CHECKED first - not which spell CASTS first.
+--
+-- RESOURCE SYSTEM (Faith):
+-- Generators: Clash (20), Rally (22), Advance (18), Holy Bolt (16), Brandish (14)
+-- Spenders: Blessed Hammer (10), Zeal (20), Divine Lance (25), Blessed Shield (28)
+--
+-- INTERNAL COOLDOWN SYSTEM:
+-- After ANY spell casts, it goes on internal cooldown. This allows the next
+-- priority spell to cast, creating natural weaving. Example:
+-- Hammer → (hammer on 0.15s ICD) → Falling Star → (FS on 1.5s ICD) → Hammer → etc.
 
 local spell_priority = {
-    -- Priority 1: Auras (buff maintenance)
-    -- These only cast when buff expires (handled in spell logic)
-    -- Check them first so buffs stay active
-    "fanaticism_aura",      -- Attack speed/damage buff
-    "defiance_aura",        -- Damage reduction buff  
-    "holy_light_aura",      -- Healing buff
+    -- =====================================================
+    -- TIER 1: BUFF MAINTENANCE (Multiplicative DPS)
+    -- Check first - only cast when buff expired (handled in spell logic)
+    -- =====================================================
+    "fanaticism_aura",      -- Offensive aura - Attack Speed (HUGE DPS increase)
+    "defiance_aura",        -- Defensive aura - Damage Reduction (survival)
+    "holy_light_aura",      -- Healing aura - Life Regeneration (sustain)
     
-    -- Priority 2: Ultimate abilities (use when available on tough packs)
-    -- These have game-enforced cooldowns, so safe to check
-    "arbiter_of_justice",   -- Judicator Ultimate
-    "heavens_fury",         -- AoE around player + seeking beams
-    "zenith",               -- Zealot Ultimate - melee AoE cleave
+    -- =====================================================
+    -- TIER 2: ULTIMATE ABILITIES (Highest Damage Per Cast)
+    -- Game handles actual cooldown - we just check if available
+    -- =====================================================
+    "arbiter_of_justice",   -- Ultimate (CD: 120s) - 600% + Arbiter form 20s
+    "heavens_fury",         -- Ultimate (CD: 30s) - 200%/s AoE + seeking beams
+    "zenith",               -- Ultimate (CD: 25s) - 450% cleave + 400% recast
     
-    -- Priority 3: Resource Generation (generate Faith before spending)
-    -- Basic skill to build Faith for core skill spam
-    "clash",                -- Shield bash (Faith generator, requires shield) - use to build resource
+    -- =====================================================
+    -- TIER 3: BURST COOLDOWNS (High DPE - Damage Per Execute)
+    -- These deal massive damage but have cooldowns
+    -- Weave between core spam for maximum burst windows
+    -- =====================================================
+    "falling_star",         -- Valor (CD: 12s) - 320% total (80+240), mobility
+    "spear_of_the_heavens", -- Justice (CD: 14s) - 280% total + knockdown
+    "condemn",              -- Justice (CD: 15s) - 240% + pull + stun (setup)
+    "consecration",         -- Justice (CD: 18s) - 75%/s for 6s = 450% total + heal
     
-    -- Priority 4: CORE SPAM SKILL - Blessed Hammer (THE MAIN SKILL)
-    -- This is the heart of Hammerkuna - spam constantly
-    "blessed_hammer",
-    "blessed_shield",       -- Alternative core: bouncing shield (requires shield)
+    -- =====================================================
+    -- TIER 4: CORE SPAM SKILL (Primary DPS)
+    -- This is the bread and butter - spam constantly
+    -- Short internal cooldown allows burst abilities to weave in
+    -- =====================================================
+    "blessed_hammer",       -- Core (Cost: 10) - 115% AoE spiral, SPAM THIS
     
-    -- Priority 5: Mobility/Gap closer (use for engaging or repositioning)
-    "falling_star",         -- Leap AoE - main mobility skill
-    "shield_charge",        -- Charge through enemies
-    "advance",              -- Lunge forward
+    -- =====================================================
+    -- TIER 5: ALTERNATIVE CORE SPENDERS (Build Variants)
+    -- These have higher cost but different use cases
+    -- Their logics() checks appropriate conditions
+    -- =====================================================
+    "blessed_shield",       -- Core (Cost: 28) - 216% + 3x ricochet, shield builds
+    "zeal",                 -- Core (Cost: 20) - 140% melee combo, zealot builds
+    "divine_lance",         -- Core (Cost: 25) - 180% impale, mobility builds
     
-    -- Priority 6: Burst abilities (use between hammer spam when available)
-    "spear_of_the_heavens", -- Ranged AoE knockdown
-    "condemn",              -- Pull enemies in + stun
-    "divine_lance",         -- Melee impale
-    "brandish",             -- Melee cleave
-    "consecration",         -- Ground heal + damage
+    -- =====================================================
+    -- TIER 6: RESOURCE GENERATORS (Use When Faith Depleted)
+    -- Each spell's logics() has resource_threshold check
+    -- Only casts when Faith is below threshold
+    -- =====================================================
+    "clash",                -- Basic (Gen: 20) - Shield bash, highest gen
+    "rally",                -- Valor (Gen: 22) - Move speed buff + Faith
+    "advance",              -- Basic (Gen: 18) - Lunge, also gap closer
+    "holy_bolt",            -- Basic (Gen: 16) - Ranged option
+    "brandish",             -- Basic (Gen: 14) - Melee arc, backup
     
-    -- Priority 7: Utility buffs
-    "rally",                -- Group buff
-    
-    -- Priority 8: Backup Resource generators (fallbacks)
-    "zeal",                 -- Melee multi-strike (Faith generator)
-    "holy_bolt",            -- Ranged projectile (Faith generator)
+    -- =====================================================
+    -- TIER 7: MOBILITY (Engage/Disengage)
+    -- Lower priority - used for positioning, not DPS
+    -- =====================================================
+    "shield_charge",        -- Valor (CD: 10s) - Gap closer with DR
 }
 
 return spell_priority

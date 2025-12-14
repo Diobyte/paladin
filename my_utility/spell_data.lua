@@ -24,16 +24,17 @@ local spell_data = {
         category = "basic",
         cast_type = "target",    -- Ranged projectile at target
         damage_type = "holy",
-        description = "Fire a bolt of holy energy that damages enemies",
+        faith_gen = 16,
+        description = "Throw a Holy hammer dealing 90% damage. Generates 16 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - projectile homes to target
     },
     zeal = {
         spell_id = 2132824,  -- Verified: wowhead.com/diablo-4/skill/zeal-2132824
-        category = "basic",
+        category = "core",       -- CORE SKILL (Spender)
         cast_type = "target",    -- Melee multi-strike at target
         damage_type = "physical",
         faith_cost = 20,
-        description = "Strike enemies with blinding speed, 80% + 3x20% damage",
+        description = "Strike enemies with blinding speed, 80% + 3x20% damage. Costs 20 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
     advance = {
@@ -41,7 +42,8 @@ local spell_data = {
         category = "basic",
         cast_type = "position",  -- Lunge forward to position
         damage_type = "physical",
-        description = "Advance forward with your weapon, dealing 105% damage",
+        faith_gen = 18,
+        description = "Advance forward with your weapon dealing 105% damage. Generates 18 Faith.",
         is_mobility = true,
         -- Targeting: cast_spell.position(spell_id, target_pos) - dashes to location
     },
@@ -50,7 +52,8 @@ local spell_data = {
         category = "basic",
         cast_type = "target",    -- Melee shield bash at target
         damage_type = "physical",
-        description = "Bash enemies with your shield, dealing 65% damage. Generates Faith. Requires shield.",
+        faith_gen = 20,
+        description = "Strike with weapon and shield dealing 115% damage. Generates 20 Faith. Requires shield.",
         requires_shield = true,
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
@@ -69,14 +72,15 @@ local spell_data = {
         -- Targeting: cast_spell.self(spell_id) - hammers spiral from player position
     },
     blessed_shield = {
-        spell_id = 2082021,  -- Blessed Shield - Bouncing shield throw
+        spell_id = 2082021,  -- Blessed Shield - Extended melee shield throw
         category = "core",
-        cast_type = "melee",     -- Melee casted skill (must be in melee range)
+        cast_type = "target",    -- Extended melee skill (5.5-6.0 range)
         damage_type = "holy",
-        faith_cost = 15,
-        description = "Throw your shield dealing 110% damage. Bounces between 3 enemies within 12 yards. Requires shield.",
+        faith_cost = 28,
+        cast_range = 6.0,
+        description = "Hurl your shield with Holy energy dealing 216% damage, ricochets up to 3 times. Extended melee range. Requires shield.",
         requires_shield = true,
-        -- Targeting: cast_spell.target(target, spell_id) - ranged bouncing projectile
+        -- Targeting: cast_spell.target(target, spell_id) - extended melee, ricochets to nearby enemies
     },
     divine_lance = {
         spell_id = 2120228,  -- Verified: wowhead.com/diablo-4/skill/divine-lance-2120228
@@ -90,10 +94,11 @@ local spell_data = {
     },
     brandish = {
         spell_id = 2265693,  -- Verified: wowhead.com/diablo-4/skill/brandish-2265693
-        category = "core",
+        category = "basic",      -- Basic skill (generator)
         cast_type = "target",    -- Melee swing at target
-        damage_type = "physical",
-        description = "Core melee attack with cleave",
+        damage_type = "holy",
+        faith_gen = 14,
+        description = "Brandish the Light, unleashing an arc dealing 75% damage. Generates 14 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
     
@@ -137,14 +142,17 @@ local spell_data = {
         cooldown = 10.0,
         is_channeled = true,
         requires_shield = true,
-        description = "Charge with your shield pushing enemies, 90% damage while channeling",
+        description = "Charge with shield pushing enemies, 10% DR + 90% damage while channeling. Requires shield.",
         -- Targeting: cast_spell.position(spell_id, target_pos) - charge in direction
     },
     rally = {
         spell_id = 2303677,  -- Verified via builds
         category = "valor",
         cast_type = "self",      -- Self-cast buff
-        description = "Defensive utility buff",
+        charges = 3,
+        cooldown = 16.0,
+        faith_gen = 22,
+        description = "Rally forth gaining 20% Move Speed for 8s and generate 22 Faith. 3 charges.",
         -- Targeting: cast_spell.self(spell_id) - instant self-buff
     },
     
@@ -163,11 +171,12 @@ local spell_data = {
     },
     falling_star = {
         spell_id = 2106904,  -- Verified via builds
-        category = "justice",
+        category = "valor",      -- Changed from justice - it's a Valor mobility skill
         cast_type = "position",  -- Leap to position
         damage_type = "holy",
+        cooldown = 12.0,
         is_mobility = true,
-        description = "Leap AoE attack with ground impact",
+        description = "Soar with angelic wings and dive, 80% takeoff + 240% landing damage.",
         -- Targeting: cast_spell.position(spell_id, target_pos) - leap to location
     },
     condemn = {
@@ -198,11 +207,11 @@ local spell_data = {
     arbiter_of_justice = {
         spell_id = 2297125,  -- Verified: wowhead.com/diablo-4/skill/arbiter-of-justice-2297125
         category = "ultimate",
-        cast_type = "target",    -- Cast at target, seeking projectiles
+        cast_type = "position",  -- Land at target position
         damage_type = "holy",
-        cooldown = 45.0,
-        description = "Ultimate ranged AoE attack with holy damage",
-        -- Targeting: cast_spell.target(target, spell_id) - seeks enemies
+        cooldown = 120.0,
+        description = "Ascend and crash as Arbiter for 20s, 600% landing damage.",
+        -- Targeting: cast_spell.position(spell_id, target_pos) - leap to location
     },
     heavens_fury = {
         spell_id = 2273081,  -- Verified: wowhead.com/diablo-4/skill/heavens-fury-2273081

@@ -1,3 +1,8 @@
+-- Brandish - Basic Skill (Disciple)
+-- Generate Faith: 14 | Lucky Hit: 20%
+-- Brandish the Light, unleashing an arc that deals 75% damage.
+-- Holy Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -5,9 +10,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_brandish_enabled")),
     min_cooldown = slider_float:new(0.0, 5.0, 0.1, get_hash("paladin_rotation_brandish_min_cd")),
-    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_brandish_enemy_type")),
-    use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_brandish_use_min_weight")),
-    minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_brandish_min_weight")),
+    resource_threshold = slider_int:new(0, 100, 20, get_hash("paladin_rotation_brandish_resource_threshold")),
 }
 
 local spell_id = spell_data.brandish.spell_id
@@ -15,14 +18,10 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Brandish") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Basic Generator - Arc for 75% (Generate 14 Faith)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
-            menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
-            if menu_elements.use_minimum_weight:get() then
-                menu_elements.minimum_weight:render("Minimum Weight", "", 1)
-            end
+            menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (backup generator)")
         end
         menu_elements.tree_tab:pop()
     end
@@ -38,6 +37,15 @@ local function logics(target)
 
     if not target or not target:is_enemy() then
         return false, 0
+    end
+
+    -- GENERATOR LOGIC: Only cast when Faith is LOW (backup generator)
+    local threshold = menu_elements.resource_threshold:get()
+    if threshold > 0 then
+        local resource_pct = my_utility.get_resource_pct()
+        if resource_pct and (resource_pct * 100) >= threshold then
+            return false, 0  -- Faith is high enough, let spenders handle it
+        end
     end
 
     -- Range check for melee

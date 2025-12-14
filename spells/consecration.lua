@@ -1,9 +1,7 @@
--- Consecration - Justice Skill (Judicator)
--- "Bathe in the Light for 6 seconds, Healing you and your allies for 4.0% Maximum Life per second 
---  and damaging enemies for 75% damage per second"
--- Cooldown: 18 seconds
--- Holy Damage + Defensive/Healing
--- Targeting: cast_spell.self() - Ground AoE at player position
+-- Consecration - Justice Skill (Judicator/Defensive)
+-- Cooldown: 18s | Lucky Hit: 12%
+-- Bathe in the Light for 6 seconds, Healing you and allies for 4% Max Life per second and damaging enemies for 75% damage per second.
+-- Holy Damage
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -23,7 +21,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Consecration") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Justice Defensive - 4% Life/s heal + 75%/s damage (CD: 18s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.use_for_healing:render("Use for Healing", "Cast when health drops below threshold")

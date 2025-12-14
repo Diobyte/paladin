@@ -1,33 +1,28 @@
+-- Clash - Basic Skill (Juggernaut)
+-- Generate Faith: 20 | Lucky Hit: 50%
+-- Strike an enemy with your weapon and shield, dealing 115% damage.
+-- Physical Damage | Requires Shield
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
-
--- Clash - Basic Skill (Melee Shield Bash)
--- Bash enemies with your shield, dealing 65% damage and generating Faith.
--- Requires a shield to be equipped.
 
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_clash_enabled")),
-    min_cooldown = slider_float:new(0.0, 1.0, 0.15, get_hash("paladin_rotation_clash_min_cd")),
-    use_as_filler_only = checkbox:new(false, get_hash("paladin_rotation_clash_filler_only")),
-    resource_threshold = slider_int:new(0, 100, 80, get_hash("paladin_rotation_clash_resource_threshold")),
+    min_cooldown = slider_float:new(0.0, 1.0, 0.10, get_hash("paladin_rotation_clash_min_cd")),
+    resource_threshold = slider_int:new(0, 100, 30, get_hash("paladin_rotation_clash_resource_threshold")),
 }
 
--- Clash spell ID (estimated based on Paladin skill patterns)
--- Basic skills typically have IDs in the 2100000-2200000 range
-local spell_id = 2097465  -- Clash spell ID
+local spell_id = spell_data.clash.spell_id
 
 local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Clash") then
-        menu_elements.main_boolean:render("Enable", "Enable Clash (Shield Bash)")
+        menu_elements.main_boolean:render("Enable", "Basic Generator - 115% damage (Generate 20 Faith)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "Minimum time between casts", 2)
-            menu_elements.use_as_filler_only:render("Filler Only", "Only use when low on Faith")
-            if menu_elements.use_as_filler_only:get() then
-                menu_elements.resource_threshold:render("Resource Threshold %", "Use when Faith below this %")
-            end
+            menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (lower = more spender uptime)")
         end
         menu_elements.tree_tab:pop()
     end
@@ -45,9 +40,8 @@ local function logics(target)
         return false, 0
     end
 
-    -- Resource generation logic:
-    -- If "filler only" is OFF: Always use when Faith is below threshold (generate resource)
-    -- If "filler only" is ON: Only use when very low on Faith
+    -- GENERATOR LOGIC: Only cast when Faith is LOW
+    -- This ensures we prioritize spending Faith on damage skills
     local player = get_local_player()
     if player then
         local current_resource = player:get_primary_resource_current()
@@ -56,23 +50,14 @@ local function logics(target)
             local resource_pct = (current_resource / max_resource) * 100
             local threshold = menu_elements.resource_threshold:get()
             
-            if menu_elements.use_as_filler_only:get() then
-                -- Filler mode: only use when BELOW threshold
-                if resource_pct >= threshold then
-                    return false, 0
-                end
-            else
-                -- Generator mode: use when below threshold to build up Faith
-                -- Once at/above threshold, let blessed_hammer spend it
-                if resource_pct >= threshold then
-                    return false, 0
-                end
+            -- Only generate Faith when BELOW threshold
+            if resource_pct >= threshold then
+                return false, 0  -- Faith is high enough, let spenders handle it
             end
         end
     end
 
     -- Clash is a melee skill, check range
-    local player = get_local_player()
     local player_pos = player and player:get_position() or nil
     local target_pos = target:get_position()
     

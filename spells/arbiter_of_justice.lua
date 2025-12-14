@@ -1,3 +1,8 @@
+-- Arbiter of Justice - Ultimate Skill (Disciple/Mobility)
+-- Cooldown: 120s | Lucky Hit: 16%
+-- Ascend to the heavens and crash upon the battlefield as an Arbiter for 20 seconds, dealing 600% damage upon landing.
+-- Holy Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -16,7 +21,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Arbiter of Justice") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Ultimate - 600% landing, Arbiter form 20s (CD: 120s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)

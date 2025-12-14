@@ -1,3 +1,8 @@
+-- Shield Charge - Valor Skill (Juggernaut/Channeled/Mobility)
+-- Cooldown: 10s | Lucky Hit: 35%
+-- Charge with your shield and push enemies Back, granting 10% Damage Reduction and dealing 90% damage while Channeling.
+-- Physical Damage | Requires Shield
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -16,7 +21,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Shield Charge") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Valor Channeled - 10% DR + 90% damage (CD: 10s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.min_range:render("Min Range", "Minimum distance to target before charging", 1)

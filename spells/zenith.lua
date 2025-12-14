@@ -1,9 +1,7 @@
 -- Zenith - Ultimate Skill (Zealot)
--- "Summon a divine sword that cleaves the battlefield for 450% damage. 
---  Casting Zenith again cuts through the battlefield for 400% damage and Knocks Down enemies for 2.0 seconds"
--- Cooldown: 25 seconds
+-- Cooldown: 25s | Lucky Hit: 28%
+-- Summon a divine sword that cleaves the battlefield for 450% damage. Casting Zenith again cuts through for 400% damage and Knocks Down enemies for 2 seconds.
 -- Physical Damage
--- Targeting: cast_spell.self() - Melee AoE cleave around player
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -23,7 +21,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Zenith") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Ultimate - 450% cleave, recast 400% + Knockdown (CD: 25s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies in melee range to cast")

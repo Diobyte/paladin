@@ -1,3 +1,6 @@
+-- Fanaticism Aura - Aura Skill
+-- Offensive aura granting increased Attack Speed to you and nearby allies.
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -44,7 +47,7 @@ end
 
 local function menu()
     if menu_elements.tree_tab:push("Fanaticism Aura") then
-        menu_elements.main_boolean:render("Enable", "Enable Fanaticism Aura")
+        menu_elements.main_boolean:render("Enable", "Offensive Aura - Attack Speed buff")
         if menu_elements.main_boolean:get() then
             menu_elements.combat_only:render("Combat Only", "Only use Fanaticism Aura in combat")
             menu_elements.recast_interval:render("Recast Interval", "Time between recasts (seconds). Set to 0 to only recast when aura expires.", 1)

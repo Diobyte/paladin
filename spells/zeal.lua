@@ -1,12 +1,17 @@
+-- Zeal - Core Skill (Zealot)
+-- Faith Cost: 20 | Lucky Hit: 3%
+-- Strike enemies with blinding speed, dealing 80% damage followed by 3 additional strikes dealing 20% damage each.
+-- Physical Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_zeal_enabled")),
-    min_cooldown = slider_float:new(0.0, 1.0, 0.01, get_hash("paladin_rotation_zeal_min_cd")),
-    use_as_filler_only = checkbox:new(true, get_hash("paladin_rotation_zeal_filler_only")),
-    resource_threshold = slider_int:new(0, 100, 50, get_hash("paladin_rotation_zeal_resource_threshold")),
+    min_cooldown = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_zeal_min_cd")),
+    min_resource = slider_int:new(0, 100, 20, get_hash("paladin_rotation_zeal_min_resource")),
+    min_enemies = slider_int:new(1, 10, 1, get_hash("paladin_rotation_zeal_min_enemies")),
 }
 
 local spell_id = spell_data.zeal.spell_id
@@ -14,13 +19,11 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Zeal") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Core Skill - Costs 20 Faith")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
-            menu_elements.use_as_filler_only:render("Filler Only", "Only use when low on resource")
-            if menu_elements.use_as_filler_only:get() then
-                menu_elements.resource_threshold:render("Resource Threshold (%)", "Use Zeal when resource below this percentage")
-            end
+            menu_elements.min_resource:render("Min Faith %", "Only cast when Faith above this %")
+            menu_elements.min_enemies:render("Min Enemies", "Minimum enemies in melee range")
         end
         menu_elements.tree_tab:pop()
     end
@@ -38,23 +41,23 @@ local function logics(target)
         return false, 0
     end
 
-    -- Check filler condition (like barb's frenzy)
-    if menu_elements.use_as_filler_only:get() then
-        local player = get_local_player()
-        if player then
-            local current_resource = player:get_primary_resource_current()
-            local max_resource = player:get_primary_resource_max()
+    -- Zeal is a Core SPENDER (Faith Cost: 20) - need enough Faith to cast
+    local player = get_local_player()
+    if player then
+        local current_resource = player:get_primary_resource_current()
+        local max_resource = player:get_primary_resource_max()
+        if max_resource > 0 then
             local resource_pct = (current_resource / max_resource) * 100
-            local threshold = menu_elements.resource_threshold:get()
+            local min_resource = menu_elements.min_resource:get()
             
-            if resource_pct >= threshold then
+            -- Must have enough Faith to cast (it's a spender)
+            if resource_pct < min_resource then
                 return false, 0
             end
         end
     end
 
-    -- Zeal is a melee skill, so we check range
-    local player = get_local_player()
+    -- Zeal is a melee multi-strike skill, check range
     local player_pos = player and player:get_position() or nil
     local target_pos = target:get_position()
     
@@ -62,6 +65,27 @@ local function logics(target)
         local dist_sqr = player_pos:squared_dist_to_ignore_z(target_pos)
         if dist_sqr > (3.5 * 3.5) then -- 3.5 melee range
             return false, 0
+        end
+        
+        -- Check min enemies in melee range (Zeal hits multiple times)
+        local min_enemies = menu_elements.min_enemies:get()
+        if min_enemies > 1 then
+            local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
+            local near = 0
+            local melee_range_sqr = 3.5 * 3.5
+            
+            for _, e in ipairs(enemies) do
+                if e and e:is_enemy() then
+                    local pos = e:get_position()
+                    if pos and pos:squared_dist_to_ignore_z(player_pos) <= melee_range_sqr then
+                        near = near + 1
+                    end
+                end
+            end
+            
+            if near < min_enemies then
+                return false, 0
+            end
         end
     end
 

@@ -1,9 +1,7 @@
 -- Heaven's Fury - Ultimate Skill (Judicator)
--- "Grasp the Light, dealing 200% damage around you per second before releasing it to seek Nearby enemies 
---  and dealing 60% damage per hit for 7 seconds"
--- Cooldown: 30 seconds
+-- Cooldown: 30s | Lucky Hit: 2.8%
+-- Grasp the Light, dealing 200% damage around you per second before releasing it to seek Nearby enemies and dealing 60% damage per hit for 7 seconds.
 -- Holy Damage
--- Targeting: cast_spell.self() - AoE around player, then seeking beams
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -23,7 +21,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Heaven's Fury") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Ultimate - 200%/s AoE + 60% seeking beams (CD: 30s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast")

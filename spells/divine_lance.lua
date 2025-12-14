@@ -1,3 +1,8 @@
+-- Divine Lance - Core Skill (Disciple/Mobility)
+-- Faith Cost: 25 | Lucky Hit: 6%
+-- Impale enemies with a heavenly lance, stabbing 2 times for 90% damage each.
+-- Holy Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -5,6 +10,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_divine_lance_enabled")),
     min_cooldown = slider_float:new(0.0, 5.0, 0.2, get_hash("paladin_rotation_divine_lance_min_cd")),
+    min_resource = slider_int:new(0, 100, 25, get_hash("paladin_rotation_divine_lance_min_resource")),
     prediction_time = slider_float:new(0.1, 0.8, 0.3, get_hash("paladin_rotation_divine_lance_prediction")),
 }
 
@@ -13,9 +19,10 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Divine Lance") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Core Skill - Stab 2x for 90% each (Faith Cost: 25)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
+            menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this %")
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
         end
         menu_elements.tree_tab:pop()
@@ -32,6 +39,15 @@ local function logics(target)
 
     if not target or not target:is_enemy() then
         return false, 0
+    end
+
+    -- Resource check (Faith Cost: 25)
+    local min_resource = menu_elements.min_resource:get()
+    if min_resource > 0 then
+        local resource_pct = my_utility.get_resource_pct()
+        if resource_pct and (resource_pct * 100) < min_resource then
+            return false, 0
+        end
     end
 
     local cast_pos = target:get_position()

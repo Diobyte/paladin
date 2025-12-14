@@ -1,3 +1,9 @@
+-- Spear of the Heavens - Justice Skill (Judicator)
+-- Cooldown: 14s | Lucky Hit: 33%
+-- Rain down 4 heavenly spears from the sky, dealing 160% damage and Knocking Down enemies for 1.5s.
+-- After 1.5s, the spears burst for 120% damage.
+-- Holy Damage
+
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -16,7 +22,7 @@ local next_time_allowed_cast = 0.0
 
 local function menu()
     if menu_elements.tree_tab:push("Spear of the Heavens") then
-        menu_elements.main_boolean:render("Enable", "")
+        menu_elements.main_boolean:render("Enable", "Justice - 4 spears for 160% + 120% burst (CD: 14s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
