@@ -11,6 +11,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_condemn_enabled")),
+    debug_mode = checkbox:new(false, get_hash("paladin_rotation_condemn_debug_mode")),
     min_cooldown = slider_float:new(0.0, 20.0, 0.15, get_hash("paladin_rotation_condemn_min_cd")),  -- META: ARBITER TRIGGER - cast ASAP when available
     pull_range = slider_float:new(4.0, 12.0, 8.0, get_hash("paladin_rotation_condemn_pull_range")),  -- Condemn AoE radius
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_condemn_min_enemies")),  -- 1 = always cast for Arbiter, even single target
@@ -26,6 +27,7 @@ local function menu()
     if menu_elements.tree_tab:push("Condemn") then
         menu_elements.main_boolean:render("Enable", "ARBITER TRIGGER - Pull + Stun + 240% (CD: 15s)")
         if menu_elements.main_boolean:get() then
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
             menu_elements.min_cooldown:render("Min Cooldown", "Lower = more Arbiter uptime (CRITICAL)", 2)
             menu_elements.pull_range:render("Pull Range", "Radius to check for enemies before casting", 1)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast (1 = always)")
@@ -40,17 +42,21 @@ local function menu()
 end
 
 local function logics()
+    local debug_enabled = menu_elements.debug_mode:get()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then return false end
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[CONDEMN DEBUG] Spell not allowed") end
+        return false, 0
+    end
 
     -- Condemn is self-centered AoE - check enemies around player
     local player = get_local_player()
-    if not player then return false end
+    if not player then return false, 0 end
     
     local player_pos = player:get_position()
-    if not player_pos then return false end
+    if not player_pos then return false, 0 end
     
     -- Count nearby enemies (Condemn has configurable pull radius)
     local condemn_range = menu_elements.pull_range:get()
@@ -89,15 +95,30 @@ local function logics()
 
     -- Check enemy type filter (must have at least one priority target in range)
     if enemy_type_filter > 0 and not has_priority_target then
-        return false
+        if debug_enabled then console.print("[CONDEMN DEBUG] No priority target found") end
+        return false, 0
     end
 
-    if near < min_enemies then return false end
+    if near < min_enemies then
+        if debug_enabled then console.print("[CONDEMN DEBUG] Not enough enemies: " .. near .. " < " .. min_enemies) end
+        return false, 0
+    end
+
+    local cooldown = menu_elements.min_cooldown:get()
+    if cooldown < my_utility.spell_delays.regular_cast then
+        cooldown = my_utility.spell_delays.regular_cast
+    end
 
     if cast_spell.self(spell_id, 0.0) then
         local current_time = get_time_since_inject()
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Condemn - Enemies pulled: " .. near)
+        next_time_allowed_cast = current_time + cooldown
+        if debug_enabled then console.print("[CONDEMN DEBUG] Cast successful - Enemies: " .. near) end
+        return true, cooldown
+    end
+
+    if debug_enabled then console.print("[CONDEMN DEBUG] Cast failed") end
+    return false, 0
+end
         return true
     end
 

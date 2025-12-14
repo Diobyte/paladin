@@ -10,6 +10,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
+    debug_mode = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_debug_mode")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.0, get_hash("paladin_rotation_blessed_hammer_min_cd")),  -- META: 0 = maximum spam rate
     engage_range = slider_float:new(2.0, 25.0, 15.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),  -- Increased range - hammers spiral out
     min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),  -- 0 = spam freely (meta)
@@ -26,6 +27,7 @@ local function menu()
     if menu_elements.tree_tab:push("Blessed Hammer") then
         menu_elements.main_boolean:render("Enable", "Core Skill - Spiraling hammer (Faith Cost: 10)")
         if menu_elements.main_boolean:get() then
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.engage_range:render("Engage Range", "Max distance to enemies for casting", 1)
             menu_elements.min_resource:render("Min Resource %", "Only cast when Faith above this % (0 = spam freely)")
@@ -41,23 +43,28 @@ local function menu()
 end
 
 local function logics()
+    local debug_enabled = menu_elements.debug_mode:get()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then return false end
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Spell not allowed") end
+        return false, 0
+    end
 
     local player = get_local_player()
-    if not player then return false end
+    if not player then return false, 0 end
     
     local player_pos = player:get_position()
-    if not player_pos then return false end
+    if not player_pos then return false, 0 end
     
     -- Resource check (Faith Cost: 10 - optional, default 0 = spam freely)
     local min_resource = menu_elements.min_resource:get()
     if min_resource > 0 then
         local resource_pct = my_utility.get_resource_pct()
         if resource_pct and (resource_pct * 100) < min_resource then
-            return false
+            if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Insufficient Faith") end
+            return false, 0
         end
     end
     
@@ -100,19 +107,29 @@ local function logics()
 
     -- Check enemy type filter (must have at least one priority target in range)
     if enemy_type_filter > 0 and not has_priority_target then
-        return false
+        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] No priority target found") end
+        return false, 0
     end
 
-    if near < min_enemies then return false end
+    if near < min_enemies then
+        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Not enough enemies: " .. near .. " < " .. min_enemies) end
+        return false, 0
+    end
+
+    local cooldown = menu_elements.min_cooldown:get()
+    if cooldown < my_utility.spell_delays.regular_cast then
+        cooldown = my_utility.spell_delays.regular_cast
+    end
 
     if cast_spell.self(spell_id, 0.0) then
         local current_time = get_time_since_inject()
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Blessed Hammer - Enemies in range: " .. near)
-        return true
+        next_time_allowed_cast = current_time + cooldown
+        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast successful - Enemies: " .. near) end
+        return true, cooldown
     end
 
-    return false
+    if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Cast failed") end
+    return false, 0
 end
 
 return {

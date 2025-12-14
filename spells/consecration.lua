@@ -9,6 +9,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_consecration_enabled")),
+    debug_mode = checkbox:new(false, get_hash("paladin_rotation_consecration_debug_mode")),
     min_cooldown = slider_float:new(0.0, 25.0, 0.2, get_hash("paladin_rotation_consecration_min_cd")),  -- Fast burst
     use_for_healing = checkbox:new(true, get_hash("paladin_rotation_consecration_use_healing")),
     health_threshold = slider_int:new(10, 100, 60, get_hash("paladin_rotation_consecration_health_threshold")),  -- Lower threshold = use more proactively
@@ -24,6 +25,7 @@ local function menu()
     if menu_elements.tree_tab:push("Consecration") then
         menu_elements.main_boolean:render("Enable", "Justice - 4% Life/s heal + 75%/s damage + Weaken (CD: 18s)")
         if menu_elements.main_boolean:get() then
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.use_for_healing:render("Use for Healing", "Cast when health drops below threshold")
             if menu_elements.use_for_healing:get() then
@@ -40,13 +42,17 @@ local function menu()
 end
 
 local function logics()
+    local debug_enabled = menu_elements.debug_mode:get()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then return false end
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[CONSECRATION DEBUG] Spell not allowed") end
+        return false, 0
+    end
 
     local player = get_local_player()
-    if not player then return false end
+    if not player then return false, 0 end
 
     local should_cast = false
     
@@ -109,16 +115,25 @@ local function logics()
         end
     end
     
-    if not should_cast then return false end
+    if not should_cast then
+        if debug_enabled then console.print("[CONSECRATION DEBUG] Conditions not met for cast") end
+        return false, 0
+    end
+
+    local cooldown = menu_elements.min_cooldown:get()
+    if cooldown < my_utility.spell_delays.regular_cast then
+        cooldown = my_utility.spell_delays.regular_cast
+    end
 
     if cast_spell.self(spell_id, 0.0) then
         local current_time = get_time_since_inject()
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Consecration - Healing/Damage AoE")
-        return true
+        next_time_allowed_cast = current_time + cooldown
+        if debug_enabled then console.print("[CONSECRATION DEBUG] Cast successful - Healing/Damage AoE") end
+        return true, cooldown
     end
 
-    return false
+    if debug_enabled then console.print("[CONSECRATION DEBUG] Cast failed") end
+    return false, 0
 end
 
 return {

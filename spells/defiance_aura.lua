@@ -69,6 +69,7 @@ local menu_elements = {
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_defiance_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_defiance_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_defiance_min_weight")),
+    debug_mode = checkbox:new(false, get_hash("paladin_rotation_defiance_debug_mode")),
 }
 
 local next_time_allowed_cast = 0.0
@@ -86,6 +87,7 @@ local function menu()
             if menu_elements.use_minimum_weight:get() then
                 menu_elements.minimum_weight:render("Minimum Weight", "", 1)
             end
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
         end
         menu_elements.tree_tab:pop()
     end
@@ -104,9 +106,12 @@ local function is_in_combat()
 end
 
 local function logics()
+    local debug_enabled = menu_elements.debug_mode:get()
+    
     if not menu_elements.main_boolean:get() then 
         is_aura_active = false
-        return false 
+        if debug_enabled then console.print("[DEFIANCE DEBUG] Disabled") end
+        return false, 0 
     end
     
     -- Check if spell is allowed (basic checks)
@@ -115,13 +120,15 @@ local function logics()
     
     if not is_logic_allowed then 
         is_aura_active = false
-        return false
+        if debug_enabled then console.print("[DEFIANCE DEBUG] Spell not allowed") end
+        return false, 0
     end
     
     -- Combat only check
     if not is_in_combat() then
         is_aura_active = false
-        return false
+        if debug_enabled then console.print("[DEFIANCE DEBUG] Not in combat") end
+        return false, 0
     end
 
     local now = get_time_since_inject()
@@ -131,7 +138,8 @@ local function logics()
     local has_buff, buff_remaining = has_defiance_buff()
     if has_buff and buff_remaining > BUFFER_TIME then
         is_aura_active = true
-        return false  -- Buff is still active
+        if debug_enabled then console.print("[DEFIANCE DEBUG] Buff active, remaining: " .. string.format("%.1f", buff_remaining)) end
+        return false, 0  -- Buff is still active
     end
     
     -- Check if we need to recast based on timing (fallback)
@@ -142,24 +150,28 @@ local function logics()
     -- If buff detection didn't find anything but timing says we're fine, trust timing
     if not should_recast and not is_expiring and last_cast_time > 0 then
         is_aura_active = true
-        return false
+        if debug_enabled then console.print("[DEFIANCE DEBUG] Still active by timing") end
+        return false, 0
     end
     
     if now < next_time_allowed_cast then 
         is_aura_active = false
-        return false
+        if debug_enabled then console.print("[DEFIANCE DEBUG] On cooldown") end
+        return false, 0
     end
 
     if cast_spell.self(spell_id, 0.0) then
         last_cast_time = now
-        next_time_allowed_cast = now + my_utility.spell_delays.regular_cast
+        local cooldown = my_utility.spell_delays.regular_cast
+        next_time_allowed_cast = now + cooldown
         is_aura_active = true
         console.print("Cast Defiance Aura")
-        return true
+        return true, cooldown
     end
 
     is_aura_active = false
-    return false
+    if debug_enabled then console.print("[DEFIANCE DEBUG] Cast failed") end
+    return false, 0
 end
 
 return {

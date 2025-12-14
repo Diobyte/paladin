@@ -16,6 +16,7 @@ local menu_elements = {
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_arbiter_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_arbiter_min_weight")),
     prediction_time = slider_float:new(0.1, 0.8, 0.25, get_hash("paladin_rotation_arbiter_prediction")),  -- Faster prediction
+    debug_mode = checkbox:new(false, get_hash("paladin_rotation_arbiter_debug_mode")),
 }
 
 local spell_id = spell_data.arbiter_of_justice.spell_id
@@ -34,46 +35,71 @@ local function menu()
             if menu_elements.use_minimum_weight:get() then
                 menu_elements.minimum_weight:render("Minimum Weight", "", 1)
             end
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
         end
         menu_elements.tree_tab:pop()
     end
 end
 
 local function logics(target)
-    if not target then return false end
+    local debug_enabled = menu_elements.debug_mode:get()
+    
+    if not target then 
+        if debug_enabled then console.print("[ARBITER DEBUG] No target") end
+        return false, 0 
+    end
     
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then return false end
+    if not is_logic_allowed then 
+        if debug_enabled then console.print("[ARBITER DEBUG] Spell not allowed") end
+        return false, 0 
+    end
 
     -- Validate target (Druid pattern - simple checks)
-    if not target:is_enemy() then return false end
-    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
+    if not target:is_enemy() then 
+        if debug_enabled then console.print("[ARBITER DEBUG] Target not enemy") end
+        return false, 0 
+    end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then 
+        if debug_enabled then console.print("[ARBITER DEBUG] Target dead/immune/untargetable") end
+        return false, 0 
+    end
 
     -- Max range check for leap
     local max_range = menu_elements.max_range:get()
     if not my_utility.is_in_range(target, max_range) then
-        return false  -- Too far to leap
+        if debug_enabled then console.print("[ARBITER DEBUG] Target out of range: " .. max_range) end
+        return false, 0  -- Too far to leap
     end
 
     -- Enemy type filter check
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     if enemy_type_filter == 2 then
-        if not target:is_boss() then return false end
+        if not target:is_boss() then 
+            if debug_enabled then console.print("[ARBITER DEBUG] Target not boss (filter=Boss)") end
+            return false, 0 
+        end
     elseif enemy_type_filter == 1 then
         if not (target:is_elite() or target:is_champion() or target:is_boss()) then
-            return false
+            if debug_enabled then console.print("[ARBITER DEBUG] Target not elite+ (filter=Elite+)") end
+            return false, 0
         end
+    end
+
+    local cooldown = menu_elements.min_cooldown:get()
+    if cooldown < my_utility.spell_delays.regular_cast then
+        cooldown = my_utility.spell_delays.regular_cast
     end
 
     -- Try direct target cast first
     if cast_spell.target(target, spell_id, 0.0, false) then
         local current_time = get_time_since_inject()
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        next_time_allowed_cast = current_time + cooldown
         local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
         console.print("Cast Arbiter of Justice - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
-        return true
+        return true, cooldown
     end
 
     -- Fallback to position cast with prediction
@@ -89,14 +115,15 @@ local function logics(target)
 
         if cast_spell.position(spell_id, pos, 0.0) then
             local current_time = get_time_since_inject()
-            next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+            next_time_allowed_cast = current_time + cooldown
             local mode_name = my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "Unknown"
             console.print("Cast Arbiter of Justice (position) - Mode: " .. mode_name .. " - Target: " .. target:get_skin_name())
-            return true
+            return true, cooldown
         end
     end
 
-    return false
+    if debug_enabled then console.print("[ARBITER DEBUG] Cast failed") end
+    return false, 0
 end
 
 return {

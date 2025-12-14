@@ -8,6 +8,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_rally_enabled")),
+    debug_mode = checkbox:new(false, get_hash("paladin_rotation_rally_debug_mode")),
     recast_interval = slider_float:new(0.5, 30.0, 2.0, get_hash("paladin_rotation_rally_min_cd")),  -- META: Use often! Reduced from 4.0
     resource_threshold = slider_int:new(0, 100, 80, get_hash("paladin_rotation_rally_resource_threshold")),  -- Higher threshold = use more often as gen
     use_for_movespeed = checkbox:new(true, get_hash("paladin_rotation_rally_use_movespeed")),
@@ -21,6 +22,7 @@ local function menu()
     if menu_elements.tree_tab:push("Rally") then
         menu_elements.main_boolean:render("Enable", "Generate 22 Faith + 20% Move Speed for 8s (3 charges)")
         if menu_elements.main_boolean:get() then
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
             menu_elements.recast_interval:render("Recast Interval", "Time between uses", 2)
             menu_elements.use_for_movespeed:render("Use for Move Speed", "Always use Rally for move speed buff (meta recommends)")
             menu_elements.resource_threshold:render("Resource Threshold %", "Only use when Faith BELOW this % (ignored if Move Speed mode enabled)")
@@ -31,20 +33,27 @@ local function menu()
 end
 
 local function logics()
+    local debug_enabled = menu_elements.debug_mode:get()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then return false end
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[RALLY DEBUG] Spell not allowed") end
+        return false, 0
+    end
 
     local player = get_local_player()
-    if not player then return false end
+    if not player then return false, 0 end
     
     local player_pos = player:get_position()
-    if not player_pos then return false end
+    if not player_pos then return false, 0 end
     
     -- Check for enemies nearby (no need to rally with no targets)
     local nearby = my_utility.enemy_count_in_radius(25.0, player_pos)
-    if nearby == 0 then return false end
+    if nearby == 0 then
+        if debug_enabled then console.print("[RALLY DEBUG] No enemies nearby") end
+        return false, 0
+    end
 
     -- Enemy type filter check
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
@@ -74,7 +83,10 @@ local function logics()
             end
         end
         
-        if not has_priority_target then return false end
+        if not has_priority_target then
+            if debug_enabled then console.print("[RALLY DEBUG] No priority target found") end
+            return false, 0
+        end
     end
 
     -- META BUILD: Rally should be used "as often as possible" for move speed
@@ -89,20 +101,27 @@ local function logics()
             if max_resource > 0 then
                 local resource_pct = (current_resource / max_resource) * 100
                 if resource_pct >= threshold then
-                    return false  -- Faith is high enough, skip
+                    if debug_enabled then console.print("[RALLY DEBUG] Faith too high") end
+                    return false, 0  -- Faith is high enough, skip
                 end
             end
         end
     end
 
-    if cast_spell.self(spell_id, 0.0) then
-        local current_time = get_time_since_inject()
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Rally - Move Speed + Faith gen")
-        return true
+    local cooldown = menu_elements.recast_interval:get()
+    if cooldown < my_utility.spell_delays.regular_cast then
+        cooldown = my_utility.spell_delays.regular_cast
     end
 
-    return false
+    if cast_spell.self(spell_id, 0.0) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + cooldown
+        if debug_enabled then console.print("[RALLY DEBUG] Cast successful") end
+        return true, cooldown
+    end
+
+    if debug_enabled then console.print("[RALLY DEBUG] Cast failed") end
+    return false, 0
 end
 
 return {

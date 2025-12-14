@@ -9,6 +9,7 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_zenith_enabled")),
+    debug_mode = checkbox:new(false, get_hash("paladin_rotation_zenith_debug_mode")),
     min_cooldown = slider_float:new(0.0, 30.0, 0.3, get_hash("paladin_rotation_zenith_min_cd")),  -- React fast when ult is up
     melee_range = slider_float:new(2.0, 8.0, 5.0, get_hash("paladin_rotation_zenith_melee_range")),  -- Cleave AoE radius
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_zenith_min_enemies")),  -- 1 = use on any target
@@ -24,6 +25,7 @@ local function menu()
     if menu_elements.tree_tab:push("Zenith") then
         menu_elements.main_boolean:render("Enable", "Ultimate - 450% cleave, recast 400% + Knockdown (CD: 25s)")
         if menu_elements.main_boolean:get() then
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
             menu_elements.melee_range:render("Melee Range", "Radius to check for enemies before casting", 1)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies in melee range to cast")
@@ -38,19 +40,21 @@ local function menu()
 end
 
 local function logics()
+    local debug_enabled = menu_elements.debug_mode:get()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[ZENITH DEBUG] Spell not allowed") end
+        return false, 0
     end
 
     -- Zenith is a melee AoE cleave - check for enemies in melee range
     local player = get_local_player()
-    if not player then return false end
+    if not player then return false, 0 end
     
     local player_pos = player:get_position()
-    if not player_pos then return false end
+    if not player_pos then return false, 0 end
     
     -- Zenith has configurable melee/short range cleave
     local melee_range = menu_elements.melee_range:get()
@@ -89,22 +93,30 @@ local function logics()
 
     -- Check enemy type filter
     if enemy_type_filter > 0 and not has_priority_target then
-        return false
+        if debug_enabled then console.print("[ZENITH DEBUG] No priority target found") end
+        return false, 0
     end
 
     if near < min_enemies then
-        return false
+        if debug_enabled then console.print("[ZENITH DEBUG] Not enough enemies: " .. near .. " < " .. min_enemies) end
+        return false, 0
+    end
+
+    local cooldown = menu_elements.min_cooldown:get()
+    if cooldown < my_utility.spell_delays.regular_cast then
+        cooldown = my_utility.spell_delays.regular_cast
     end
 
     -- Zenith is self-cast melee AoE cleave
     if cast_spell.self(spell_id, 0.0) then
         local current_time = get_time_since_inject()
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
-        console.print("Cast Zenith - Enemies: " .. near)
-        return true
+        next_time_allowed_cast = current_time + cooldown
+        if debug_enabled then console.print("[ZENITH DEBUG] Cast successful - Enemies: " .. near) end
+        return true, cooldown
     end
 
-    return false
+    if debug_enabled then console.print("[ZENITH DEBUG] Cast failed") end
+    return false, 0
 end
 
 return {

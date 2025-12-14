@@ -269,6 +269,10 @@ local function get_health_pct()
 end
 
 local function enemy_count_in_radius(radius, origin)
+    -- Default to player position if no origin provided
+    origin = origin or (get_player_position and get_player_position())
+    if not origin then return 0 end
+    
     local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
     local count = 0
     local radius_sqr = radius * radius
@@ -285,7 +289,7 @@ local function enemy_count_in_radius(radius, origin)
             
             if not is_dead and not is_immune then
                 local pos = e:get_position()
-                if pos and origin and pos:squared_dist_to_ignore_z(origin) <= radius_sqr then
+                if pos and pos:squared_dist_to_ignore_z(origin) <= radius_sqr then
                     count = count + 1
                 end
             end

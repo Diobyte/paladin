@@ -250,6 +250,12 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
             
             local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
             
+            -- CRITICAL FIX: Skip targets beyond max_range entirely
+            -- This prevents selecting off-screen/distant targets
+            if dist_sqr > max_range_sqr then
+                goto continue_enemy
+            end
+            
             -- Check visibility (no wall collision)
             local is_visible = true
             if target_selector and target_selector.is_wall_collision then
@@ -268,7 +274,7 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
             -- Distance penalty (slight)
             score = score - (dist_sqr * 0.01)
             
-            -- Track closest targets
+            -- Track closest targets (now guaranteed within max_range)
             if dist_sqr < closest_dist then
                 closest_dist = dist_sqr
                 closest_unit = e
@@ -282,11 +288,10 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
             if dist_sqr <= melee_range_sqr then
                 table.insert(melee_candidates, {unit = e, score = score, visible = is_visible})
             end
-            if dist_sqr <= max_range_sqr then
-                table.insert(ranged_candidates, {unit = e, score = score, visible = is_visible})
-            end
+            -- All enemies are already within max_range, so add to ranged
+            table.insert(ranged_candidates, {unit = e, score = score, visible = is_visible})
             
-            -- Cursor-based candidates
+            -- Cursor-based candidates (still within max_range)
             if cursor_pos then
                 local cursor_dist_sqr = pos:squared_dist_to_ignore_z(cursor_pos)
                 if cursor_dist_sqr <= cursor_range_sqr then
@@ -497,8 +502,14 @@ end)
 local cast_end_time = 0.0
 local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
 local next_time_allowed_move = 0.0  -- Movement throttle to prevent oscillation
-local move_delay = 0.35  -- Time between movement commands (Druid pattern)
+local move_delay = 0.50  -- Time between movement commands (increased for stability)
 local current_move_target = nil  -- Track which target we're moving toward
+
+-- TARGET STICKINESS: Prevent oscillation by sticking to a target for a minimum time
+local sticky_target = nil
+local sticky_target_time = 0.0
+local sticky_duration = 0.75  -- Stay on same target for at least 0.75s
+local last_cast_target = nil  -- Track target we last successfully cast at
 
 -- Internal cooldowns (minimum time between casts of same spell)
 -- These control how often each spell can be CHECKED for casting
@@ -716,6 +727,20 @@ safe_on_update(function()
                 spell_target = default_target
             end
             
+            -- TARGET STICKINESS: If we have a sticky target, prefer it if valid
+            if sticky_target and (current_time - sticky_target_time) < sticky_duration then
+                -- Check if sticky target is still valid
+                if not sticky_target:is_dead() and not sticky_target:is_immune() and not sticky_target:is_untargetable() then
+                    -- Use sticky target for targeted spells
+                    if spell.menu_elements and spell.menu_elements.targeting_mode then
+                        spell_target = sticky_target
+                    end
+                else
+                    -- Sticky target became invalid, clear it
+                    sticky_target = nil
+                end
+            end
+            
             -- Use the centralized use_ability function (Druid pattern)
             local cast_successful = use_ability(spell_name, spell, spell_target, my_utility.spell_delays.regular_cast)
 
@@ -726,6 +751,13 @@ safe_on_update(function()
                 
                 -- Update internal cooldown tracking for this spell
                 spell_last_cast_times[spell_name] = current_time
+                
+                -- Update sticky target on successful cast
+                if spell_target then
+                    sticky_target = spell_target
+                    sticky_target_time = current_time
+                    last_cast_target = spell_target
+                end
                 
                 -- Clear move target since we just cast
                 current_move_target = nil
@@ -740,23 +772,39 @@ safe_on_update(function()
         end
     end
     
-    -- MOVEMENT HANDLING (Druid Pattern):
-    -- Only move toward closest target if no spell was cast this frame
-    -- This prevents oscillation - we only move once per move_delay
-    if default_target and current_time >= next_time_allowed_move then
-        local target_pos = default_target:get_position()
-        if target_pos then
-            -- Check if we're not in melee range of any target
-            local melee_range = my_utility.get_melee_range()
-            if not my_utility.is_in_range(default_target, melee_range) then
-                pathfinder.request_move(target_pos)
-                next_time_allowed_move = current_time + move_delay
-                current_move_target = default_target
+    -- MOVEMENT HANDLING (Improved - Prevent Oscillation):
+    -- Only move toward sticky_target or closest target if no spell was cast this frame
+    -- Use increased move_delay and target stickiness to prevent walking back and forth
+    local move_target = sticky_target or default_target
+    
+    if move_target and current_time >= next_time_allowed_move then
+        -- Validate move target is still valid
+        if move_target:is_dead() or move_target:is_immune() or move_target:is_untargetable() then
+            move_target = default_target  -- Fall back to closest
+            sticky_target = nil  -- Clear invalid sticky target
+        end
+        
+        if move_target then
+            local target_pos = move_target:get_position()
+            if target_pos then
+                -- Check if we're not in melee range of this target
+                local melee_range = my_utility.get_melee_range()
+                if not my_utility.is_in_range(move_target, melee_range) then
+                    pathfinder.request_move(target_pos)
+                    next_time_allowed_move = current_time + move_delay
+                    current_move_target = move_target
+                    
+                    -- Set this as sticky target so spells also target it
+                    if not sticky_target then
+                        sticky_target = move_target
+                        sticky_target_time = current_time
+                    end
+                end
             end
         end
     end
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.5 (Druid Targeting Pattern - Dec 2025)")
+    console.print("Paladin_Rotation | Version 1.7 (Target Stickiness + Movement Fix - Dec 2025)")
 end
