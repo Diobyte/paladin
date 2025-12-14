@@ -1,43 +1,10 @@
-if package and package.loaded then
-    package.loaded["menu"] = nil
-    package.loaded["spell_priority"] = nil
-    package.loaded["my_utility/my_utility"] = nil
-    package.loaded["my_utility/spell_data"] = nil
-    package.loaded["my_utility/my_target_selector"] = nil
-    package.loaded["spells/advance"] = nil
-    package.loaded["spells/arbiter_of_justice"] = nil
-    package.loaded["spells/blessed_hammer"] = nil
-    package.loaded["spells/blessed_shield"] = nil
-    package.loaded["spells/brandish"] = nil
-    package.loaded["spells/clash"] = nil
-    package.loaded["spells/condemn"] = nil
-    package.loaded["spells/consecration"] = nil
-    package.loaded["spells/defiance_aura"] = nil
-    package.loaded["spells/divine_lance"] = nil
-    package.loaded["spells/falling_star"] = nil
-    package.loaded["spells/fanaticism_aura"] = nil
-    package.loaded["spells/heavens_fury"] = nil
-    package.loaded["spells/holy_bolt"] = nil
-    package.loaded["spells/holy_light_aura"] = nil
-    package.loaded["spells/rally"] = nil
-    package.loaded["spells/shield_charge"] = nil
-    package.loaded["spells/spear_of_the_heavens"] = nil
-    package.loaded["spells/zeal"] = nil
-    package.loaded["spells/zenith"] = nil
-    package.loaded["spells/aegis"] = nil
-    package.loaded["spells/fortress"] = nil
-    package.loaded["spells/judgement"] = nil
-    package.loaded["spells/purify"] = nil
-end
-
 local local_player = get_local_player();
 if local_player == nil then
     return
 end
 
 local character_id = local_player:get_character_class_id();
-console.print("Character Class ID: " .. character_id);
-local is_paladin = character_id == 7 or character_id == 8 or character_id == 9;  -- Paladin is class 7, 8, or 9 (added in Season 11)
+local is_paladin = character_id == 7 or character_id == 8 or character_id == 9;
 if not is_paladin then
     return
 end;
@@ -50,27 +17,72 @@ local my_target_selector = require("my_utility/my_target_selector");
 local my_utility = require("my_utility/my_utility");
 local spell_data = require("my_utility/spell_data");
 local spell_priority = require("spell_priority");
-local menu = require("menu")
 
-local function safe_on_render_menu(cb)
-    if type(_G.safe_on_render_menu) == "function" then
-        return _G.safe_on_render_menu(cb)
-    end
-    if type(_G.on_render_menu) == "function" then
-        return _G.on_render_menu(cb)
-    end
-    return false
-end
+local menu_elements =
+{
+    main_boolean                   = checkbox:new(true, get_hash(my_utility.plugin_label .. "main_boolean")),
+    -- first parameter is the default state, second one the menu element's ID. The ID must be unique,
+    -- not only from within the plugin but also it needs to be unique between demo menu elements and
+    -- other scripts menu elements. This is why we concatenate the plugin name ("LUA_EXAMPLE_NECROMANCER")
+    -- with the menu element name itself.
 
-local function safe_on_update(cb)
-    if type(_G.safe_on_update) == "function" then
-        return _G.safe_on_update(cb)
-    end
-    if type(_G.on_update) == "function" then
-        return _G.on_update(cb)
-    end
-    return false
-end
+    main_tree                      = tree_node:new(0),
+
+    -- trees are the menu tabs. The parameter that we pass is the depth of the node. (0 for main menu (bright red rectangle),
+    -- 1 for sub-menu of depth 1 (circular red rectangle with white background) and so on)
+    settings_tree                  = tree_node:new(1),
+    enemy_count_threshold          = slider_int:new(1, 10, 1,
+        get_hash(my_utility.plugin_label .. "enemy_count_threshold")),
+    max_targeting_range            = slider_int:new(1, 30, 12, get_hash(my_utility.plugin_label .. "max_targeting_range")),
+    cursor_targeting_radius        = slider_float:new(0.1, 6, 3,
+        get_hash(my_utility.plugin_label .. "cursor_targeting_radius")),
+    cursor_targeting_angle         = slider_int:new(20, 50, 30,
+        get_hash(my_utility.plugin_label .. "cursor_targeting_angle")),
+    best_target_evaluation_radius  = slider_float:new(0.1, 6, 3,
+        get_hash(my_utility.plugin_label .. "best_target_evaluation_radius")),
+
+    enable_debug                   = checkbox:new(false, get_hash(my_utility.plugin_label .. "enable_debug")),
+    debug_tree                     = tree_node:new(2),
+    draw_targets                   = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_targets")),
+    draw_max_range                 = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_max_range")),
+    draw_melee_range               = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_melee_range")),
+    draw_enemy_circles             = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_enemy_circles")),
+    draw_cursor_target             = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_cursor_target")),
+    targeting_refresh_interval     = slider_float:new(0.1, 1, 0.2,
+        get_hash(my_utility.plugin_label .. "targeting_refresh_interval")),
+
+    custom_enemy_weights_tree      = tree_node:new(2),
+    custom_enemy_weights           = checkbox:new(false, get_hash(my_utility.plugin_label .. "custom_enemy_weights")),
+    enemy_weight_normal            = slider_int:new(1, 10, 2,
+        get_hash(my_utility.plugin_label .. "enemy_weight_normal")),
+    enemy_weight_elite             = slider_int:new(1, 50, 10,
+        get_hash(my_utility.plugin_label .. "enemy_weight_elite")),
+    enemy_weight_champion          = slider_int:new(1, 50, 15,
+        get_hash(my_utility.plugin_label .. "enemy_weight_champion")),
+    enemy_weight_boss              = slider_int:new(1, 100, 50,
+        get_hash(my_utility.plugin_label .. "enemy_weight_boss")),
+    enemy_weight_damage_resistance = slider_int:new(1, 50, 25,
+        get_hash(my_utility.plugin_label .. "enemy_weight_damage_resistance")),
+
+    spells_tree                    = tree_node:new(1),
+    disabled_spells_tree           = tree_node:new(1),
+}
+
+local draw_targets_description =
+    "\n     Targets in sight:\n" ..
+    "     Ranged Target - RED circle with line     \n" ..
+    "     Melee Target - GREEN circle with line     \n" ..
+    "     Closest Target - CYAN circle with line     \n\n" ..
+    "     Targets out of sight (only if they are not the same as targets in sight):\n" ..
+    "     Ranged Target - faded RED circle     \n" ..
+    "     Melee Target - faded GREEN circle     \n" ..
+    "     Closest Target - faded CYAN circle     \n\n" ..
+    "     Best Target Evaluation Radius:\n" ..
+    "     faded WHITE circle       \n\n"
+
+local cursor_target_description =
+    "\n     Best Cursor Target - ORANGE pentagon     \n" ..
+    "     Closest Cursor Target - GREEN pentagon     \n\n"
 
 local spells =
 {
@@ -94,11 +106,112 @@ local spells =
     spear_of_the_heavens = require("spells/spear_of_the_heavens"),
     zeal = require("spells/zeal"),
     zenith = require("spells/zenith"),
-    aegis = require("spells/aegis"),
-    fortress = require("spells/fortress"),
-    judgement = require("spells/judgement"),
-    purify = require("spells/purify"),
 }
+
+on_render_menu(function()
+    if not menu_elements.main_tree:push("Paladin [Dirty] v1.5.6") then
+        return;
+    end;
+
+    menu_elements.main_boolean:render("Enable Plugin", "");
+
+    if not menu_elements.main_boolean:get() then
+        -- plugin not enabled, stop rendering menu elements
+        menu_elements.main_tree:pop();
+        return;
+    end;
+
+    if menu_elements.settings_tree:push("Settings") then
+        menu_elements.enemy_count_threshold:render("Minimum Enemy Count",
+            "       Minimum number of enemies in Enemy Evaluation Radius to consider them for targeting")
+        menu_elements.targeting_refresh_interval:render("Targeting Refresh Interval",
+            "       Time between target checks in seconds       ", 1)
+        menu_elements.max_targeting_range:render("Max Targeting Range",
+            "       Maximum range for targeting       ")
+        menu_elements.cursor_targeting_radius:render("Cursor Targeting Radius",
+            "       Area size for selecting target around the cursor       ", 1)
+        menu_elements.cursor_targeting_angle:render("Cursor Targeting Angle",
+            "       Maximum angle between cursor and target to cast targetted spells       ")
+        menu_elements.best_target_evaluation_radius:render("Enemy Evaluation Radius",
+            "       Area size around an enemy to evaluate if it's the best target       \n" ..
+            "       If you use huge aoe spells, you should increase this value       \n" ..
+            "       Size is displayed with debug/display targets with faded white circles       ", 1)
+
+        menu_elements.custom_enemy_weights:render("Custom Enemy Weights",
+            "Enable custom enemy weights for determining best targets within Enemy Evaluation Radius")
+        if menu_elements.custom_enemy_weights:get() then
+            if menu_elements.custom_enemy_weights_tree:push("Custom Enemy Weights") then
+                menu_elements.enemy_weight_normal:render("Normal Enemy Weight",
+                    "Weighing score for normal enemies - default is 2")
+                menu_elements.enemy_weight_elite:render("Elite Enemy Weight",
+                    "Weighing score for elite enemies - default is 10")
+                menu_elements.enemy_weight_champion:render("Champion Enemy Weight",
+                    "Weighing score for champion enemies - default is 15")
+                menu_elements.enemy_weight_boss:render("Boss Enemy Weight",
+                    "Weighing score for boss enemies - default is 50")
+                menu_elements.enemy_weight_damage_resistance:render("Damage Resistance Aura Enemy Weight",
+                    "Weighing score for enemies with damage resistance aura - default is 25")
+                menu_elements.custom_enemy_weights_tree:pop()
+            end
+        end
+
+        menu_elements.enable_debug:render("Enable Debug", "")
+        if menu_elements.enable_debug:get() then
+            if menu_elements.debug_tree:push("Debug") then
+                menu_elements.draw_targets:render("Display Targets", draw_targets_description)
+                menu_elements.draw_max_range:render("Display Max Range",
+                    "Draw max range circle")
+                menu_elements.draw_melee_range:render("Display Melee Range",
+                    "Draw melee range circle")
+                menu_elements.draw_enemy_circles:render("Display Enemy Circles",
+                    "Draw enemy circles")
+                menu_elements.draw_cursor_target:render("Display Cursor Target", cursor_target_description)
+                menu_elements.debug_tree:pop()
+            end
+        end
+
+        menu_elements.settings_tree:pop()
+    end
+
+    local equipped_spells = get_equipped_spell_ids()
+
+    -- Create a lookup table for equipped spells
+    local equipped_lookup = {}
+    for _, spell_id in ipairs(equipped_spells) do
+        -- Check each spell in spell_data to find matching spell_id
+        for spell_name, data in pairs(spell_data) do
+            if data.spell_id == spell_id then
+                equipped_lookup[spell_name] = true
+                break
+            end
+        end
+    end
+
+    if menu_elements.spells_tree:push("Equipped Spells") then
+        -- Display spells in priority order, but only if they're equipped
+        for _, spell_name in ipairs(spell_priority) do
+            if equipped_lookup[spell_name] then
+                local spell = spells[spell_name]
+                if spell then
+                    spell.menu()
+                end
+            end
+        end
+        menu_elements.spells_tree:pop()
+    end
+
+    if menu_elements.disabled_spells_tree:push("Inactive Spells") then
+        for _, spell_name in ipairs(spell_priority) do
+            local spell = spells[spell_name]
+            if spell and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
+                spell.menu()
+            end
+        end
+        menu_elements.disabled_spells_tree:pop()
+    end
+
+    menu_elements.main_tree:pop();
+end)
 
 -- Targets
 local best_ranged_target = nil
@@ -118,7 +231,7 @@ local melee_max_score_visible = 0
 local cursor_max_score = 0
 
 -- Targetting settings
-local max_targeting_range = menu.menu_elements.max_targeting_range:get()
+local max_targeting_range = menu_elements.max_targeting_range:get()
 local collision_table = { true, 1 } -- collision width
 local floor_table = { true, 5.0 }   -- floor height
 local angle_table = { false, 90.0 } -- max angle
@@ -126,7 +239,7 @@ local angle_table = { false, 90.0 } -- max angle
 -- Cache for heavy function results
 local next_target_update_time = 0.0 -- Time of next target evaluation
 local next_cast_time = 0.0          -- Time of next possible cast
-local targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
+local targeting_refresh_interval = menu_elements.targeting_refresh_interval:get()
 
 -- Default enemy weights for different enemy types
 local normal_monster_value = 2
@@ -136,113 +249,6 @@ local boss_value = 50
 local damage_resistance_value = 25
 
 local target_selector_data_all = nil
-local target_selector_data_visible = nil
-
-safe_on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("Paladin [Dirty] v1.5.6") then
-        return;
-    end;
-
-    menu.menu_elements.main_boolean:render("Enable Plugin", "");
-
-    if not menu.menu_elements.main_boolean:get() then
-        -- plugin not enabled, stop rendering menu elements
-        menu.menu_elements.main_tree:pop();
-        return;
-    end;
-
-    if menu.menu_elements.settings_tree:push("Settings") then
-        menu.menu_elements.enemy_count_threshold:render("Minimum Enemy Count",
-            "       Minimum number of enemies in Enemy Evaluation Radius to consider them for targeting")
-        menu.menu_elements.targeting_refresh_interval:render("Targeting Refresh Interval",
-            "       Time between target checks in seconds       ", 1)
-        menu.menu_elements.max_targeting_range:render("Max Targeting Range",
-            "       Maximum range for targeting       ")
-        menu.menu_elements.cursor_targeting_radius:render("Cursor Targeting Radius",
-            "       Area size for selecting target around the cursor       ", 1)
-        menu.menu_elements.cursor_targeting_angle:render("Cursor Targeting Angle",
-            "       Maximum angle between cursor and target to cast targetted spells       ")
-        menu.menu_elements.best_target_evaluation_radius:render("Enemy Evaluation Radius",
-            "       Area size around an enemy to evaluate if it's the best target       \n" ..
-            "       If you use huge aoe spells, you should increase this value       \n" ..
-            "       Size is displayed with debug/display targets with faded white circles       ", 1)
-
-        menu.menu_elements.custom_enemy_weights:render("Custom Enemy Weights",
-            "Enable custom enemy weights for determining best targets within Enemy Evaluation Radius")
-        if menu.menu_elements.custom_enemy_weights:get() then
-            if menu.menu_elements.custom_enemy_weights_tree:push("Custom Enemy Weights") then
-                menu.menu_elements.enemy_weight_normal:render("Normal Enemy Weight",
-                    "Weighing score for normal enemies - default is 2")
-                menu.menu_elements.enemy_weight_elite:render("Elite Enemy Weight",
-                    "Weighing score for elite enemies - default is 10")
-                menu.menu_elements.enemy_weight_champion:render("Champion Enemy Weight",
-                    "Weighing score for champion enemies - default is 15")
-                menu.menu_elements.enemy_weight_boss:render("Boss Enemy Weight",
-                    "Weighing score for boss enemies - default is 50")
-                menu.menu_elements.enemy_weight_damage_resistance:render("Damage Resistance Aura Enemy Weight",
-                    "Weighing score for enemies with damage resistance aura - default is 25")
-                menu.menu_elements.custom_enemy_weights_tree:pop()
-            end
-        end
-
-        menu.menu_elements.enable_debug:render("Enable Debug", "")
-        if menu.menu_elements.enable_debug:get() then
-            if menu.menu_elements.debug_tree:push("Debug") then
-                menu.menu_elements.draw_targets:render("Display Targets", menu.draw_targets_description)
-                menu.menu_elements.draw_max_range:render("Display Max Range",
-                    "Draw max range circle")
-                menu.menu_elements.draw_melee_range:render("Display Melee Range",
-                    "Draw melee range circle")
-                menu.menu_elements.draw_enemy_circles:render("Display Enemy Circles",
-                    "Draw enemy circles")
-                menu.menu_elements.draw_cursor_target:render("Display Cursor Target", menu.cursor_target_description)
-                menu.menu_elements.debug_tree:pop()
-            end
-        end
-
-        menu.menu_elements.settings_tree:pop()
-    end
-
-    local equipped_spells = get_equipped_spell_ids()
-    table.insert(equipped_spells, spell_data.evade.spell_id) -- add evade to the list
-
-    -- Create a lookup table for equipped spells
-    local equipped_lookup = {}
-    for _, spell_id in ipairs(equipped_spells) do
-        -- Check each spell in spell_data to find matching spell_id
-        for spell_name, data in pairs(spell_data) do
-            if data.spell_id == spell_id then
-                equipped_lookup[spell_name] = true
-                break
-            end
-        end
-    end
-
-    if menu.menu_elements.spells_tree:push("Equipped Spells") then
-        -- Display spells in priority order, but only if they're equipped
-        for _, spell_name in ipairs(spell_priority) do
-            if equipped_lookup[spell_name] then
-                local spell = spells[spell_name]
-                if spell then
-                    spell.menu()
-                end
-            end
-        end
-        menu.menu_elements.spells_tree:pop()
-    end
-
-    if menu.menu_elements.disabled_spells_tree:push("Inactive Spells") then
-        for _, spell_name in ipairs(spell_priority) do
-            local spell = spells[spell_name]
-            if spell and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
-                spell.menu()
-            end
-        end
-        menu.menu_elements.disabled_spells_tree:pop()
-    end
-
-    menu.menu_elements.main_tree:pop();
-end)
 
 local function evaluate_targets(target_list, melee_range)
     local best_ranged_target = nil
@@ -258,11 +264,11 @@ local function evaluate_targets(target_list, melee_range)
     local melee_range_sqr = melee_range * melee_range
     local player_position = get_player_position()
     local cursor_position = get_cursor_position()
-    local cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get()
+    local cursor_targeting_radius = menu_elements.cursor_targeting_radius:get()
     local cursor_targeting_radius_sqr = cursor_targeting_radius * cursor_targeting_radius
-    local best_target_evaluation_radius = menu.menu_elements.best_target_evaluation_radius:get()
-    local cursor_targeting_angle = menu.menu_elements.cursor_targeting_angle:get()
-    local enemy_count_threshold = menu.menu_elements.enemy_count_threshold:get()
+    local best_target_evaluation_radius = menu_elements.best_target_evaluation_radius:get()
+    local cursor_targeting_angle = menu_elements.cursor_targeting_angle:get()
+    local enemy_count_threshold = menu_elements.enemy_count_threshold:get()
     local closest_cursor_distance_sqr = math.huge
 
     for _, unit in ipairs(target_list) do
@@ -352,105 +358,6 @@ local function evaluate_targets(target_list, melee_range)
         melee_max_score, cursor_max_score, closest_cursor_target_angle
 end
 
-safe_on_update(function()
-    local current_time = get_time_since_inject()
-    local local_player = get_local_player()
-    if not local_player or menu.menu_elements.main_boolean:get() == false or current_time < next_cast_time then
-        return
-    end
-
-    if not my_utility.is_action_allowed() then
-        return;
-    end
-
-    -- Out of combat evade
-    if spells.evade and spells.evade.menu_elements.use_out_of_combat:get() then
-        spells.evade.out_of_combat()
-    end
-
-    targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
-    -- Only update targets if targeting_refresh_interval has expired
-    if current_time >= next_target_update_time then
-        local player_position = get_player_position()
-        max_targeting_range = menu.menu_elements.max_targeting_range:get()
-
-        local entity_list_visible, entity_list = my_target_selector.get_target_list(
-            player_position,
-            max_targeting_range,
-            collision_table,
-            floor_table,
-            angle_table)
-
-        target_selector_data_all = my_target_selector.get_target_selector_data(
-            player_position,
-            entity_list)
-
-        target_selector_data_visible = my_target_selector.get_target_selector_data(
-            player_position,
-            entity_list_visible)
-
-        if not target_selector_data_all or not target_selector_data_all.is_valid then
-            return
-        end
-
-        -- Reset targets
-        best_ranged_target = nil
-        best_melee_target = nil
-        closest_target = nil
-        best_ranged_target_visible = nil
-        best_melee_target_visible = nil
-        closest_target_visible = nil
-        best_cursor_target = nil
-        closest_cursor_target = nil
-        closest_cursor_target_angle = 0
-        local melee_range = my_utility.get_melee_range()
-
-        -- Update enemy weights, use custom weights if enabled
-        if menu.menu_elements.custom_enemy_weights:get() then
-            normal_monster_value = menu.menu_elements.enemy_weight_normal:get()
-            elite_value = menu.menu_elements.enemy_weight_elite:get()
-            champion_value = menu.menu_elements.enemy_weight_champion:get()
-            boss_value = menu.menu_elements.enemy_weight_boss:get()
-            damage_resistance_value = menu.menu_elements.enemy_weight_damage_resistance:get()
-        else
-            normal_monster_value = 2
-            elite_value = 10
-            champion_value = 15
-            boss_value = 50
-            damage_resistance_value = 25
-        end
-
-        -- Check all targets within max range
-        if target_selector_data_all and target_selector_data_all.is_valid then
-            best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score, melee_max_score, cursor_max_score, closest_cursor_target_angle = evaluate_targets(
-                target_selector_data_all.list,
-                melee_range)
-            closest_target = target_selector_data_all.closest_unit
-        end
-
-        -- Check visible targets within max range
-        if target_selector_data_visible and target_selector_data_visible.is_valid then
-            best_ranged_target_visible, best_melee_target_visible, _, _, ranged_max_score_visible, melee_max_score_visible, _ = evaluate_targets(
-                target_selector_data_visible.list,
-                melee_range)
-            closest_target_visible = target_selector_data_visible.closest_unit
-        end
-
-        -- Update next target update time
-        next_target_update_time = current_time + targeting_refresh_interval
-    end
-
-    -- Ability usage - uses spell_priority to determine the order of spells
-    for _, spell_name in ipairs(spell_priority) do
-        local spell = spells[spell_name]
-        if spell then
-            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
-                return
-            end
-        end
-    end
-end)
-
 local function use_ability(spell_name, delay_after_cast)
     local spell = spells[spell_name]
     if not (spell and spell.menu_elements.main_boolean:get()) then
@@ -481,7 +388,103 @@ local function use_ability(spell_name, delay_after_cast)
     return false
 end
 
+-- on_update callback
+on_update(function()
+    local current_time = get_time_since_inject()
+    local local_player = get_local_player()
+    if not local_player or menu_elements.main_boolean:get() == false or current_time < next_cast_time then
+        return
+    end
 
+    if not my_utility.is_action_allowed() then
+        return;
+    end
+
+    targeting_refresh_interval = menu_elements.targeting_refresh_interval:get()
+    -- Only update targets if targeting_refresh_interval has expired
+    if current_time >= next_target_update_time then
+        local player_position = get_player_position()
+        max_targeting_range = menu_elements.max_targeting_range:get()
+
+        local entity_list_visible, entity_list = my_target_selector.get_target_list(
+            player_position,
+            max_targeting_range,
+            collision_table,
+            floor_table,
+            angle_table)
+
+        target_selector_data_all = my_target_selector.get_target_selector_data(
+            player_position,
+            entity_list)
+
+        local target_selector_data_visible = my_target_selector.get_target_selector_data(
+            player_position,
+            entity_list_visible)
+
+        if not target_selector_data_all or not target_selector_data_all.is_valid then
+            return
+        end
+
+        -- Reset targets
+        best_ranged_target = nil
+        best_melee_target = nil
+        closest_target = nil
+        best_ranged_target_visible = nil
+        best_melee_target_visible = nil
+        closest_target_visible = nil
+        best_cursor_target = nil
+        closest_cursor_target = nil
+        closest_cursor_target_angle = 0
+        local melee_range = my_utility.get_melee_range()
+
+        -- Update enemy weights, use custom weights if enabled
+        if menu_elements.custom_enemy_weights:get() then
+            normal_monster_value = menu_elements.enemy_weight_normal:get()
+            elite_value = menu_elements.enemy_weight_elite:get()
+            champion_value = menu_elements.enemy_weight_champion:get()
+            boss_value = menu_elements.enemy_weight_boss:get()
+            damage_resistance_value = menu_elements.enemy_weight_damage_resistance:get()
+        else
+            normal_monster_value = 2
+            elite_value = 10
+            champion_value = 15
+            boss_value = 50
+            damage_resistance_value = 25
+        end
+
+        -- Check all targets within max range
+        if target_selector_data_all and target_selector_data_all.is_valid then
+            best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score,
+            melee_max_score, cursor_max_score, closest_cursor_target_angle = evaluate_targets(
+                target_selector_data_all.list,
+                melee_range)
+            closest_target = target_selector_data_all.closest_unit
+        end
+
+
+        -- Check visible targets within max range
+        if target_selector_data_visible and target_selector_data_visible.is_valid then
+            best_ranged_target_visible, best_melee_target_visible, _, _,
+            ranged_max_score_visible, melee_max_score_visible, _ = evaluate_targets(
+                target_selector_data_visible.list,
+                melee_range)
+            closest_target_visible = target_selector_data_visible.closest_unit
+        end
+
+        -- Update next target update time
+        next_target_update_time = current_time + targeting_refresh_interval
+    end
+
+    -- Ability usage - uses spell_priority to determine the order of spells
+    for _, spell_name in ipairs(spell_priority) do
+        local spell = spells[spell_name]
+        if spell then
+            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+                return
+            end
+        end
+    end
+end)
 
 -- Debug
 local font_size = 16
@@ -491,7 +494,7 @@ local visible_alpha = 180
 local alpha = 100
 local target_evaluation_radius_alpha = 50
 on_render(function()
-    if menu.menu_elements.main_boolean:get() == false or not menu.menu_elements.enable_debug:get() then
+    if menu_elements.main_boolean:get() == false or not menu_elements.enable_debug:get() then
         return;
     end;
 
@@ -507,19 +510,19 @@ on_render(function()
     end
 
     -- Draw max range
-    max_targeting_range = menu.menu_elements.max_targeting_range:get()
-    if menu.menu_elements.draw_max_range:get() then
+    max_targeting_range = menu_elements.max_targeting_range:get()
+    if menu_elements.draw_max_range:get() then
         graphics.circle_3d(player_position, max_targeting_range, color_white(85), 2.5, 144)
     end
 
     -- Draw melee range
-    if menu.menu_elements.draw_melee_range:get() then
+    if menu_elements.draw_melee_range:get() then
         local melee_range = my_utility.get_melee_range()
         graphics.circle_3d(player_position, melee_range, color_white(85), 2.5, 144)
     end
 
     -- Draw enemy circles
-    if menu.menu_elements.draw_enemy_circles:get() then
+    if menu_elements.draw_enemy_circles:get() then
         local enemies = actors_manager.get_enemy_npcs()
 
         for i, obj in ipairs(enemies) do
@@ -531,9 +534,9 @@ on_render(function()
         end;
     end
 
-    if menu.menu_elements.draw_cursor_target:get() then
+    if menu_elements.draw_cursor_target:get() then
         local cursor_position = get_cursor_position()
-        local cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get()
+        local cursor_targeting_radius = menu_elements.cursor_targeting_radius:get()
 
         -- Draw cursor radius
         graphics.circle_3d(cursor_position, cursor_targeting_radius, color_white(target_evaluation_radius_alpha), 1);
@@ -544,10 +547,10 @@ on_render(function()
         return
     end
 
-    local best_target_evaluation_radius = menu.menu_elements.best_target_evaluation_radius:get()
+    local best_target_evaluation_radius = menu_elements.best_target_evaluation_radius:get()
 
     -- Draw targets
-    if menu.menu_elements.draw_targets:get() then
+    if menu_elements.draw_targets:get() then
         -- Draw visible ranged target
         if best_ranged_target_visible and best_ranged_target_visible:is_enemy() then
             local best_ranged_target_visible_position = best_ranged_target_visible:get_position();
@@ -626,7 +629,7 @@ on_render(function()
         end
     end
 
-    if menu.menu_elements.draw_cursor_target:get() then
+    if menu_elements.draw_cursor_target:get() then
         -- Draw best cursor target
         if best_cursor_target and best_cursor_target:is_enemy() then
             local best_cursor_target_position = best_cursor_target:get_position();
