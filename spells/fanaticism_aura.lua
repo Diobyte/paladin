@@ -112,7 +112,7 @@ local function menu()
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for this spell")
 
             -- Display aura status
-            local now = get_time_since_inject()
+            local now = my_utility.safe_get_time()
             local time_since_cast = now - last_cast_time
             local time_remaining = math.max(0, AURA_DURATION - time_since_cast)
             

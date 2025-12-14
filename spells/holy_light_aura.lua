@@ -130,7 +130,7 @@ local function logics()
         return false, 0
     end
 
-    local now = get_time_since_inject()
+    local now = my_utility.safe_get_time()
     local time_since_cast = now - last_cast_time
     
     -- First, try to detect actual buff on player (more reliable)
@@ -181,6 +181,6 @@ return {
     menu_elements = menu_elements,
     is_aura_active = function() return is_aura_active end,
     get_remaining_duration = function() 
-        return math.max(0, AURA_DURATION - (get_time_since_inject() - last_cast_time)) 
+        return math.max(0, AURA_DURATION - (my_utility.safe_get_time() - last_cast_time)) 
     end,
 }
