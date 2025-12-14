@@ -95,67 +95,67 @@ local function get_target_selector_data(source, list)
         }
     end;
 
-    local closest_unit = {};
+    local closest_unit = nil;
     local closest_unit_distance = math.huge;
 
-    local lowest_current_health_unit = {};
+    local lowest_current_health_unit = nil;
     local lowest_current_health_unit_health = math.huge;
 
-    local highest_current_health_unit = {};
+    local highest_current_health_unit = nil;
     local highest_current_health_unit_health = 0.0;
 
-    local lowest_max_health_unit = {};
+    local lowest_max_health_unit = nil;
     local lowest_max_health_unit_health = math.huge;
 
-    local highest_max_health_unit = {};
+    local highest_max_health_unit = nil;
     local highest_max_health_unit_health = 0.0;
 
     local has_elite = false;
-    local closest_elite = {};
+    local closest_elite = nil;
     local closest_elite_distance = math.huge;
 
-    local lowest_current_health_elite = {};
+    local lowest_current_health_elite = nil;
     local lowest_current_health_elite_health = math.huge;
 
-    local highest_current_health_elite = {};
+    local highest_current_health_elite = nil;
     local highest_current_health_elite_health = 0.0;
 
-    local lowest_max_health_elite = {};
+    local lowest_max_health_elite = nil;
     local lowest_max_health_elite_health = math.huge;
 
-    local highest_max_health_elite = {};
+    local highest_max_health_elite = nil;
     local highest_max_health_elite_health = 0.0;
 
     local has_champion = false;
-    local closest_champion = {};
+    local closest_champion = nil;
     local closest_champion_distance = math.huge;
 
-    local lowest_current_health_champion = {};
+    local lowest_current_health_champion = nil;
     local lowest_current_health_champion_health = math.huge;
 
-    local highest_current_health_champion = {};
+    local highest_current_health_champion = nil;
     local highest_current_health_champion_health = 0.0;
 
-    local lowest_max_health_champion = {};
+    local lowest_max_health_champion = nil;
     local lowest_max_health_champion_health = math.huge;
 
-    local highest_max_health_champion = {};
+    local highest_max_health_champion = nil;
     local highest_max_health_champion_health = 0.0;
 
     local has_boss = false;
-    local closest_boss = {};
+    local closest_boss = nil;
     local closest_boss_distance = math.huge;
 
-    local lowest_current_health_boss = {};
+    local lowest_current_health_boss = nil;
     local lowest_current_health_boss_health = math.huge;
 
-    local highest_current_health_boss = {};
+    local highest_current_health_boss = nil;
     local highest_current_health_boss_health = 0.0;
 
-    local lowest_max_health_boss = {};
+    local lowest_max_health_boss = nil;
     local lowest_max_health_boss_health = math.huge;
 
-    local highest_max_health_boss = {};
+    local highest_max_health_boss = nil;
     local highest_max_health_boss_health = 0.0;
 
     local weighted_target = nil;
@@ -195,11 +195,11 @@ local function get_target_selector_data(source, list)
         
         -- Calculate weighted score for this unit (boss > champion > elite > normal)
         local unit_score = 0
-        if unit:is_boss() then
+        if safe_is_boss(unit) then
             unit_score = 5000
-        elseif unit:is_champion() then
+        elseif safe_is_champion(unit) then
             unit_score = 2500
-        elseif unit:is_elite() then
+        elseif safe_is_elite(unit) then
             unit_score = 1000
         else
             unit_score = 100
@@ -233,7 +233,7 @@ local function get_target_selector_data(source, list)
         end
 
         -- update elites data
-        local is_unit_elite = unit:is_elite();
+        local is_unit_elite = safe_is_elite(unit);
         if is_unit_elite then
             has_elite = true;
             if distance_sqr < closest_elite_distance then
@@ -263,7 +263,7 @@ local function get_target_selector_data(source, list)
         end
 
         -- update champions data
-        local is_unit_champion = unit:is_champion()
+        local is_unit_champion = safe_is_champion(unit)
         if is_unit_champion then
             has_champion = true
             if distance_sqr < closest_champion_distance then
@@ -293,7 +293,7 @@ local function get_target_selector_data(source, list)
         end
 
         -- update bosses data
-        local is_unit_boss = unit:is_boss();
+        local is_unit_boss = safe_is_boss(unit);
         if is_unit_boss then
             has_boss = true;
             if distance_sqr < closest_boss_distance then
@@ -448,9 +448,9 @@ end
 -- score(float)
 -- main_target(gameobject)
 -- victim_list(table game_object)
-local function get_most_hits_rectangle(source, lenght, width)
+local function get_most_hits_rectangle(source, length, width)
 
-    local data = target_selector.get_most_hits_target_rectangle_area_heavy(source, lenght, width);
+    local data = target_selector.get_most_hits_target_rectangle_area_heavy(source, length, width);
 
     local is_valid = false;
     local hits_amount = data.n_hits;
@@ -688,6 +688,7 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
         -- Find clusters of enemies and calculate cluster weights and target counts
         local clusters = {}
         local processed = {}
+        local comparison_radius_sqr = comparison_radius * comparison_radius  -- Pre-compute squared radius for performance
         
         for i, target in ipairs(weighted_targets) do
             if not processed[i] then
@@ -705,7 +706,7 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
                 -- Find all targets within comparison_radius of this target
                 for j, other_target in ipairs(weighted_targets) do
                     if i ~= j and not processed[j] then
-                        if target.position:dist_to(other_target.position) <= comparison_radius then
+                        if target.position:squared_dist_to_ignore_z(other_target.position) <= comparison_radius_sqr then
                             -- Add to cluster
                             table.insert(cluster.targets, other_target)
                             cluster.total_weight = cluster.total_weight + other_target.weight

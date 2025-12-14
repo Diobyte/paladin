@@ -357,7 +357,7 @@ local spell_classification = {
     condemn = "ranged_aoe",    -- Self-centered pull
     consecration = "ranged_aoe", -- Self-centered ground effect
     heavens_fury = "ranged_aoe", -- Self-centered AoE
-    zenith = "melee",          -- Melee cleave
+    zenith = "ranged_aoe",     -- Self-centered cleave (cast_type = "self")
 }
 
 -- Spell range configuration
