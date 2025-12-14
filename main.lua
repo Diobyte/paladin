@@ -640,41 +640,10 @@ safe_on_update(function()
         end
     end
     
-    -- Movement handling - ONLY move if we have a target but couldn't cast any spell
-    -- This runs AFTER all spells have been attempted
-    local is_auto_play = my_utility.is_auto_play_enabled()
-    local orb_mode = orbwalker.get_orb_mode()
-    local should_auto_move = (orb_mode == orb_mode.clear or orb_mode == orb_mode.pvp) or is_auto_play
-    
-    -- Only move if:
-    -- 1. We're in an active orbwalker mode OR auto_play
-    -- 2. We have a movement target
-    -- 3. Manual play is disabled (so we handle movement)
-    if should_auto_move and movement_target then
-        local manual_play = menu.menu_elements.manual_play:get()
-        if not manual_play then
-            local movement_target_position = movement_target:get_position()
-            if movement_target_position then
-                local melee_range = my_utility.get_melee_range()
-                local dist = player_position:dist_to(movement_target_position)
-                
-                -- Only move if not already in melee range
-                if dist > melee_range then
-                    -- Throttle movement commands to prevent jitter
-                    local move_throttle = 0.15  -- 150ms between move commands
-                    if not _G.paladin_last_move_time or (current_time - _G.paladin_last_move_time) >= move_throttle then
-                        _G.paladin_last_move_time = current_time
-                        
-                        -- Move toward target, stopping just inside melee range
-                        local move_pos = movement_target_position:get_extended(player_position, melee_range * 0.8)
-                        if pathfinder and pathfinder.request_move then
-                            pathfinder.request_move(move_pos)
-                        end
-                    end
-                end
-            end
-        end
-    end
+    -- NOTE: Movement is handled by individual spells when they are out of range
+    -- Main.lua should NOT control movement - this prevents conflicts with spell-specific movement
+    -- and matches the Druid script's design pattern where orbwalker handles base movement
+    -- and spells only move when they specifically need to close distance for casting
 end)
 
 if console and type(console.print) == "function" then

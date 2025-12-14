@@ -17,7 +17,7 @@ local spell_id = spell_data.clash.spell_id
 
 local next_time_allowed_cast = 0.0
 local next_time_allowed_move = 0.0
-local move_delay = 0.25  -- Delay between movement commands (like druid script)
+local move_delay = 0.5  -- Delay between movement commands (match druid script)
 
 local function menu()
     if menu_elements.tree_tab:push("Clash") then
@@ -90,7 +90,14 @@ local function logics(target)
     if player_pos and target_pos then
         local dist_sqr = player_pos:squared_dist_to_ignore_z(target_pos)
         if dist_sqr > (melee_range * melee_range) then
-            -- Out of range - let main.lua handle movement
+            -- Out of range - move toward target with throttling (Druid pattern)
+            local current_time = my_utility.safe_get_time()
+            if current_time >= next_time_allowed_move then
+                if pathfinder and pathfinder.request_move then
+                    pathfinder.request_move(target_pos)
+                end
+                next_time_allowed_move = current_time + move_delay
+            end
             return false, 0
         end
     end
