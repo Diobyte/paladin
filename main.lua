@@ -720,13 +720,12 @@ safe_on_update(function()
     -- Sync global flags from menu so gameplay reacts immediately to UI changes
     update_global_flags_from_menu()
 
-    -- Check orbwalker mode (matching Druid pattern) and normalize when idle
-    -- If orbwalker reports none/nil, set it to clear so rotation proceeds
-    local current_orb_mode = orbwalker.get_orb_mode()
-    if current_orb_mode == nil or current_orb_mode == orb_mode.none then
-        if orbwalker.set_orbwalker_mode then
-            pcall(function() orbwalker.set_orbwalker_mode(orb_mode.clear) end)
-            current_orb_mode = orb_mode.clear
+    -- Check orbwalker mode without forcing it (match reference repo behaviour)
+    local current_orb_mode = nil
+    if orbwalker and orbwalker.get_orb_mode then
+        local ok_mode, mode_val = pcall(function() return orbwalker.get_orb_mode() end)
+        if ok_mode then
+            current_orb_mode = mode_val
         end
     end
 
@@ -909,8 +908,16 @@ safe_on_update(function()
         equipped_lookup[spell_id] = true
     end
 
-    -- Loop through spells in priority order defined in spell_priority.lua
+    -- If we cannot read equipped spells (new class IDs, API quirks), auto-bypass equip check
     local bypass_equipped = menu.menu_elements.bypass_equipped_check:get()
+    if (next(equipped_lookup) == nil) and (not bypass_equipped) then
+        bypass_equipped = true
+        if debug_enabled then
+            dbg("Equipped spell list empty - auto-enabling bypass to allow casting")
+        end
+    end
+
+    -- Loop through spells in priority order defined in spell_priority.lua
     
     -- Track if any spell requested movement this frame
     local move_requested = false
