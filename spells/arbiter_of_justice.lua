@@ -40,84 +40,44 @@ local function menu()
 end
 
 local function logics(target)
+    if not target then return false end
+    
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false, 0 
-    end
+    if not is_logic_allowed then return false end
 
-    if not target then
-        return false, 0
-    end
-    
-    local is_target_enemy = false
-    local ok, res = pcall(function() return target:is_enemy() end)
-    is_target_enemy = ok and res or false
-    
-    if not is_target_enemy then
-        return false, 0
-    end
-
-    -- Filter out dead, immune, and untargetable targets per API guidelines
-    local is_dead = false
-    local is_immune = false
-    local is_untargetable = false
-    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
-    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
-    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
-    is_dead = ok_dead and res_dead or false
-    is_immune = ok_immune and res_immune or false
-    is_untargetable = ok_untarget and res_untarget or false
-
-    if is_dead or is_immune or is_untargetable then
-        return false, 0
-    end
+    -- Validate target (Druid pattern - simple checks)
+    if not target:is_enemy() then return false end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
 
     -- Max range check for leap
     local max_range = menu_elements.max_range:get()
     if not my_utility.is_in_range(target, max_range) then
-        return false, 0  -- Too far to leap
+        return false  -- Too far to leap
     end
 
     -- Enemy type filter check
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     if enemy_type_filter == 2 then
-        -- Boss only
-        local is_boss = false
-        local ok_boss, res_boss = pcall(function() return target:is_boss() end)
-        is_boss = ok_boss and res_boss or false
-        if not is_boss then
-            return false, 0
-        end
+        if not target:is_boss() then return false end
     elseif enemy_type_filter == 1 then
-        -- Elite/Champion/Boss
-        local is_priority = false
-        local ok_elite, res_elite = pcall(function() return target:is_elite() end)
-        local ok_champ, res_champ = pcall(function() return target:is_champion() end)
-        local ok_boss, res_boss = pcall(function() return target:is_boss() end)
-        is_priority = (ok_elite and res_elite) or (ok_champ and res_champ) or (ok_boss and res_boss)
-        if not is_priority then
-            return false, 0
+        if not (target:is_elite() or target:is_champion() or target:is_boss()) then
+            return false
         end
     end
 
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
-
     -- Try direct target cast first
-    if cast_spell and type(cast_spell.target) == "function" then
-        if cast_spell.target(target, spell_id, 0.0, false) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
+    if cast_spell.target(target, spell_id, 0.0, false) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Arbiter of Justice - Target: " .. target:get_skin_name())
+        return true
     end
 
     -- Fallback to position cast with prediction
-    if cast_spell and type(cast_spell.position) == "function" then
-        local pos = target:get_position()
-        
-        -- Use prediction for moving targets
+    local pos = target:get_position()
+    if pos then
         local prediction_time = menu_elements.prediction_time:get()
         if prediction and prediction.get_future_unit_position then
             local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
@@ -126,21 +86,15 @@ local function logics(target)
             end
         end
 
-        if pos and cast_spell.position(spell_id, pos, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
+        if cast_spell.position(spell_id, pos, 0.0) then
+            local current_time = get_time_since_inject()
+            next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+            console.print("Cast Arbiter of Justice (position) - Target: " .. target:get_skin_name())
+            return true
         end
     end
 
-    -- Last resort - self cast
-    if cast_spell and type(cast_spell.self) == "function" then
-        if cast_spell.self(spell_id, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
-    end
-
-    return false, 0
+    return false
 end
 
 return {

@@ -32,7 +32,7 @@ local function dbg(msg)
 end
 
 local function dbg_api_once_per_sec(msg)
-    local now = my_utility.safe_get_time()
+    local now = get_time_since_inject()
     if now - last_api_debug_time >= 1.0 then
         last_api_debug_time = now
         dbg(msg)
@@ -56,16 +56,16 @@ local function menu()
 end
 
 local function logics(target)
+    if not target then return false end
+    
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false, 0 
-    end
+    if not is_logic_allowed then return false end
 
-    if not target then
-        return false, 0
-    end
+    -- Validate target (Druid pattern - simple checks)
+    if not target:is_enemy() then return false end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
 
     -- JUDGEMENT BUILD MODE (Captain America): Always cast to apply Judgement
     -- GENERATOR MODE: Only cast when Faith is LOW
@@ -75,68 +75,30 @@ local function logics(target)
         if threshold > 0 then
             local resource_pct = my_utility.get_resource_pct()
             if resource_pct and (resource_pct * 100) >= threshold then
-                return false, 0  -- Faith is high enough, let spenders handle it
+                return false  -- Faith is high enough, let spenders handle it
             end
         end
     end
 
-    local is_target_enemy = false
-    if target then
-        local ok, res = pcall(function() return target:is_enemy() end)
-        is_target_enemy = ok and res or false
-    end
-
-    if not is_target_enemy then
-        return false, 0
-    end
-    
-    -- Filter out dead, immune, and untargetable targets per API guidelines
-    local is_dead = false
-    local is_immune = false
-    local is_untargetable = false
-    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
-    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
-    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
-    is_dead = ok_dead and res_dead or false
-    is_immune = ok_immune and res_immune or false
-    is_untargetable = ok_untarget and res_untarget or false
-    
-    if is_dead or is_immune or is_untargetable then
-        return false, 0
-    end
-
     local player = get_local_player()
-    local player_pos = player and player:get_position() or nil
-    if not player_pos then
-        return false, 0
-    end
+    if not player then return false end
     
     -- Range check for ranged projectile
     local cast_range = menu_elements.cast_range:get()
     if not my_utility.is_in_range(target, cast_range) then
-        return false, 0  -- Out of range
+        return false  -- Out of range
     end
-    
+
+    if cast_spell.target(target, spell_id, 0.0, false) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Holy Bolt - Target: " .. target:get_skin_name())
+        return true
+    end
+
+    -- Fallback: Try position-based cast with prediction
     local tpos = target:get_position()
-    if not tpos then
-        return false, 0
-    end
-
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
-
-    if cast_spell and type(cast_spell.target) == "function" then
-        if cast_spell.target(target, spell_id, 0.0, false) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
-        dbg("cast failed")
-    end
-
-    if cast_spell and type(cast_spell.position) == "function" then
-        local tpos = target:get_position()
-        
-        -- Use prediction for moving targets
+    if tpos then
         local prediction_time = menu_elements.prediction_time:get()
         if prediction and prediction.get_future_unit_position then
             local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
@@ -145,24 +107,15 @@ local function logics(target)
             end
         end
 
-        if tpos and cast_spell.position(spell_id, tpos, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
+        if cast_spell.position(spell_id, tpos, 0.0) then
+            local current_time = get_time_since_inject()
+            next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+            console.print("Cast Holy Bolt (position) - Target: " .. target:get_skin_name())
+            return true
         end
-        dbg("cast failed (position)")
     end
 
-    if cast_spell and type(cast_spell.self) == "function" then
-        if cast_spell.self(spell_id, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
-        dbg("cast failed (self)")
-    end
-
-    dbg_api_once_per_sec("no cast api (targeted/position/self)")
-
-    return false, 0
+    return false
 end
 
 return {

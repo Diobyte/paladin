@@ -44,41 +44,18 @@ local function menu()
 end
 
 local function logics(target)
+    if not target then return false end
+    
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false, 0 
-    end
+    if not is_logic_allowed then return false end
 
-    if not target then
-        return false, 0
-    end
-    
-    local is_target_enemy = false
-    local ok, res = pcall(function() return target:is_enemy() end)
-    is_target_enemy = ok and res or false
-    
-    if not is_target_enemy then
-        return false, 0
-    end
-    
-    -- Filter out dead, immune, and untargetable targets per API guidelines
-    local is_dead = false
-    local is_immune = false
-    local is_untargetable = false
-    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
-    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
-    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
-    is_dead = ok_dead and res_dead or false
-    is_immune = ok_immune and res_immune or false
-    is_untargetable = ok_untarget and res_untarget or false
-    
-    if is_dead or is_immune or is_untargetable then
-        return false, 0
-    end
+    -- Validate target (Druid pattern - simple checks)
+    if not target:is_enemy() then return false end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
 
-    -- Check minimum range (don't leap if already on top of target, unless min_range is 0)
+    -- Check range (min and max)
     local player = get_local_player()
     local player_pos = player and player:get_position() or nil
     local target_pos = target:get_position()
@@ -89,13 +66,13 @@ local function logics(target)
         -- Min range check
         local min_range = menu_elements.min_range:get()
         if min_range > 0 and dist < min_range then
-            return false, 0  -- Too close to leap (but 0 = always leap for Arbiter trigger)
+            return false  -- Too close to leap (but 0 = always leap for Arbiter trigger)
         end
         
         -- Max range check
         local max_range = menu_elements.max_range:get()
         if dist > max_range then
-            return false, 0  -- Too far to leap
+            return false  -- Too far to leap
         end
     end
 
@@ -103,28 +80,16 @@ local function logics(target)
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     if enemy_type_filter == 2 then
         -- Boss only
-        local is_boss = false
-        local ok_boss, res_boss = pcall(function() return target:is_boss() end)
-        is_boss = ok_boss and res_boss or false
-        if not is_boss then
-            return false, 0
-        end
+        if not target:is_boss() then return false end
     elseif enemy_type_filter == 1 then
         -- Elite/Champion/Boss
-        local is_priority = false
-        local ok_elite, res_elite = pcall(function() return target:is_elite() end)
-        local ok_champ, res_champ = pcall(function() return target:is_champion() end)
-        local ok_boss, res_boss = pcall(function() return target:is_boss() end)
-        is_priority = (ok_elite and res_elite) or (ok_champ and res_champ) or (ok_boss and res_boss)
-        if not is_priority then
-            return false, 0
+        if not (target:is_elite() or target:is_champion() or target:is_boss()) then
+            return false
         end
     end
 
     local pos = target:get_position()
-    if not pos then 
-        return false, 0 
-    end
+    if not pos then return false end
     
     -- Use prediction for AoE placement
     local prediction_time = menu_elements.prediction_time:get()
@@ -135,17 +100,14 @@ local function logics(target)
         end
     end
 
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
-
-    if cast_spell and type(cast_spell.position) == "function" then
-        if cast_spell.position(spell_id, pos, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
+    if cast_spell.position(spell_id, pos, 0.0) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Falling Star - Target: " .. target:get_skin_name())
+        return true
     end
 
-    return false, 0
+    return false
 end
 
 return {

@@ -34,104 +34,69 @@ local function menu()
 end
 
 local function logics(target)
+    if not target then return false end
+    
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false, 0 
-    end
+    if not is_logic_allowed then return false end
 
-    if not target then
-        return false, 0
-    end
-    
-    local is_target_enemy = false
-    local ok, res = pcall(function() return target:is_enemy() end)
-    is_target_enemy = ok and res or false
-    
-    if not is_target_enemy then
-        return false, 0
-    end
-    
-    -- Filter out dead, immune, and untargetable targets per API guidelines
-    local is_dead = false
-    local is_immune = false
-    local is_untargetable = false
-    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
-    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
-    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
-    is_dead = ok_dead and res_dead or false
-    is_immune = ok_immune and res_immune or false
-    is_untargetable = ok_untarget and res_untarget or false
-    
-    if is_dead or is_immune or is_untargetable then
-        return false, 0
-    end
+    -- Validate target (Druid pattern - simple checks)
+    if not target:is_enemy() then return false end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
 
     -- Resource check (Faith Cost: 25)
     local min_resource = menu_elements.min_resource:get()
     if min_resource > 0 then
         local resource_pct = my_utility.get_resource_pct()
         if resource_pct and (resource_pct * 100) < min_resource then
-            return false, 0
+            return false
         end
     end
 
-    local cast_pos = target:get_position()
-    if not cast_pos then 
-        return false, 0 
-    end
-    
     -- Range check for Divine Lance (melee impale skill)
-    local player = get_local_player()
-    local player_pos = player and player:get_position() or nil
-    if player_pos then
-        local cast_range = menu_elements.cast_range:get()
-        local dist_sqr = player_pos:squared_dist_to_ignore_z(cast_pos)
-        if dist_sqr > (cast_range * cast_range) then
-            -- Out of range - move toward target (like druid script)
-            local current_time = my_utility.safe_get_time()
-            if current_time >= next_time_allowed_move then
-                if pathfinder and pathfinder.force_move_raw then
-                    pathfinder.force_move_raw(cast_pos)
-                    next_time_allowed_move = current_time + move_delay
-                end
-            end
-            return false, 0
+    local cast_range = menu_elements.cast_range:get()
+    local in_range = my_utility.is_in_range(target, cast_range)
+    
+    if not in_range then
+        -- Out of range - move toward target with throttling (Druid pattern)
+        local current_time = get_time_since_inject()
+        if current_time >= next_time_allowed_move then
+            local target_pos = target:get_position()
+            pathfinder.force_move_raw(target_pos)
+            next_time_allowed_move = current_time + move_delay
         end
+        return false
     end
-
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
 
     -- Divine Lance is primarily a melee/short-range impale skill
-    -- "Impale enemies with a heavenly lance, stabbing 2 times for 90% damage each"
-    -- Try direct target cast first (preferred for melee impale)
-    if cast_spell and type(cast_spell.target) == "function" then
-        if cast_spell.target(target, spell_id, 0.0, false) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
+    if cast_spell.target(target, spell_id, 0.0, false) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Divine Lance - Target: " .. target:get_skin_name())
+        return true
     end
 
     -- Fallback to position cast with prediction (for Divine Javelin upgrade - ranged throw)
-    cast_pos = target:get_position()
-    local prediction_time = menu_elements.prediction_time:get()
-    if prediction and prediction.get_future_unit_position then
-        local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
-        if predicted_pos then
-            cast_pos = predicted_pos
+    local cast_pos = target:get_position()
+    if cast_pos then
+        local prediction_time = menu_elements.prediction_time:get()
+        if prediction and prediction.get_future_unit_position then
+            local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
+            if predicted_pos then
+                cast_pos = predicted_pos
+            end
         end
-    end
 
-    if cast_spell and type(cast_spell.position) == "function" then
         if cast_spell.position(spell_id, cast_pos, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
+            local current_time = get_time_since_inject()
+            next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+            console.print("Cast Divine Lance (position) - Target: " .. target:get_skin_name())
+            return true
         end
     end
 
-    return false, 0
+    return false
 end
 
 return {

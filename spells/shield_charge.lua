@@ -34,87 +34,47 @@ local function menu()
 end
 
 local function logics(target)
+    if not target then return false end
+    
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false, 0 
-    end
+    if not is_logic_allowed then return false end
 
-    if not target then
-        return false, 0
-    end
-    
-    local is_target_enemy = false
-    local ok, res = pcall(function() return target:is_enemy() end)
-    is_target_enemy = ok and res or false
-    
-    if not is_target_enemy then
-        return false, 0
-    end
-    
-    -- Filter out dead, immune, and untargetable targets per API guidelines
-    local is_dead = false
-    local is_immune = false
-    local is_untargetable = false
-    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
-    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
-    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
-    is_dead = ok_dead and res_dead or false
-    is_immune = ok_immune and res_immune or false
-    is_untargetable = ok_untarget and res_untarget or false
-    
-    if is_dead or is_immune or is_untargetable then
-        return false, 0
-    end
+    -- Validate target (Druid pattern - simple checks)
+    if not target:is_enemy() then return false end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
 
-    -- Enemy type filter check (like barb's charge)
+    -- Enemy type filter check
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
-    -- 0: All, 1: Elite+, 2: Boss
     if enemy_type_filter == 2 then
-        -- Boss only - check if target is boss (with pcall protection)
-        local ok_boss, is_boss = pcall(function() return target:is_boss() end)
-        if not (ok_boss and is_boss) then
-            return false, 0
-        end
+        if not target:is_boss() then return false end
     elseif enemy_type_filter == 1 then
-        -- Elite+ - check if target is elite, champion, or boss (with pcall protection)
-        local ok_elite, is_elite = pcall(function() return target:is_elite() end)
-        local ok_champ, is_champ = pcall(function() return target:is_champion() end)
-        local ok_boss, is_boss = pcall(function() return target:is_boss() end)
-        local is_priority = (ok_elite and is_elite) or (ok_champ and is_champ) or (ok_boss and is_boss)
-        if not is_priority then
-            return false, 0
+        if not (target:is_elite() or target:is_champion() or target:is_boss()) then
+            return false
         end
     end
 
     local player = get_local_player()
-    local player_pos = player and player:get_position() or nil
+    if not player then return false end
+    
+    local player_pos = player:get_position()
     local target_pos = target:get_position()
     
-    if not player_pos or not target_pos then
-        return false, 0
-    end
+    if not player_pos or not target_pos then return false end
     
     local dist = player_pos:dist_to(target_pos)
     local min_r = menu_elements.min_range:get()
     local max_r = menu_elements.max_range:get()
     
     -- Range check - must be between min and max range
-    if dist < min_r or dist > max_r then
-        return false, 0
-    end
+    if dist < min_r or dist > max_r then return false end
 
-    -- Check for wall collision (like barb)
+    -- Check for wall collision
     if target_selector and target_selector.is_wall_collision then
         local is_wall_collision = target_selector.is_wall_collision(player_pos, target, 1.20)
-        if is_wall_collision then
-            return false, 0
-        end
+        if is_wall_collision then return false end
     end
-
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
 
     -- Use prediction for moving targets
     local cast_pos = target_pos
@@ -125,14 +85,14 @@ local function logics(target)
         end
     end
 
-    if cast_spell and type(cast_spell.position) == "function" then
-        if cast_spell.position(spell_id, cast_pos, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
+    if cast_spell.position(spell_id, cast_pos, 0.0) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Shield Charge - Target: " .. target:get_skin_name())
+        return true
     end
 
-    return false, 0
+    return false
 end
 
 return {

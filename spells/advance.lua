@@ -34,62 +34,33 @@ local function menu()
 end
 
 local function logics(target)
+    if not target then return false end
+    
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
     if not is_logic_allowed then 
-        return false, 0 
-    end
-
-    if not target then
-        return false, 0
+        return false
     end
     
-    local is_target_enemy = false
-    local ok, res = pcall(function() return target:is_enemy() end)
-    is_target_enemy = ok and res or false
-    
-    if not is_target_enemy then
-        return false, 0
-    end
-    
-    -- Filter out dead, immune, and untargetable targets per API guidelines
-    local is_dead = false
-    local is_immune = false
-    local is_untargetable = false
-    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
-    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
-    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
-    is_dead = ok_dead and res_dead or false
-    is_immune = ok_immune and res_immune or false
-    is_untargetable = ok_untarget and res_untarget or false
-    
-    if is_dead or is_immune or is_untargetable then
-        return false, 0
-    end
+    if not target:is_enemy() then return false end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
 
     local player = get_local_player()
-    local player_pos = player and player:get_position() or nil
+    if not player then return false end
+    
+    local player_pos = player:get_position()
     local target_pos = target:get_position()
     
-    if not player_pos or not target_pos then
-        return false, 0
-    end
+    if not player_pos or not target_pos then return false end
     
     local dist = player_pos:dist_to(target_pos)
     local min_r = menu_elements.min_range:get()
     local max_r = menu_elements.max_range:get()
     
     -- Only use if target is at appropriate range for gap closing
-    -- If too far, let main.lua handle movement
-    if dist > max_r then
-        -- Out of max range - let main.lua handle movement
-        return false, 0
-    end
-    
-    if dist < min_r then
-        return false, 0  -- Too close, use melee instead
-    end
+    if dist > max_r then return false end
+    if dist < min_r then return false end
     
     -- GENERATOR LOGIC: Only use for Faith generation when Faith is LOW
     -- If threshold is 0, always allow (pure gap closer mode)
@@ -97,30 +68,23 @@ local function logics(target)
     if threshold > 0 then
         local resource_pct = my_utility.get_resource_pct()
         if resource_pct and (resource_pct * 100) >= threshold then
-            return false, 0  -- Faith is high enough, save Advance for emergencies
+            return false  -- Faith is high enough, save Advance for emergencies
         end
     end
     
     -- Check for wall collision
-    if target_selector and target_selector.is_wall_collision then
-        local is_wall_collision = target_selector.is_wall_collision(player_pos, target, 1.20)
-        if is_wall_collision then
-            return false, 0
-        end
-    end
-    
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
+    local is_wall_collision = target_selector.is_wall_collision(player_pos, target, 1.20)
+    if is_wall_collision then return false end
 
     -- Advance lunges to target position (position-type spell per spell_data.lua)
-    if cast_spell and type(cast_spell.position) == "function" then
-        if cast_spell.position(spell_id, target_pos, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
+    if cast_spell.position(spell_id, target_pos, 0.0) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Advance")
+        return true
     end
 
-    return false, 0
+    return false
 end
 
 return {

@@ -169,28 +169,29 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false
     end
 
-    local current_time = safe_get_time()
+    local current_time = get_time_since_inject()
     if current_time < next_cast_allowed_time then
         return false
     end
 
-    if utility and utility.is_spell_ready and not utility.is_spell_ready(spell_id) then
+    -- Druid pattern: use utility API calls directly
+    if not utility.is_spell_ready(spell_id) then
         return false
     end
 
-    -- Check if player has enough resources for the spell using the correct API
-    local local_player = get_local_player()
-    if local_player then
-        local ok, has_resources = pcall(function() return local_player:has_enough_resources_for_spell(spell_id) end)
-        if ok and has_resources == false then
-            return false
-        end
+    if not utility.is_spell_affordable(spell_id) then
+        return false
     end
 
-    -- Evade abort
+    if not utility.can_cast_spell(spell_id) then
+        return false
+    end
+
+    -- Evade abort (Druid pattern)
+    local local_player = get_local_player()
     if local_player then
         local player_position = local_player:get_position()
-        if evade and evade.is_dangerous_position and evade.is_dangerous_position(player_position) then
+        if evade.is_dangerous_position(player_position) then
             return false
         end
     end
@@ -403,13 +404,6 @@ local function is_in_range(target, range)
     local range_sqr = (range * range)
     return target_distance_sqr < range_sqr
 end
-
--- Movement delays for melee spells
-local spell_delays = {
-    instant_cast = 0.01,   -- instant cast abilities
-    regular_cast = 0.10,   -- regular abilities with animation
-    move_delay = 0.25,     -- delay between movement commands
-}
 
 -- Get enemy count by type in radius (like Druid's enemy_count_in_range)
 -- Returns: all, normal, elite, champion, boss

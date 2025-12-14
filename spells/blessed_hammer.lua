@@ -44,54 +44,37 @@ local function logics()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false, 0 
-    end
+    if not is_logic_allowed then return false end
 
     local player = get_local_player()
-    local player_pos = player and player:get_position() or nil
-    if not player_pos then
-        return false, 0
-    end
+    if not player then return false end
+    
+    local player_pos = player:get_position()
+    if not player_pos then return false end
     
     -- Resource check (Faith Cost: 10 - optional, default 0 = spam freely)
     local min_resource = menu_elements.min_resource:get()
     if min_resource > 0 then
         local resource_pct = my_utility.get_resource_pct()
         if resource_pct and (resource_pct * 100) < min_resource then
-            return false, 0
+            return false
         end
     end
     
     local engage = menu_elements.engage_range:get()
-    local engage_sqr = engage * engage
     local min_enemies = menu_elements.min_enemies:get()
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
-    -- Count enemies in range (like barb's HotA min targets)
-    local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
+    -- Count enemies in range
+    local enemies = actors_manager.get_enemy_npcs()
     local near = 0
     local has_priority_target = false
+    local engage_sqr = engage * engage
 
     for _, e in ipairs(enemies) do
-        local is_enemy = false
-        if e then
-            local ok, res = pcall(function() return e:is_enemy() end)
-            is_enemy = ok and res or false
-        end
-        if is_enemy then
-            -- Filter out dead, immune, and untargetable enemies per API guidelines
-            local is_dead = false
-            local is_immune = false
-            local is_untargetable = false
-            local ok_dead, res_dead = pcall(function() return e:is_dead() end)
-            local ok_immune, res_immune = pcall(function() return e:is_immune() end)
-            local ok_untarget, res_untarget = pcall(function() return e:is_untargetable() end)
-            is_dead = ok_dead and res_dead or false
-            is_immune = ok_immune and res_immune or false
-            is_untargetable = ok_untarget and res_untarget or false
-            
-            if is_dead or is_immune or is_untargetable then
+        if e and e:is_enemy() then
+            -- Filter out dead, immune, and untargetable enemies
+            if e:is_dead() or e:is_immune() or e:is_untargetable() then
                 goto continue
             end
             
@@ -101,14 +84,10 @@ local function logics()
                 -- Check for priority targets based on filter
                 if enemy_type_filter == 2 then
                     -- Boss only
-                    local ok, res = pcall(function() return e:is_boss() end)
-                    if ok and res then has_priority_target = true end
+                    if e:is_boss() then has_priority_target = true end
                 elseif enemy_type_filter == 1 then
                     -- Elite/Champion/Boss
-                    local ok_elite, res_elite = pcall(function() return e:is_elite() end)
-                    local ok_champ, res_champ = pcall(function() return e:is_champion() end)
-                    local ok_boss, res_boss = pcall(function() return e:is_boss() end)
-                    if (ok_elite and res_elite) or (ok_champ and res_champ) or (ok_boss and res_boss) then
+                    if e:is_elite() or e:is_champion() or e:is_boss() then
                         has_priority_target = true
                     end
                 else
@@ -121,25 +100,19 @@ local function logics()
 
     -- Check enemy type filter (must have at least one priority target in range)
     if enemy_type_filter > 0 and not has_priority_target then
-        return false, 0
+        return false
     end
 
-    if near < min_enemies then
-        return false, 0
+    if near < min_enemies then return false end
+
+    if cast_spell.self(spell_id, 0.0) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Blessed Hammer - Enemies in range: " .. near)
+        return true
     end
 
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
-
-    -- Cast at self (AoE spiral around player) - this is how Blessed Hammer works
-    if cast_spell and type(cast_spell.self) == "function" then
-        if cast_spell.self(spell_id, 0.0) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
-    end
-
-    return false, 0
+    return false
 end
 
 return {

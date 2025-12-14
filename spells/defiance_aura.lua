@@ -106,7 +106,7 @@ end
 local function logics()
     if not menu_elements.main_boolean:get() then 
         is_aura_active = false
-        return false, 0 
+        return false 
     end
     
     -- Check if spell is allowed (basic checks)
@@ -115,23 +115,23 @@ local function logics()
     
     if not is_logic_allowed then 
         is_aura_active = false
-        return false, 0
+        return false
     end
     
     -- Combat only check
     if not is_in_combat() then
         is_aura_active = false
-        return false, 0
+        return false
     end
 
-    local now = my_utility.safe_get_time()
+    local now = get_time_since_inject()
     local time_since_cast = now - last_cast_time
     
     -- First, try to detect actual buff on player (more reliable)
     local has_buff, buff_remaining = has_defiance_buff()
     if has_buff and buff_remaining > BUFFER_TIME then
         is_aura_active = true
-        return false, 0  -- Buff is still active
+        return false  -- Buff is still active
     end
     
     -- Check if we need to recast based on timing (fallback)
@@ -142,26 +142,24 @@ local function logics()
     -- If buff detection didn't find anything but timing says we're fine, trust timing
     if not should_recast and not is_expiring and last_cast_time > 0 then
         is_aura_active = true
-        return false, 0
+        return false
     end
     
     if now < next_time_allowed_cast then 
         is_aura_active = false
-        local wait_time = next_time_allowed_cast - now
-        return false, wait_time
+        return false
     end
 
-    if cast_spell and type(cast_spell.self) == "function" then
-        if cast_spell.self(spell_id, 0.0) then
-            last_cast_time = now
-            next_time_allowed_cast = now + 1.0  -- Small cooldown between attempts
-            is_aura_active = true
-            return true, 1.0
-        end
+    if cast_spell.self(spell_id, 0.0) then
+        last_cast_time = now
+        next_time_allowed_cast = now + my_utility.spell_delays.regular_cast
+        is_aura_active = true
+        console.print("Cast Defiance Aura")
+        return true
     end
 
     is_aura_active = false
-    return false, 0
+    return false
 end
 
 return {
@@ -170,6 +168,6 @@ return {
     menu_elements = menu_elements,
     is_aura_active = function() return is_aura_active end,
     get_remaining_duration = function() 
-        return math.max(0, AURA_DURATION - (my_utility.safe_get_time() - last_cast_time)) 
+        return math.max(0, AURA_DURATION - (get_time_since_inject() - last_cast_time)) 
     end,
 }

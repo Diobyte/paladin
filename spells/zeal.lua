@@ -37,44 +37,19 @@ local function menu()
 end
 
 local function logics(target)
+    if not target then return false end
+    
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
     
-    if not is_logic_allowed then 
-        return false, 0 
-    end
+    if not is_logic_allowed then return false end
 
-    if not target then
-        return false, 0
-    end
-    
-    local is_target_enemy = false
-    local ok, res = pcall(function() return target:is_enemy() end)
-    is_target_enemy = ok and res or false
-    
-    if not is_target_enemy then
-        return false, 0
-    end
-    
-    -- Filter out dead, immune, and untargetable targets per API guidelines
-    local is_dead = false
-    local is_immune = false
-    local is_untargetable = false
-    local ok_dead, res_dead = pcall(function() return target:is_dead() end)
-    local ok_immune, res_immune = pcall(function() return target:is_immune() end)
-    local ok_untarget, res_untarget = pcall(function() return target:is_untargetable() end)
-    is_dead = ok_dead and res_dead or false
-    is_immune = ok_immune and res_immune or false
-    is_untargetable = ok_untarget and res_untarget or false
-    
-    if is_dead or is_immune or is_untargetable then
-        return false, 0
-    end
+    -- Validate target (Druid pattern - simple checks)
+    if not target:is_enemy() then return false end
+    if target:is_dead() or target:is_immune() or target:is_untargetable() then return false end
 
     local player = get_local_player()
-    if not player then
-        return false, 0
-    end
+    if not player then return false end
     
     -- Resource check depends on build mode
     local use_life_mode = menu_elements.use_life_mode:get()
@@ -88,76 +63,45 @@ local function logics(target)
             local min_resource = menu_elements.min_resource:get()
             
             -- Must have enough Faith to cast (it's a spender)
-            if resource_pct < min_resource then
-                return false, 0
-            end
+            if resource_pct < min_resource then return false end
         end
     else
         -- Red Sermon mode - costs Life instead
         -- Just check we have some health (>20% to be safe)
         local health_pct = my_utility.get_health_pct()
-        if health_pct and health_pct < 0.20 then
-            return false, 0
-        end
+        if health_pct and health_pct < 0.20 then return false end
     end
 
     -- Zeal is a melee multi-strike skill, check range
-    local player_pos = player:get_position()
-    local target_pos = target:get_position()
-    local melee_range = 3.5
+    local melee_range = my_utility.get_melee_range()
+    local in_range = my_utility.is_in_range(target, melee_range)
     
-    if player_pos and target_pos then
-        local dist_sqr = player_pos:squared_dist_to_ignore_z(target_pos)
-        if dist_sqr > (melee_range * melee_range) then
-            -- Out of range - move toward target with throttling (Druid pattern)
-            local current_time = my_utility.safe_get_time()
-            if current_time >= next_time_allowed_move then
-                if pathfinder and pathfinder.force_move_raw then
-                    pathfinder.force_move_raw(target_pos)
-                end
-                next_time_allowed_move = current_time + move_delay
-            end
-            return false, 0
+    if not in_range then
+        -- Out of range - move toward target with throttling (Druid pattern)
+        local current_time = get_time_since_inject()
+        if current_time >= next_time_allowed_move then
+            local target_pos = target:get_position()
+            pathfinder.force_move_raw(target_pos)
+            next_time_allowed_move = current_time + move_delay
         end
-        
-        -- Check min enemies in melee range (Zeal hits multiple times)
-        local min_enemies = menu_elements.min_enemies:get()
-        if min_enemies > 1 then
-            local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
-            local near = 0
-            local melee_range_sqr = 3.5 * 3.5
-            
-            for _, e in ipairs(enemies) do
-                local is_enemy = false
-                if e then
-                    local ok, res = pcall(function() return e:is_enemy() end)
-                    is_enemy = ok and res or false
-                end
-                if is_enemy then
-                    local pos = e:get_position()
-                    if pos and pos:squared_dist_to_ignore_z(player_pos) <= melee_range_sqr then
-                        near = near + 1
-                    end
-                end
-            end
-            
-            if near < min_enemies then
-                return false, 0
-            end
-        end
+        return false
+    end
+    
+    -- Check min enemies in melee range (Zeal hits multiple times)
+    local min_enemies = menu_elements.min_enemies:get()
+    if min_enemies > 1 then
+        local all_units_count = my_utility.enemy_count_in_range(melee_range)
+        if all_units_count < min_enemies then return false end
     end
 
-    local now = my_utility.safe_get_time()
-    local cooldown = menu_elements.min_cooldown:get()
-    
-    if cast_spell and type(cast_spell.target) == "function" then
-        if cast_spell.target(target, spell_id, 0.0, false) then
-            next_time_allowed_cast = now + cooldown
-            return true, cooldown
-        end
+    if cast_spell.target(target, spell_id, 0.0, false) then
+        local current_time = get_time_since_inject()
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast
+        console.print("Cast Zeal - Target: " .. target:get_skin_name())
+        return true
     end
 
-    return false, 0
+    return false
 end
 
 return {

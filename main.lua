@@ -126,11 +126,11 @@ local function dbg(msg)
 end
 
 local function get_best_target(max_range, cluster_radius, prefer_elites)
-    local player = get_local_player and get_local_player() or nil
+    local player = get_local_player()
     if not player then return nil, 0, false end
 
     local player_pos = player:get_position()
-    local enemies = actors_manager and actors_manager.get_enemy_npcs and actors_manager.get_enemy_npcs() or {}
+    local enemies = actors_manager.get_enemy_npcs()
 
     local max_range_sqr = max_range * max_range
     local cluster_radius_sqr = (cluster_radius or 6.0)
@@ -141,13 +141,7 @@ local function get_best_target(max_range, cluster_radius, prefer_elites)
 
     local candidates = {}
     for _, e in ipairs(enemies) do
-        local is_enemy = false
-        if e then
-            local ok, res = pcall(function() return e:is_enemy() end)
-            is_enemy = ok and res or false
-        end
-
-        if is_enemy then
+        if e and e:is_enemy() then
             local pos = e:get_position()
             if pos then
                 local d = pos:squared_dist_to_ignore_z(player_pos)
@@ -409,7 +403,7 @@ safe_on_update(function()
         end
     end
 
-    local current_time = my_utility.safe_get_time()
+    local current_time = get_time_since_inject()
     if current_time < cast_end_time then
         return
     end
@@ -597,43 +591,32 @@ safe_on_update(function()
                 end
             end
             
-            -- Call spell's logics function with appropriate arguments (like sorc pattern)
+            -- Call spell's logics function with appropriate arguments (like Druid pattern)
+            -- Spells now return just true/false (not tuples)
             local args = params.args or {}
-            local cast_successful, cooldown
+            local cast_successful
             
             if #args == 0 then
-                cast_successful, cooldown = spell.logics()
+                cast_successful = spell.logics()
             elseif #args == 1 then
-                cast_successful, cooldown = spell.logics(args[1])
+                cast_successful = spell.logics(args[1])
             else
-                cast_successful, cooldown = spell.logics(args[1], args[2])
+                cast_successful = spell.logics(args[1], args[2])
             end
-            
-            cooldown = cooldown or 0.1  -- Default cooldown if not returned
 
             if cast_successful then
-                -- Set cast_end_time to a SHORT animation lock (like sorc/barb)
+                -- Set cast_end_time to a SHORT animation lock (like Druid pattern)
                 -- This prevents animation canceling, NOT spell rotation
                 -- The actual per-spell cooldown is handled by spell_last_cast_times
-                local animation_lock = cooldown or 0.05  -- Short animation lock
-                cast_end_time = current_time + animation_lock
+                cast_end_time = current_time + my_utility.spell_delays.regular_cast
                 
                 -- Update internal cooldown tracking for this spell
                 spell_last_cast_times[spell_name] = current_time
                 
                 if menu.menu_elements.enable_debug:get() then
-                    dbg("Cast " .. spell_name .. " - animation lock " .. string.format("%.2f", animation_lock) .. "s")
+                    dbg("Cast " .. spell_name)
                 end
                 return
-            else
-                if menu.menu_elements.enable_debug:get() then
-                    -- Rate limit failed cast messages
-                    if not _G.paladin_last_fail_debug or not _G.paladin_last_fail_debug[spell_name] or (current_time - _G.paladin_last_fail_debug[spell_name]) > 1.0 then
-                        _G.paladin_last_fail_debug = _G.paladin_last_fail_debug or {}
-                        _G.paladin_last_fail_debug[spell_name] = current_time
-                        dbg(spell_name .. " logics returned false")
-                    end
-                end
             end
             
             ::continue::
