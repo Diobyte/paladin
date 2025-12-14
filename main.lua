@@ -558,8 +558,6 @@ local last_cast_target = nil  -- Track target we last successfully cast at
 -- =====================================================
 local last_spell_cast_name = nil  -- Track which spell cast last
 local spell_cast_counts = {}       -- Count of casts per spell (for weighted fairness)
-local rotation_skip_until = {}     -- Per-spell "rest" time after casting
-local ROTATION_REST_TIME = 0.15    -- After casting, give other spells a chance for this duration
 
 -- Internal cooldowns (minimum time between casts of same spell)
 -- These control how often each spell can be CHECKED for casting
@@ -847,6 +845,7 @@ safe_on_update(function()
 
         local cluster_threshold = min_targets
         local wt_debug = safe_get_menu_element(menu.menu_elements.weighted_targeting_debug, false)
+        local floor_height_threshold = safe_get_menu_element(menu.menu_elements.floor_height_threshold, 5.0)
 
         weighted_target = my_target_selector.get_weighted_target(
             player_position,
@@ -867,7 +866,8 @@ safe_on_update(function()
             champion_target_count,
             elite_target_count,
             boss_target_count,
-            wt_debug
+            wt_debug,
+            floor_height_threshold
         )
     end
 
@@ -919,50 +919,13 @@ safe_on_update(function()
     end
 
     -- Loop through spells in priority order defined in spell_priority.lua
-    
-    -- Track if any spell requested movement this frame
-    local move_requested = false
-    local move_target_pos = nil
-    
-    -- =====================================================
-    -- SPELL ROTATION WITH FAIRNESS SYSTEM
-    -- This ensures all equipped spells get a chance to cast
-    -- The algorithm:
-    -- 1. Spells are grouped by tier (auras > ultimates > burst > core > generators > mobility)
-    -- 2. Within each tier, we process in priority order from spell_priority.lua
-    -- 3. After a spell casts, it gets a "rest" period (rotation_skip_until) to let others cast
-    -- 4. This prevents blessed_hammer from always dominating other core spells
-    -- =====================================================
-    
-    -- First pass: Collect all available (equipped + enabled) spells by tier
-    local available_spells_by_tier = {}
     for _, spell_name in ipairs(spell_priority) do
         local spell = spells[spell_name]
         local spell_equipped = spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id]
         local should_process = spell_equipped or (bypass_equipped and spell and spell_data[spell_name])
         
         if should_process then
-            local tier = spell_tiers[spell_name] or 99
-            available_spells_by_tier[tier] = available_spells_by_tier[tier] or {}
-            table.insert(available_spells_by_tier[tier], spell_name)
-        end
-    end
-    
-    -- Process tiers in order (1 = highest priority)
-    local tiers_in_order = {}
-    for tier, _ in pairs(available_spells_by_tier) do
-        table.insert(tiers_in_order, tier)
-    end
-    table.sort(tiers_in_order)
-    
-    for _, tier in ipairs(tiers_in_order) do
-        local tier_spells = available_spells_by_tier[tier]
-        
-        for _, spell_name in ipairs(tier_spells) do
-            local spell = spells[spell_name]
-            
             if debug_enabled and spell_data[spell_name] then
-                local spell_equipped = spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id]
                 if not spell_equipped then
                     _G.paladin_last_equip_debug = _G.paladin_last_equip_debug or {}
                     if not _G.paladin_last_equip_debug[spell_name] or (current_time - _G.paladin_last_equip_debug[spell_name]) > 2.0 then
@@ -970,14 +933,6 @@ safe_on_update(function()
                         dbg(spell_name .. " not equipped (spell_id: " .. tostring(spell_data[spell_name].spell_id) .. ")" .. (bypass_equipped and " [BYPASSED]" or ""))
                     end
                 end
-            end
-            
-            -- ROTATION FAIRNESS: Skip if spell just cast and is in "rest" period
-            -- This gives other spells in the same tier a chance
-            local skip_until = rotation_skip_until[spell_name] or 0
-            if current_time < skip_until then
-                -- This spell is resting, check others in same tier first
-                goto continue
             end
             
             -- Check internal cooldown for this spell
@@ -1024,10 +979,6 @@ safe_on_update(function()
                 -- Update internal cooldown tracking
                 spell_last_cast_times[spell_name] = current_time
                 
-                -- ROTATION FAIRNESS: Set "rest" period for this spell
-                -- This ensures other spells in the same tier get checked next frame
-                rotation_skip_until[spell_name] = current_time + ROTATION_REST_TIME
-                
                 -- Track for rotation debugging
                 last_spell_cast_name = spell_name
                 spell_cast_counts[spell_name] = (spell_cast_counts[spell_name] or 0) + 1
@@ -1040,7 +991,7 @@ safe_on_update(function()
                 end
                 
                 if debug_enabled then
-                    dbg("Cast " .. spell_name .. " (tier " .. tier .. ", count " .. spell_cast_counts[spell_name] .. ")")
+                    dbg("Cast " .. spell_name .. " (count " .. spell_cast_counts[spell_name] .. ")")
                 end
                 return
             end

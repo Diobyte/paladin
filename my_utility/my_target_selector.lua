@@ -656,12 +656,13 @@ local function get_closest_valid_target(list, source)
     return closest
 end
 
-local function get_weighted_target(source, scan_radius, min_targets, comparison_radius, boss_weight, elite_weight, champion_weight, any_weight, refresh_rate, damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight, cluster_min_target_count, normal_target_count, champion_target_count, elite_target_count, boss_target_count, debug_enabled)
+local function get_weighted_target(source, scan_radius, min_targets, comparison_radius, boss_weight, elite_weight, champion_weight, any_weight, refresh_rate, damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight, cluster_min_target_count, normal_target_count, champion_target_count, elite_target_count, boss_target_count, debug_enabled, floor_height_threshold)
     -- Normalize inputs
     scan_radius = math.max(scan_radius or 0, 0.1)
     comparison_radius = math.max(comparison_radius or 0, 0.1)
     min_targets = math.max(min_targets or 1, 1)
     refresh_rate = math.max(refresh_rate or 0.05, 0.01)
+    floor_height_threshold = floor_height_threshold or 5.0
 
     -- Normalize source to a vec3 for distance and API calls
     local source_pos = source
@@ -684,6 +685,19 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
     if current_time - last_scan_time >= refresh_rate then
         last_scan_time = current_time
         cached_target_list = target_selector.get_near_target_list(source_pos, scan_radius) or {}
+
+        -- Filter out targets on different floors
+        local filtered_list = {}
+        for _, unit in ipairs(cached_target_list) do
+            local unit_pos = safe_get_position(unit)
+            if unit_pos then
+                local z_diff = math.abs(source_pos:z() - unit_pos:z())
+                if z_diff <= floor_height_threshold then
+                    table.insert(filtered_list, unit)
+                end
+            end
+        end
+        cached_target_list = filtered_list
 
         -- No targets at all: clear cache and exit early
         if #cached_target_list == 0 then

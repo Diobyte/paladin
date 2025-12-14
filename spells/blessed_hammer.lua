@@ -83,6 +83,13 @@ local function logics(target)
     local near = 0
     local has_priority_target = false
     local engage_sqr = engage * engage
+    
+    -- Get floor height threshold from menu (or default to 5.0)
+    -- We can access the global menu element if available, or hardcode a reasonable default
+    local floor_height_threshold = 5.0
+    if menu and menu.menu_elements and menu.menu_elements.floor_height_threshold then
+        floor_height_threshold = menu.menu_elements.floor_height_threshold:get()
+    end
 
     for _, e in ipairs(enemies) do
         if e and e:is_enemy() then
@@ -93,18 +100,21 @@ local function logics(target)
             
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_sqr then
-                near = near + 1
-                -- Check for priority targets based on filter
-                if enemy_type_filter == 2 then
-                    -- Boss only
-                    if e:is_boss() then has_priority_target = true end
-                elseif enemy_type_filter == 1 then
-                    -- Elite/Champion/Boss
-                    if e:is_elite() or e:is_champion() or e:is_boss() then
-                        has_priority_target = true
+                -- Elevation check
+                if math.abs(player_pos:z() - pos:z()) <= floor_height_threshold then
+                    near = near + 1
+                    -- Check for priority targets based on filter
+                    if enemy_type_filter == 2 then
+                        -- Boss only
+                        if e:is_boss() then has_priority_target = true end
+                    elseif enemy_type_filter == 1 then
+                        -- Elite/Champion/Boss
+                        if e:is_elite() or e:is_champion() or e:is_boss() then
+                            has_priority_target = true
+                        end
+                    else
+                        has_priority_target = true  -- Any enemy counts
                     end
-                else
-                    has_priority_target = true  -- Any enemy counts
                 end
             end
         end
