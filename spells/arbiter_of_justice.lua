@@ -50,11 +50,8 @@ local function logics(target)
     end
     
     local menu_boolean = menu_elements.main_boolean:get()
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
-    
-    if not is_logic_allowed then 
-        if debug_enabled then console.print("[ARBITER DEBUG] Spell not allowed") end
-        return false, 0 
+    if not menu_boolean then
+        return false, 0
     end
 
     -- Validate target (Druid pattern - simple checks)
@@ -67,11 +64,19 @@ local function logics(target)
         return false, 0 
     end
 
-    -- Max range check for leap
+    -- Max range check for leap - move toward target if out of range
     local max_range = menu_elements.max_range:get()
     if not my_utility.is_in_range(target, max_range) then
-        if debug_enabled then console.print("[ARBITER DEBUG] Target out of range: " .. max_range) end
-        return false, 0  -- Too far to leap
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[ARBITER DEBUG] Moving toward target - out of leap range") end
+        return false, 0
+    end
+
+    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    if not is_logic_allowed then 
+        if debug_enabled then console.print("[ARBITER DEBUG] Spell not allowed (cooldown/mode)") end
+        return false, 0 
     end
 
     -- Enemy type filter check

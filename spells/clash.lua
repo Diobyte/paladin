@@ -41,10 +41,7 @@ local function logics(target)
     end
     
     local menu_boolean = menu_elements.main_boolean:get()
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
-    
-    if not is_logic_allowed then
-        if debug_enabled then console.print("[CLASH DEBUG] Spell not allowed") end
+    if not menu_boolean then
         return false, 0
     end
 
@@ -55,6 +52,25 @@ local function logics(target)
     end
     if target:is_dead() or target:is_immune() or target:is_untargetable() then
         if debug_enabled then console.print("[CLASH DEBUG] Target is dead/immune/untargetable") end
+        return false, 0
+    end
+
+    -- Clash is a melee skill, check range FIRST
+    local melee_range = my_utility.get_melee_range()
+    local in_range = my_utility.is_in_range(target, melee_range)
+    
+    -- CENTRALIZED MOVEMENT: If out of range, move toward target
+    -- This happens BEFORE cooldown/orbwalker checks
+    if not in_range then
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[CLASH DEBUG] Moving toward target - out of melee range") end
+        return false, 0  -- Don't cast, just move
+    end
+
+    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[CLASH DEBUG] Spell not allowed (cooldown/mode)") end
         return false, 0
     end
 
@@ -74,18 +90,6 @@ local function logics(target)
                 return false, 0  -- Faith is high enough, let spenders handle it
             end
         end
-    end
-
-    -- Clash is a melee skill, check range
-    local melee_range = my_utility.get_melee_range()
-    local in_range = my_utility.is_in_range(target, melee_range)
-    
-    -- CENTRALIZED MOVEMENT: If out of range, use my_utility.move_to_target()
-    -- This prevents oscillation by using throttled request_move instead of force_move_raw
-    if not in_range then
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[CLASH DEBUG] Moving toward target - out of melee range") end
-        return false, 0  -- Don't cast, just move
     end
 
     local cooldown = menu_elements.min_cooldown:get()

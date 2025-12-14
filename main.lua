@@ -265,29 +265,52 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
     local enable_visibility_filter = safe_get_menu_element(menu.menu_elements.enable_visibility_filter, true)
     local visibility_collision_width = safe_get_menu_element(menu.menu_elements.visibility_collision_width, 1.0)
     
+    -- Debug: Log filter settings
+    local debug_enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
+    
     -- First pass: collect all valid enemies with positions
     local valid_enemies = {}
+    local total_enemies = 0
+    local filtered_dead = 0
+    local filtered_range = 0
+    local filtered_floor = 0
+    
     for _, e in ipairs(enemies) do
         if e and e:is_enemy() then
+            total_enemies = total_enemies + 1
             if e:is_dead() or e:is_immune() or e:is_untargetable() then
+                filtered_dead = filtered_dead + 1
                 goto continue_collect
             end
             local pos = e:get_position()
             if not pos then goto continue_collect end
             local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
-            if dist_sqr > max_range_sqr then goto continue_collect end
+            if dist_sqr > max_range_sqr then 
+                filtered_range = filtered_range + 1
+                goto continue_collect 
+            end
             
             -- ELEVATION/FLOOR CHECK: Skip targets on different floors (z-axis difference)
             -- This prevents targeting enemies above/below on different levels
             if enable_floor_filter then
                 local z_difference = math.abs(player_pos:z() - pos:z())
                 if z_difference > floor_height_threshold then
+                    filtered_floor = filtered_floor + 1
                     goto continue_collect
                 end
             end
             
             table.insert(valid_enemies, {unit = e, pos = pos, dist_sqr = dist_sqr})
             ::continue_collect::
+        end
+    end
+    
+    -- Debug: Log enemy counts
+    if debug_enabled then
+        local now = get_time_since_inject()
+        if not _G.paladin_enemy_count_time or (now - _G.paladin_enemy_count_time) > 3.0 then
+            _G.paladin_enemy_count_time = now
+            dbg("Enemies: " .. total_enemies .. " total, " .. #valid_enemies .. " valid, filtered: dead=" .. filtered_dead .. " range=" .. filtered_range .. " floor=" .. filtered_floor)
         end
     end
     
@@ -644,9 +667,12 @@ local spell_internal_cooldowns = {
 -- This prevents multiple spells from fighting over movement
 -- =====================================================
 local function use_ability(spell_name, spell, spell_target, delay_after_cast)
+    local debug_enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
+    
     -- Check if spell is enabled
     if not spell.menu_elements or not spell.menu_elements.main_boolean then
         -- Self-cast spells without main_boolean (shouldn't happen)
+        if debug_enabled then dbg(spell_name .. ": no main_boolean, trying logics()") end
         if spell.logics() then
             return true
         end
@@ -654,6 +680,7 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
     end
     
     if not spell.menu_elements.main_boolean:get() then
+        -- Don't spam this - it's expected for disabled spells
         return false
     end
     
@@ -664,21 +691,25 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
     if is_targeted_spell then
         -- Targeted spell - MUST have a target to proceed
         if not spell_target then
+            if debug_enabled then dbg(spell_name .. ": targeted spell but no target") end
             return false
         end
         
         -- Validate target
         if spell_target:is_dead() or spell_target:is_immune() or spell_target:is_untargetable() then
+            if debug_enabled then dbg(spell_name .. ": target is dead/immune/untargetable") end
             return false
         end
         
         -- Call logics with target
+        if debug_enabled then dbg(spell_name .. ": calling logics with target") end
         if spell.logics(spell_target) then
             return true
         end
     else
         -- Self-cast spell (auras, consecration, etc.)
         -- These don't need a target - call logics directly
+        if debug_enabled then dbg(spell_name .. ": self-cast, calling logics") end
         if spell.logics(spell_target) then
             return true
         end
@@ -688,6 +719,8 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
 end
 
 safe_on_update(function()
+    local debug_enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
+    
     if not safe_get_menu_element(menu.menu_elements.main_boolean, false) then
         return
     end
@@ -695,6 +728,22 @@ safe_on_update(function()
     -- Check orbwalker mode (matching Druid pattern)
     -- orbwalker mode check is also in is_spell_allowed() but we check here for early exit
     local current_orb_mode = orbwalker.get_orb_mode()
+    
+    -- Debug: Log orb mode periodically
+    if debug_enabled then
+        local now = get_time_since_inject()
+        if not _G.paladin_orb_mode_debug_time or (now - _G.paladin_orb_mode_debug_time) > 2.0 then
+            _G.paladin_orb_mode_debug_time = now
+            local mode_str = "unknown"
+            if current_orb_mode == orb_mode.none then mode_str = "none"
+            elseif current_orb_mode == orb_mode.pvp then mode_str = "pvp"
+            elseif current_orb_mode == orb_mode.clear then mode_str = "clear"
+            elseif current_orb_mode == orb_mode.flee then mode_str = "flee"
+            end
+            dbg("Orb Mode: " .. mode_str .. " (raw: " .. tostring(current_orb_mode) .. ")")
+        end
+    end
+    
     if current_orb_mode == orb_mode.none then
         -- Allow if auto_play is active
         if not my_utility.is_auto_play_enabled() then
@@ -709,6 +758,7 @@ safe_on_update(function()
 
     -- Use is_action_allowed for mount/buff checks (like sorc/barb)
     if not my_utility.is_action_allowed() then
+        if debug_enabled then dbg("is_action_allowed returned false") end
         return
     end
 
@@ -730,7 +780,23 @@ safe_on_update(function()
         _G.PaladinRotation.in_combat = false
         _G.PaladinRotation.is_casting = false
         _G.PaladinRotation.current_target_id = nil
+        if debug_enabled then
+            -- Only log this occasionally to avoid spam
+            if not _G.paladin_no_targets_time or (current_time - _G.paladin_no_targets_time) > 2.0 then
+                _G.paladin_no_targets_time = current_time
+                dbg("No valid targets found - check elevation/visibility settings")
+            end
+        end
         return
+    end
+    
+    -- Debug: Log when targets ARE found
+    if debug_enabled then
+        if not _G.paladin_targets_found_time or (current_time - _G.paladin_targets_found_time) > 2.0 then
+            _G.paladin_targets_found_time = current_time
+            local closest_name = evaluated_targets.closest and evaluated_targets.closest:get_skin_name() or "nil"
+            dbg("Targets found! Closest: " .. closest_name)
+        end
     end
     
     -- UPDATE GLOBAL STATE: We have combat targets
@@ -749,7 +815,7 @@ safe_on_update(function()
     local equipped_spells = get_equipped_spell_ids() or {}
 
     -- Debug: Print equipped spell IDs once
-    if menu.menu_elements.enable_debug:get() then
+    if debug_enabled then
         if not _G.paladin_equipped_printed or (current_time - _G.paladin_equipped_printed) > 10.0 then
             _G.paladin_equipped_printed = current_time
             local ids_str = ""

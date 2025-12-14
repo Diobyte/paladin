@@ -48,20 +48,18 @@ end
 local function logics(target)
     local debug_enabled = menu_elements.debug_mode:get()
     
+    -- Step 1: Basic checks that don't depend on cooldowns/resources
     if not target then
         if debug_enabled then console.print("[BLESSED SHIELD DEBUG] No target provided") end
         return false, 0
     end
     
     local menu_boolean = menu_elements.main_boolean:get()
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
-    
-    if not is_logic_allowed then
-        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Spell not allowed") end
+    if not menu_boolean then
         return false, 0
     end
 
-    -- Validate target (Druid pattern - simple checks)
+    -- Step 2: Validate target (Druid pattern - simple checks)
     if not target:is_enemy() then
         if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Target is not an enemy") end
         return false, 0
@@ -74,7 +72,28 @@ local function logics(target)
     local player = get_local_player()
     if not player then return false, 0 end
     
-    -- Resource check (Faith Cost: 28 - expensive spender)
+    -- Step 3: Range check FIRST - move toward target if out of range
+    -- This happens BEFORE cooldown/resource checks (Spiritborn pattern)
+    local cast_range = menu_elements.cast_range:get()
+    local in_range = my_utility.is_in_range(target, cast_range)
+    
+    if not in_range then
+        -- CENTRALIZED MOVEMENT: Use my_utility.move_to_target()
+        -- This is called regardless of cooldown state - we want to close distance
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Moving toward target (out of range)") end
+        return false, 0
+    end
+    
+    -- Step 4: Now check if spell is actually ready to cast (cooldowns, resources, orbwalker mode)
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Spell not allowed (cooldown/resource/mode)") end
+        return false, 0
+    end
+    
+    -- Step 5: Resource check (Faith Cost: 28 - expensive spender)
     local min_resource = menu_elements.min_resource:get()
     if min_resource > 0 then
         local resource_pct = my_utility.get_resource_pct()
@@ -84,18 +103,7 @@ local function logics(target)
         end
     end
     
-    -- Range check for extended melee (5.5-6.0)
-    local cast_range = menu_elements.cast_range:get()
-    local in_range = my_utility.is_in_range(target, cast_range)
-    
-    if not in_range then
-        -- CENTRALIZED MOVEMENT: Use my_utility.move_to_target()
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Moving toward target") end
-        return false, 0
-    end
-    
-    -- Check if we should cast based on single target / grouped enemy preferences
+    -- Step 6: Check if we should cast based on single target / grouped enemy preferences
     local should_cast = false
     local use_single = menu_elements.use_on_single_target:get()
     local prefer_grouped = menu_elements.prefer_grouped_enemies:get()

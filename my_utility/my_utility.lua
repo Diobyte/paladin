@@ -65,26 +65,27 @@ local function can_move_now()
 end
 
 -- Request movement to a target position (Spiritborn pattern)
--- Uses request_move instead of force_move_raw to prevent spam
--- Returns true if movement was requested, false if throttled
+-- Uses request_move which only sends command if not already moving to same destination
+-- IMPORTANT: Unlike force_move_raw, request_move is designed to be called every frame
+-- No throttling needed because request_move handles it internally
+-- Returns true always (movement was requested or already in progress)
 local function move_to_target(target_pos, optional_target_id)
-    local current_time = safe_get_time()
-    if current_time < next_time_allowed_move then
-        return false  -- Movement is throttled
-    end
-    
-    -- Use request_move (throttled) instead of force_move_raw (spam)
-    -- pathfinder.request_move only sends command if not already moving to same destination
+    -- Use request_move directly - it's designed to be called every frame
+    -- Per API: "pathfinder.request_move only sends command if player isn't already moving"
     if pathfinder and pathfinder.request_move then
         pathfinder.request_move(target_pos)
     elseif pathfinder and pathfinder.force_move_raw then
-        -- Fallback to force_move_raw if request_move not available
-        pathfinder.force_move_raw(target_pos)
+        -- Fallback to force_move_raw with throttle if request_move not available
+        local current_time = safe_get_time()
+        if current_time >= next_time_allowed_move then
+            pathfinder.force_move_raw(target_pos)
+            next_time_allowed_move = current_time + spell_delays.move_delay
+        end
     end
     
-    next_time_allowed_move = current_time + spell_delays.move_delay
+    -- Track for debugging/stuck detection
     current_move_target_id = optional_target_id
-    last_move_time = current_time
+    last_move_time = safe_get_time()
     return true
 end
 
@@ -221,18 +222,21 @@ local function is_action_allowed()
     return true
 end
 
-local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spell_id)
+local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spell_id, debug_mode)
     if not spell_enable_check then
+        if debug_mode then console.print("[is_spell_allowed] spell_enable_check is false") end
         return false
     end
 
     local current_time = get_time_since_inject()
     if current_time < next_cast_allowed_time then
+        if debug_mode then console.print("[is_spell_allowed] waiting for next_cast_allowed_time") end
         return false
     end
 
     -- Check spell cooldown (documented API)
     if not utility.is_spell_ready(spell_id) then
+        if debug_mode then console.print("[is_spell_allowed] spell not ready (cooldown)") end
         return false
     end
 
@@ -244,6 +248,7 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
             return local_player:has_enough_resources_for_spell(spell_id)
         end)
         if ok and not has_resources then
+            if debug_mode then console.print("[is_spell_allowed] not enough resources") end
             return false
         end
         
@@ -251,12 +256,14 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         local player_position = local_player:get_position()
         if player_position and evade and evade.is_dangerous_position then
             if evade.is_dangerous_position(player_position) then
+                if debug_mode then console.print("[is_spell_allowed] in dangerous position (evade)") end
                 return false
             end
         end
     end
 
     if is_auto_play_enabled() then
+        if debug_mode then console.print("[is_spell_allowed] auto_play enabled - allowed") end
         return true
     end
 
@@ -264,6 +271,7 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
     local current_orb_mode = orbwalker.get_orb_mode()
 
     if current_orb_mode == orb_mode.none then
+        if debug_mode then console.print("[is_spell_allowed] orb_mode is none") end
         return false
     end
 
@@ -272,9 +280,11 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
 
     -- Must be in pvp or clear mode to cast spells
     if not is_current_orb_mode_pvp and not is_current_orb_mode_clear then
+        if debug_mode then console.print("[is_spell_allowed] not in pvp or clear mode") end
         return false
     end
 
+    if debug_mode then console.print("[is_spell_allowed] ALLOWED") end
     return true
 end
 

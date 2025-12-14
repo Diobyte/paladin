@@ -51,10 +51,7 @@ local function logics(target)
     end
     
     local menu_boolean = menu_elements.main_boolean:get()
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
-    
-    if not is_logic_allowed then
-        if debug_enabled then console.print("[SPEAR DEBUG] Spell not allowed") end
+    if not menu_boolean then
         return false, 0
     end
 
@@ -68,11 +65,20 @@ local function logics(target)
         return false, 0
     end
 
-    -- Range check - position spell has max cast range
+    -- Range check - Spear is ranged so we move if out of range
     local cast_range = menu_elements.cast_range:get()
     if not my_utility.is_in_range(target, cast_range) then
-        if debug_enabled then console.print("[SPEAR DEBUG] Target out of range") end
-        return false, 0  -- Out of range, don't cast
+        -- Move toward target if out of range
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[SPEAR DEBUG] Moving toward target - out of range") end
+        return false, 0
+    end
+
+    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[SPEAR DEBUG] Spell not allowed (cooldown/mode)") end
+        return false, 0
     end
 
     -- Enemy type filter check

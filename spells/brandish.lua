@@ -41,10 +41,7 @@ local function logics(target)
     end
     
     local menu_boolean = menu_elements.main_boolean:get()
-    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
-    
-    if not is_logic_allowed then
-        if debug_enabled then console.print("[BRANDISH DEBUG] Spell not allowed") end
+    if not menu_boolean then
         return false, 0
     end
 
@@ -58,6 +55,25 @@ local function logics(target)
         return false, 0
     end
 
+    -- Range check FIRST for melee (Brandish has slightly longer arc range)
+    local cast_range = 4.0
+    local in_range = my_utility.is_in_range(target, cast_range)
+    
+    -- CENTRALIZED MOVEMENT: If out of range, move toward target
+    -- This happens BEFORE cooldown/orbwalker checks
+    if not in_range then
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[BRANDISH DEBUG] Moving toward target - out of range") end
+        return false, 0  -- Don't cast, just move
+    end
+
+    -- NOW check if spell is ready (cooldown, orbwalker mode, etc.)
+    local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id, debug_enabled)
+    if not is_logic_allowed then
+        if debug_enabled then console.print("[BRANDISH DEBUG] Spell not allowed (cooldown/mode)") end
+        return false, 0
+    end
+
     -- GENERATOR LOGIC: Only cast when Faith is LOW (backup generator)
     local threshold = menu_elements.resource_threshold:get()
     if threshold > 0 then
@@ -66,18 +82,6 @@ local function logics(target)
             if debug_enabled then console.print("[BRANDISH DEBUG] Faith too high") end
             return false, 0  -- Faith is high enough, let spenders handle it
         end
-    end
-
-    -- Range check for melee (Brandish has slightly longer arc range)
-    local cast_range = 4.0
-    local in_range = my_utility.is_in_range(target, cast_range)
-    
-    -- CENTRALIZED MOVEMENT: If out of range, use my_utility.move_to_target()
-    -- This prevents oscillation by using throttled request_move instead of force_move_raw
-    if not in_range then
-        my_utility.move_to_target(target:get_position(), target:get_id())
-        if debug_enabled then console.print("[BRANDISH DEBUG] Moving toward target - out of range") end
-        return false, 0  -- Don't cast, just move
     end
 
     local cooldown = menu_elements.min_cooldown:get()
