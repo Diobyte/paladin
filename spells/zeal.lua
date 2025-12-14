@@ -101,7 +101,7 @@ local function logics(target)
         end
     end
 
-    -- Zeal is a melee multi-strike skill, check range and move if needed
+    -- Zeal is a melee multi-strike skill, check range
     local player_pos = player:get_position()
     local target_pos = target:get_position()
     local melee_range = 3.5
@@ -109,14 +109,7 @@ local function logics(target)
     if player_pos and target_pos then
         local dist_sqr = player_pos:squared_dist_to_ignore_z(target_pos)
         if dist_sqr > (melee_range * melee_range) then
-            -- Out of range - move toward target (like druid script)
-            local current_time = my_utility.safe_get_time()
-            if current_time >= next_time_allowed_move then
-                if pathfinder and pathfinder.force_move_raw then
-                    pathfinder.force_move_raw(target_pos)
-                    next_time_allowed_move = current_time + move_delay
-                end
-            end
+            -- Out of range - let main.lua handle movement
             return false, 0
         end
         

@@ -640,34 +640,37 @@ safe_on_update(function()
         end
     end
     
-    -- Auto play engage far away monsters (like sorc)
+    -- Movement handling - ONLY move if we have a target but couldn't cast any spell
+    -- This runs AFTER all spells have been attempted
     local is_auto_play = my_utility.is_auto_play_enabled()
-    if is_auto_play and movement_target then
-        local movement_target_position = movement_target:get_position()
-        if movement_target_position then
-            local melee_range = my_utility.get_melee_range()
-            -- Only move if not in melee range
-            if not my_utility.is_in_range(movement_target, melee_range) then
-                local move_pos = movement_target_position:get_extended(player_position, melee_range * 0.8)
-                if pathfinder and pathfinder.request_move then
-                    pathfinder.request_move(move_pos)
-                end
-            end
-        end
-    end
+    local orb_mode = orbwalker.get_orb_mode()
+    local should_auto_move = (orb_mode == orb_mode.clear or orb_mode == orb_mode.pvp) or is_auto_play
     
-    -- Orbwalker mode movement (like druid script) - move toward targets when not in auto_play
-    -- This handles manual play modes (pvp/clear) where we still want to engage enemies
-    if not is_auto_play and movement_target then
+    -- Only move if:
+    -- 1. We're in an active orbwalker mode OR auto_play
+    -- 2. We have a movement target
+    -- 3. Manual play is disabled (so we handle movement)
+    if should_auto_move and movement_target then
         local manual_play = menu.menu_elements.manual_play:get()
         if not manual_play then
-            -- Not in manual play mode - automatically move toward targets
-            local melee_range = my_utility.get_melee_range()
-            -- Use is_in_range for consistent range checking
-            if not my_utility.is_in_range(movement_target, melee_range + 2.0) then
-                local movement_target_position = movement_target:get_position()
-                if movement_target_position and pathfinder and pathfinder.request_move then
-                    pathfinder.request_move(movement_target_position)
+            local movement_target_position = movement_target:get_position()
+            if movement_target_position then
+                local melee_range = my_utility.get_melee_range()
+                local dist = player_position:dist_to(movement_target_position)
+                
+                -- Only move if not already in melee range
+                if dist > melee_range then
+                    -- Throttle movement commands to prevent jitter
+                    local move_throttle = 0.15  -- 150ms between move commands
+                    if not _G.paladin_last_move_time or (current_time - _G.paladin_last_move_time) >= move_throttle then
+                        _G.paladin_last_move_time = current_time
+                        
+                        -- Move toward target, stopping just inside melee range
+                        local move_pos = movement_target_position:get_extended(player_position, melee_range * 0.8)
+                        if pathfinder and pathfinder.request_move then
+                            pathfinder.request_move(move_pos)
+                        end
+                    end
                 end
             end
         end

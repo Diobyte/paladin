@@ -81,16 +81,9 @@ local function logics(target)
     local max_r = menu_elements.max_range:get()
     
     -- Only use if target is at appropriate range for gap closing
-    -- If too far, walk into range first
+    -- If too far, let main.lua handle movement
     if dist > max_r then
-        -- Out of max range - move toward target (like druid script)
-        local current_time = my_utility.safe_get_time()
-        if current_time >= next_time_allowed_move then
-            if pathfinder and pathfinder.force_move_raw then
-                pathfinder.force_move_raw(target_pos)
-                next_time_allowed_move = current_time + move_delay
-            end
-        end
+        -- Out of max range - let main.lua handle movement
         return false, 0
     end
     
