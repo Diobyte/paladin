@@ -76,16 +76,26 @@ local function logics()
             local min_enemies = menu_elements.min_enemies_for_damage:get()
             local enemy_type_filter = menu_elements.enemy_type_filter:get()
             
-            local enemies = actors_manager.get_enemy_npcs()
+            local enemies_list = {}
+            if _G.PaladinRotation and _G.PaladinRotation.valid_enemies then
+                for _, data in ipairs(_G.PaladinRotation.valid_enemies) do
+                    table.insert(enemies_list, data.unit)
+                end
+            else
+                enemies_list = actors_manager.get_enemy_npcs() or {}
+            end
+
             local near = 0
             local has_priority_target = false
             local consecration_range_sqr = consecration_range * consecration_range
 
-            for _, e in ipairs(enemies) do
+            for _, e in ipairs(enemies_list) do
                 if e and e:is_enemy() then
                     -- Filter out dead, immune, and untargetable targets
-                    if e:is_dead() or e:is_immune() or e:is_untargetable() then
-                        goto continue_consecration
+                    if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                        if e:is_dead() or e:is_immune() or e:is_untargetable() then
+                            goto continue_consecration
+                        end
                     end
 
                     local pos = e:get_position()

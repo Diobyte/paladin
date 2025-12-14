@@ -459,9 +459,9 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         end
         
         -- SAFE CALL: Wrap spell logic in pcall to prevent script crash on single spell error
-        local ok, success = pcall(spell.logics, spell_target)
+        local ok, success, cast_duration = pcall(spell.logics, spell_target)
         if ok and success == true then
-            return true
+            return true, cast_duration
         elseif not ok then
             if debug_enabled then dbg(spell_name .. " ERROR: " .. tostring(success)) end
         end
@@ -476,9 +476,9 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         end
         
         -- SAFE CALL: Wrap spell logic in pcall
-        local ok, success = pcall(spell.logics)
+        local ok, success, cast_duration = pcall(spell.logics)
         if ok and success == true then
-            return true
+            return true, cast_duration
         elseif not ok then
             if debug_enabled then dbg(spell_name .. " ERROR: " .. tostring(success)) end
         end
@@ -801,11 +801,13 @@ safe_on_update(function()
             end
             
             -- Use the centralized use_ability function
-            local cast_successful = use_ability(spell_name, spell, spell_target, my_utility.spell_delays.regular_cast)
+            local cast_successful, cast_duration = use_ability(spell_name, spell, spell_target, my_utility.spell_delays.regular_cast)
 
             if cast_successful then
                 -- Animation lock
-                cast_end_time = current_time + my_utility.spell_delays.regular_cast
+                -- Use returned cast_duration if available, otherwise default to regular_cast
+                local duration = (type(cast_duration) == "number" and cast_duration > 0) and cast_duration or my_utility.spell_delays.regular_cast
+                cast_end_time = current_time + duration
                 
                 -- Update global state for Looteer coordination
                 _G.PaladinRotation.last_cast_time = current_time
@@ -826,7 +828,7 @@ safe_on_update(function()
                 end
                 
                 if debug_enabled then
-                    dbg("Cast " .. spell_name .. " (count " .. spell_cast_counts[spell_name] .. ")")
+                    dbg("Cast " .. spell_name .. " (count " .. spell_cast_counts[spell_name] .. ") Duration: " .. string.format("%.2f", duration))
                 end
                 return
             end

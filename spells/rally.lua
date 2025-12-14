@@ -60,15 +60,25 @@ local function logics()
     -- Enemy type filter check
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     if (not use_for_movespeed) and enemy_type_filter > 0 then
-        local enemies = actors_manager.get_enemy_npcs()
+        local enemies_list = {}
+        if _G.PaladinRotation and _G.PaladinRotation.valid_enemies then
+            for _, data in ipairs(_G.PaladinRotation.valid_enemies) do
+                table.insert(enemies_list, data.unit)
+            end
+        else
+            enemies_list = actors_manager.get_enemy_npcs() or {}
+        end
+
         local has_priority_target = false
         local check_range_sqr = 25.0 * 25.0
         
-        for _, e in ipairs(enemies) do
+        for _, e in ipairs(enemies_list) do
             if e and e:is_enemy() then
                 -- Filter out dead, immune, and untargetable targets
-                if e:is_dead() or e:is_immune() or e:is_untargetable() then
-                    goto continue_rally
+                if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                    if e:is_dead() or e:is_immune() or e:is_untargetable() then
+                        goto continue_rally
+                    end
                 end
 
                 local pos = e:get_position()

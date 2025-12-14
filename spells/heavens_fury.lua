@@ -64,16 +64,26 @@ local function logics()
     local required_enemies = use_minimum_weight and math.max(min_enemies, minimum_weight) or min_enemies
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
-    local enemies = actors_manager.get_enemy_npcs()
+    local enemies_list = {}
+    if _G.PaladinRotation and _G.PaladinRotation.valid_enemies then
+        for _, data in ipairs(_G.PaladinRotation.valid_enemies) do
+            table.insert(enemies_list, data.unit)
+        end
+    else
+        enemies_list = actors_manager.get_enemy_npcs() or {}
+    end
+
     local near = 0
     local has_priority_target = false
     local engage_range_sqr = engage_range * engage_range
 
-    for _, e in ipairs(enemies) do
+    for _, e in ipairs(enemies_list) do
         if e and e:is_enemy() then
             -- Filter out dead, immune, and untargetable targets
-            if e:is_dead() or e:is_immune() or e:is_untargetable() then
-                goto continue_heavens_fury
+            if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                if e:is_dead() or e:is_immune() or e:is_untargetable() then
+                    goto continue_heavens_fury
+                end
             end
 
             local pos = e:get_position()
