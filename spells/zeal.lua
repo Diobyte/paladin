@@ -11,7 +11,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_zeal_enabled")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.05, get_hash("paladin_rotation_zeal_min_cd")),
-    min_resource = slider_int:new(0, 100, 10, get_hash("paladin_rotation_zeal_min_resource")),
+    min_resource = slider_int:new(0, 100, 15, get_hash("paladin_rotation_zeal_min_resource")),  -- Low threshold - spam if possible
     min_enemies = slider_int:new(1, 10, 1, get_hash("paladin_rotation_zeal_min_enemies")),
     use_life_mode = checkbox:new(false, get_hash("paladin_rotation_zeal_life_mode")),
 }

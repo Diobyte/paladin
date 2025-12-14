@@ -9,11 +9,11 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_arbiter_enabled")),
-    min_cooldown = slider_float:new(0.2, 10.0, 0.8, get_hash("paladin_rotation_arbiter_min_cd")),
-    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_arbiter_enemy_type")),
+    min_cooldown = slider_float:new(0.2, 10.0, 0.5, get_hash("paladin_rotation_arbiter_min_cd")),  -- React fast when ult is up
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_arbiter_enemy_type")),  -- 0 = use on any target for Arbiter form
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_arbiter_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_arbiter_min_weight")),
-    prediction_time = slider_float:new(0.1, 0.8, 0.3, get_hash("paladin_rotation_arbiter_prediction")),
+    prediction_time = slider_float:new(0.1, 0.8, 0.25, get_hash("paladin_rotation_arbiter_prediction")),  -- Faster prediction
 }
 
 local spell_id = spell_data.arbiter_of_justice.spell_id

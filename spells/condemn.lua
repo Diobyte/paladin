@@ -11,9 +11,9 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_condemn_enabled")),
-    min_cooldown = slider_float:new(0.0, 20.0, 0.2, get_hash("paladin_rotation_condemn_min_cd")),  -- Reduced for max Arbiter uptime
-    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_condemn_min_enemies")),
-    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_condemn_enemy_type")),
+    min_cooldown = slider_float:new(0.0, 20.0, 0.15, get_hash("paladin_rotation_condemn_min_cd")),  -- META: ARBITER TRIGGER - cast ASAP when available
+    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_condemn_min_enemies")),  -- 1 = always cast for Arbiter, even single target
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_condemn_enemy_type")),  -- 0 = All (Arbiter form is the priority)
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_condemn_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 8.0, get_hash("paladin_rotation_condemn_min_weight")),
 }

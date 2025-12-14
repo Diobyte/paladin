@@ -11,12 +11,12 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_falling_star_enabled")),
-    min_cooldown = slider_float:new(0.1, 10.0, 0.2, get_hash("paladin_rotation_falling_star_min_cd")),  -- Reduced for max Arbiter uptime
-    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_falling_star_enemy_type")),
+    min_cooldown = slider_float:new(0.1, 10.0, 0.15, get_hash("paladin_rotation_falling_star_min_cd")),  -- META: ARBITER TRIGGER - cast ASAP
+    enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_falling_star_enemy_type")),  -- 0 = All (Arbiter form priority)
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_falling_star_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_falling_star_min_weight")),
-    prediction_time = slider_float:new(0.1, 1.0, 0.3, get_hash("paladin_rotation_falling_star_prediction")),  -- Reduced for faster landing
-    min_range = slider_float:new(0.0, 10.0, 2.0, get_hash("paladin_rotation_falling_star_min_range")),  -- Min range to leap
+    prediction_time = slider_float:new(0.1, 1.0, 0.25, get_hash("paladin_rotation_falling_star_prediction")),  -- Slightly reduced for faster landing
+    min_range = slider_float:new(0.0, 10.0, 0.0, get_hash("paladin_rotation_falling_star_min_range")),  -- 0 = always leap, even on top of enemies (Arbiter trigger is priority!)
 }
 
 local spell_id = spell_data.falling_star.spell_id
@@ -59,16 +59,18 @@ local function logics(target)
         return false, 0
     end
 
-    -- Check minimum range (don't leap if already on top of target)
+    -- Check minimum range (don't leap if already on top of target, unless min_range is 0)
     local player = get_local_player()
     local player_pos = player and player:get_position() or nil
     local target_pos = target:get_position()
     
     if player_pos and target_pos then
         local min_range = menu_elements.min_range:get()
-        local dist = player_pos:dist_to(target_pos)
-        if dist < min_range then
-            return false, 0  -- Too close to leap
+        if min_range > 0 then
+            local dist = player_pos:dist_to(target_pos)
+            if dist < min_range then
+                return false, 0  -- Too close to leap (but 0 = always leap for Arbiter trigger)
+            end
         end
     end
 

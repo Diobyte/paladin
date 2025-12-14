@@ -10,11 +10,11 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_spear_of_the_heavens_enabled")),
-    min_cooldown = slider_float:new(0.0, 10.0, 0.3, get_hash("paladin_rotation_spear_of_the_heavens_min_cd")),
+    min_cooldown = slider_float:new(0.0, 10.0, 0.15, get_hash("paladin_rotation_spear_of_the_heavens_min_cd")),  -- Fast burst
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_spear_of_the_heavens_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_spear_of_the_heavens_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_spear_of_the_heavens_min_weight")),
-    prediction_time = slider_float:new(0.1, 0.8, 0.3, get_hash("paladin_rotation_spear_of_the_heavens_prediction")),
+    prediction_time = slider_float:new(0.1, 0.8, 0.25, get_hash("paladin_rotation_spear_of_the_heavens_prediction")),  -- Slightly faster
 }
 
 local spell_id = spell_data.spear_of_the_heavens.spell_id

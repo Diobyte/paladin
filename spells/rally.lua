@@ -8,8 +8,8 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_rally_enabled")),
-    recast_interval = slider_float:new(0.5, 30.0, 4.0, get_hash("paladin_rotation_rally_min_cd")),
-    resource_threshold = slider_int:new(0, 100, 60, get_hash("paladin_rotation_rally_resource_threshold")),
+    recast_interval = slider_float:new(0.5, 30.0, 2.0, get_hash("paladin_rotation_rally_min_cd")),  -- META: Use often! Reduced from 4.0
+    resource_threshold = slider_int:new(0, 100, 80, get_hash("paladin_rotation_rally_resource_threshold")),  -- Higher threshold = use more often as gen
     use_for_movespeed = checkbox:new(true, get_hash("paladin_rotation_rally_use_movespeed")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_rally_enemy_type")),
 }

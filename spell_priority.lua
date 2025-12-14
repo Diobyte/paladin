@@ -1,16 +1,17 @@
 -- Paladin Rotation Priority - Optimized for MAX DPS (D4 Season 11)
 --
 -- =====================================================
--- META ROTATION (Blessed Hammer / Hammerdin from maxroll.gg):
+-- META ROTATION (Blessed Hammer / Hammerdin from maxroll.gg Dec 2025):
 -- =====================================================
--- 1. Spam Blessed Hammer to deal damage
--- 2. Use Falling Star OR Condemn every few seconds to stay in Arbiter form
+-- 1. Spam Blessed Hammer to deal damage (PRIMARY DPS)
+-- 2. Use Falling Star OR Condemn every few seconds to stay in Arbiter form (CRITICAL!)
 -- 3. Use Evade in Arbiter to auto-cast Blessed Hammer with Argent Veil
--- 4. Activate Fanaticism Aura, Defiance Aura and Rally as often as possible
--- 5. Use Condemn to pull enemies in
+-- 4. Activate Fanaticism Aura, Defiance Aura and Rally as often as possible (BUFF UPTIME)
+-- 5. Use Condemn to pull enemies in (GROUPING + ARBITER)
 --
 -- ARBITER FORM: Triggered by Falling Star or Condemn via Disciple Oath
--- This is CRITICAL for Hammerdin builds - keep Arbiter uptime high!
+-- This is CRITICAL for Hammerdin builds - keep Arbiter uptime HIGH!
+-- Arbiter form grants: improved Evade, auto-cast Blessed Hammer, massive damage buffs
 --
 -- RESOURCE SYSTEM (Faith):
 -- Generators: Clash (20), Rally (22), Advance (18), Holy Bolt (16), Brandish (14)
@@ -19,7 +20,7 @@
 -- INTERNAL COOLDOWN SYSTEM:
 -- After ANY spell casts, it goes on internal cooldown. This allows the next
 -- priority spell to cast, creating natural weaving. Example:
--- Hammer → (hammer on 0.15s ICD) → Falling Star → (FS on ICD) → Hammer → etc.
+-- Hammer → (hammer on 0.05s ICD) → Falling Star → (FS on ICD) → Hammer → etc.
 
 local spell_priority = {
     -- =====================================================

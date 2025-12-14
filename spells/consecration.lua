@@ -9,11 +9,11 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_consecration_enabled")),
-    min_cooldown = slider_float:new(0.0, 25.0, 0.4, get_hash("paladin_rotation_consecration_min_cd")),
+    min_cooldown = slider_float:new(0.0, 25.0, 0.2, get_hash("paladin_rotation_consecration_min_cd")),  -- Fast burst
     use_for_healing = checkbox:new(true, get_hash("paladin_rotation_consecration_use_healing")),
-    health_threshold = slider_int:new(10, 100, 70, get_hash("paladin_rotation_consecration_health_threshold")),
+    health_threshold = slider_int:new(10, 100, 60, get_hash("paladin_rotation_consecration_health_threshold")),  -- Lower threshold = use more proactively
     use_for_damage = checkbox:new(true, get_hash("paladin_rotation_consecration_use_damage")),
-    min_enemies_for_damage = slider_int:new(1, 15, 1, get_hash("paladin_rotation_consecration_min_enemies")),
+    min_enemies_for_damage = slider_int:new(1, 15, 1, get_hash("paladin_rotation_consecration_min_enemies")),  -- 1 = always use for damage
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_consecration_enemy_type")),
 }
 

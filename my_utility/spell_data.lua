@@ -9,10 +9,10 @@
 -- Spell IDs verified from Wowhead Diablo 4 database (Dec 2025)
 -- https://www.wowhead.com/diablo-4/skills/paladin
 --
--- TARGETING GUIDE:
--- cast_spell.self(spell_id)        - Self-cast spells (auras, ground AoE around player)
--- cast_spell.target(unit, spell_id, delay, is_channeled) - Target a unit directly (melee, homing)
--- cast_spell.position(spell_id, pos, delay) - Cast at ground position (AoE, skillshots)
+-- TARGETING GUIDE (API Reference):
+-- cast_spell.self(spell_id, animation_time)              - Self-cast spells (auras, AoE around player)
+-- cast_spell.target(target, spell_id, animation_time, is_debug_mode) - Target a unit (melee, homing)
+-- cast_spell.position(spell_id, position, animation_time) - Cast at ground position (AoE, skillshots)
 
 local spell_data = {
     -- =====================================================

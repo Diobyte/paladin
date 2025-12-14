@@ -389,8 +389,8 @@ local spell_ranges = {
 -- - Generators have SHORT ICD but their logics() blocks when Faith is high
 local spell_internal_cooldowns = {
     -- CORE SPAM - Very short ICD for maximum spam rate
-    -- 0.1s matches typical animation time, allows ~10 casts/second theoretical
-    blessed_hammer = 0.10,  -- Primary spam skill - cast as fast as possible
+    -- META: "Spam Blessed Hammer to deal damage" - minimal ICD
+    blessed_hammer = 0.05,  -- Primary spam skill - cast as fast as possible (was 0.10)
     
     -- ALTERNATIVE CORE SPENDERS - Slightly longer to not compete with main
     blessed_shield = 0.20,  -- Higher cost, use when ricochet value
@@ -410,20 +410,21 @@ local spell_internal_cooldowns = {
     holy_light_aura = 0.50,
     
     -- BURST COOLDOWNS - These have game cooldowns (12-18s)
-    -- ARBITER TRIGGERS (falling_star, condemn) - LOW ICD for max uptime!
+    -- ARBITER TRIGGERS (falling_star, condemn) - VERY LOW ICD for max uptime!
+    -- META: "Use Falling Star OR Condemn every few seconds to stay in Arbiter form"
     -- These are CRITICAL for Hammerdin to stay in Arbiter form
-    falling_star = 0.20,        -- ARBITER TRIGGER - react fast
-    spear_of_the_heavens = 0.30, -- Ranged burst
-    condemn = 0.20,             -- ARBITER TRIGGER - react fast
-    consecration = 0.40,        -- Ground effect, less urgent
+    falling_star = 0.10,        -- ARBITER TRIGGER - react VERY fast (was 0.20)
+    spear_of_the_heavens = 0.25, -- Ranged burst (was 0.30)
+    condemn = 0.10,             -- ARBITER TRIGGER - react VERY fast (was 0.20)
+    consecration = 0.35,        -- Ground effect, less urgent (was 0.40)
     
     -- GENERATORS - Short ICD, but logics() has resource threshold
     -- Rally moved to buff tier - very short ICD for maximum uptime
-    rally = 0.15,      -- Meta: Use as often as possible! Very short ICD
-    clash = 0.15,      -- Shield bash - fast generator
-    advance = 0.25,    -- Gap closer + gen
-    holy_bolt = 0.15,  -- Ranged filler
-    brandish = 0.15,   -- Melee arc filler
+    rally = 0.10,      -- META: "Use Rally as often as possible!" Very short ICD (was 0.15)
+    clash = 0.12,      -- Shield bash - fast generator (was 0.15)
+    advance = 0.20,    -- Gap closer + gen (was 0.25)
+    holy_bolt = 0.12,  -- Ranged filler (was 0.15)
+    brandish = 0.12,   -- Melee arc filler (was 0.15)
     
     -- MOBILITY - Moderate ICD, positioning not DPS
     shield_charge = 0.50,
@@ -755,5 +756,5 @@ safe_on_update(function()
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.1 (Season 11 Meta Optimized)")
+    console.print("Paladin_Rotation | Version 1.2 (Season 11 Meta Optimized - Dec 2025)")
 end

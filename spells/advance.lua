@@ -9,10 +9,10 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_advance_enabled")),
-    min_cooldown = slider_float:new(0.0, 2.0, 0.15, get_hash("paladin_rotation_advance_min_cd")),
-    min_range = slider_float:new(2.0, 10.0, 4.0, get_hash("paladin_rotation_advance_min_range")),
+    min_cooldown = slider_float:new(0.0, 2.0, 0.12, get_hash("paladin_rotation_advance_min_cd")),  -- Fast mobility
+    min_range = slider_float:new(2.0, 10.0, 5.0, get_hash("paladin_rotation_advance_min_range")),  -- Slightly increased for gap close
     max_range = slider_float:new(5.0, 20.0, 12.0, get_hash("paladin_rotation_advance_max_range")),
-    resource_threshold = slider_int:new(0, 100, 35, get_hash("paladin_rotation_advance_resource_threshold")),
+    resource_threshold = slider_int:new(0, 100, 40, get_hash("paladin_rotation_advance_resource_threshold")),  -- Higher threshold = gap close more
 }
 
 local spell_id = spell_data.advance.spell_id

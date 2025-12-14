@@ -9,11 +9,11 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_zenith_enabled")),
-    min_cooldown = slider_float:new(0.0, 30.0, 0.5, get_hash("paladin_rotation_zenith_min_cd")),
+    min_cooldown = slider_float:new(0.0, 30.0, 0.3, get_hash("paladin_rotation_zenith_min_cd")),  -- React fast when ult is up
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_zenith_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_zenith_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 8.0, get_hash("paladin_rotation_zenith_min_weight")),
-    min_enemies = slider_int:new(1, 15, 2, get_hash("paladin_rotation_zenith_min_enemies")),
+    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_zenith_min_enemies")),  -- 1 = use on any target
 }
 
 local spell_id = spell_data.zenith.spell_id

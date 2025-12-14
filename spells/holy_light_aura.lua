@@ -7,20 +7,34 @@ local spell_data = require("my_utility/spell_data")
 
 -- Constants
 local AURA_DURATION = 12.0  -- Default duration in seconds
-local BUFFER_TIME = 1.0      -- Buffer time to recast before aura expires (increased for safety)
+local BUFFER_TIME = 2.0      -- Buffer time to recast before aura expires (increased for reliability)
 
--- Check if player has holy light buff active
+-- Check if player has holy light buff active using API-compliant method
+-- API: buff.name_hash (int), buff.duration, buff:get_remaining_time(), buff:is_active_buff(), buff:get_name()
 local function has_holy_light_buff()
     local player = get_local_player()
-    if not player then return false end
+    if not player then return false, 0 end
     
     local buffs = player:get_buffs()
-    if not buffs then return false end
+    if not buffs then return false, 0 end
     
     for _, buff in ipairs(buffs) do
-        local name = buff:get_name() or ""
-        if name:lower():find("holy_light") or name:lower():find("regeneration") or name:lower():find("healing") then
-            return true, buff:get_remaining_time()
+        -- First check if buff is active
+        if buff and buff.is_active_buff and buff:is_active_buff() then
+            -- Check remaining time
+            if buff.get_remaining_time then
+                local remaining = buff:get_remaining_time()
+                if remaining and remaining > 0 then
+                    -- Try to match by name if available
+                    local name = buff.get_name and buff:get_name() or ""
+                    if name and type(name) == "string" then
+                        local name_lower = name:lower()
+                        if name_lower:find("holy") or name_lower:find("light") or name_lower:find("regen") then
+                            return true, remaining
+                        end
+                    end
+                end
+            end
         end
     end
     
@@ -30,7 +44,7 @@ end
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_holy_light_aura_enabled")),
-    recast_interval = slider_float:new(2.0, 60.0, AURA_DURATION - BUFFER_TIME, get_hash("paladin_rotation_holy_light_aura_recast")),
+    recast_interval = slider_float:new(2.0, 60.0, AURA_DURATION - BUFFER_TIME - 1.0, get_hash("paladin_rotation_holy_light_aura_recast")),  -- Recast earlier for safety
     combat_only = checkbox:new(true, get_hash("paladin_rotation_holy_light_aura_combat_only")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_holy_light_aura_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_holy_light_aura_use_min_weight")),

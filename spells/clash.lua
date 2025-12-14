@@ -9,8 +9,8 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_clash_enabled")),
-    min_cooldown = slider_float:new(0.0, 1.0, 0.10, get_hash("paladin_rotation_clash_min_cd")),
-    resource_threshold = slider_int:new(0, 100, 20, get_hash("paladin_rotation_clash_resource_threshold")),
+    min_cooldown = slider_float:new(0.0, 1.0, 0.08, get_hash("paladin_rotation_clash_min_cd")),  -- Fast generator
+    resource_threshold = slider_int:new(0, 100, 30, get_hash("paladin_rotation_clash_resource_threshold")),  -- Only gen when Faith below 30%
 }
 
 local spell_id = spell_data.clash.spell_id

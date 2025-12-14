@@ -9,9 +9,9 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_divine_lance_enabled")),
-    min_cooldown = slider_float:new(0.0, 5.0, 0.2, get_hash("paladin_rotation_divine_lance_min_cd")),
-    min_resource = slider_int:new(0, 100, 25, get_hash("paladin_rotation_divine_lance_min_resource")),
-    prediction_time = slider_float:new(0.1, 0.8, 0.3, get_hash("paladin_rotation_divine_lance_prediction")),
+    min_cooldown = slider_float:new(0.0, 5.0, 0.15, get_hash("paladin_rotation_divine_lance_min_cd")),  -- Fast spender
+    min_resource = slider_int:new(0, 100, 20, get_hash("paladin_rotation_divine_lance_min_resource")),  -- Only need some Faith
+    prediction_time = slider_float:new(0.1, 0.8, 0.25, get_hash("paladin_rotation_divine_lance_prediction")),  -- Faster prediction
 }
 
 local spell_id = spell_data.divine_lance.spell_id

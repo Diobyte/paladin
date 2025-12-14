@@ -9,11 +9,11 @@ local spell_data = require("my_utility/spell_data")
 local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_heavens_fury_enabled")),
-    min_cooldown = slider_float:new(0.0, 40.0, 1.0, get_hash("paladin_rotation_heavens_fury_min_cd")),
+    min_cooldown = slider_float:new(0.0, 40.0, 0.5, get_hash("paladin_rotation_heavens_fury_min_cd")),  -- React fast when ult is up
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_heavens_fury_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_heavens_fury_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 10.0, get_hash("paladin_rotation_heavens_fury_min_weight")),
-    min_enemies = slider_int:new(1, 15, 3, get_hash("paladin_rotation_heavens_fury_min_enemies")),
+    min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_heavens_fury_min_enemies")),  -- 1 = use on any pack
 }
 
 local spell_id = spell_data.heavens_fury.spell_id
