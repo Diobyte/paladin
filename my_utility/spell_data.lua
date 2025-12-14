@@ -41,6 +41,17 @@ local spell_data = {
     holy_light_aura = {
         spell_id = 2297097,
     },
+    
+    -- enemies
+    enemies = {
+        damage_resistance = {
+            spell_id = 1094180,
+            buff_ids = {
+                provider = 2771801864,
+                receiver = 2182649012
+            }
+        }
+    }
 }
 
 return spell_data

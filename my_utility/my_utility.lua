@@ -76,6 +76,19 @@ local function is_target_within_angle(origin, reference, target, max_angle)
     return angle <= max_angle
 end
 
+-- Skin name patterns for infernal horde objectives
+local horde_objectives = {
+    "BSK_HellSeeker",
+    "MarkerLocation_BSK_Occupied",
+    "S05_coredemon",
+    "S05_fallen",
+    "BSK_Structure_BonusAether",
+    "BSK_Miniboss",
+    "BSK_elias_boss",
+    "BSK_cannibal_brute_boss",
+    "BSK_skeleton_boss"
+}
+
 local my_utility = {
     safe_get_time = safe_get_time,
     is_spell_ready = is_spell_ready,
@@ -84,6 +97,7 @@ local my_utility = {
     get_health_pct = get_health_pct,
     enemy_count_in_radius = enemy_count_in_radius,
     is_target_within_angle = is_target_within_angle,
+    horde_objectives = horde_objectives,
 }
 
 return my_utility
