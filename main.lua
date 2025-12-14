@@ -49,10 +49,14 @@ end
 -- These MUST be called unconditionally at the top level, before any logic
 -- set_block_movement(true): We handle all movement in spell logics, not orbwalker
 -- set_clear_toggle(true): Allow the clear mode toggle to work
-orbwalker.set_block_movement(true)
-orbwalker.set_clear_toggle(true)
+if orbwalker and orbwalker.set_block_movement then
+    pcall(function() orbwalker.set_block_movement(true) end)
+end
+if orbwalker and orbwalker.set_clear_toggle then
+    pcall(function() orbwalker.set_clear_toggle(true) end)
+end
 -- Ensure orbwalker is in a casting-friendly mode on load
-if orbwalker.set_orbwalker_mode then
+if orbwalker and orbwalker.set_orbwalker_mode then
     pcall(function() orbwalker.set_orbwalker_mode(orb_mode.clear) end)
 end
 

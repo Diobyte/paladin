@@ -334,8 +334,6 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
 
     -- Allow all active orbwalker modes (pvp, clear, flee) by default; do not block casting
     -- This avoids the script stalling when the orbwalker is in a non-standard mode
-    return true
-
     if debug_mode then console.print("[is_spell_allowed] ALLOWED") end
     return true
 end

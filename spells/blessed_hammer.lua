@@ -44,7 +44,8 @@ local function menu()
     end
 end
 
-local function logics()
+-- Optional target allows main.lua to pass the evaluated target; we still self-cast.
+local function logics(target)
     local debug_enabled = menu_elements.debug_mode:get()
     local menu_boolean = menu_elements.main_boolean:get()
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_id)
@@ -117,8 +118,16 @@ local function logics()
     end
 
     if near < required_enemies then
-        -- CENTRALIZED MOVEMENT: If no enemies in engage range, move toward closest enemy
-        -- Find closest enemy (even if outside engage range)
+        -- CENTRALIZED MOVEMENT: move toward evaluated target if provided, otherwise closest
+        if target and target.get_position then
+            local target_pos = target:get_position()
+            if target_pos then
+                my_utility.move_to_target(target_pos, target:get_id())
+                if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving toward spell target - not enough in range") end
+                return false, 0
+            end
+        end
+
         local closest_enemy = nil
         local closest_dist_sqr = math.huge
         for _, e in ipairs(enemies) do
