@@ -166,171 +166,27 @@ end
 -- Evaluate all target types for the per-spell targeting system
 -- This runs once per update tick and returns all possible targets
 local function evaluate_all_targets(player_pos, melee_range, max_range)
-    local enemies = {}
-    if target_selector and target_selector.get_near_target_list then
-        enemies = target_selector.get_near_target_list(player_pos, max_range) or {}
-    else
-        enemies = actors_manager.get_enemy_npcs() or {}
-    end
-    
-    local targets = {
-        best_ranged = nil,
-        best_ranged_visible = nil,
-        best_melee = nil,
-        best_melee_visible = nil,
-        closest = nil,
-        closest_visible = nil,
-        best_cursor = nil,
-        closest_cursor = nil,
-        valid_enemies = {},
+    -- Get weights from menu
+    local weights = {
+        normal = safe_get_menu_element(menu.menu_elements.any_weight, 2),
+        elite = safe_get_menu_element(menu.menu_elements.elite_weight, 10),
+        champion = safe_get_menu_element(menu.menu_elements.champion_weight, 15),
+        boss = safe_get_menu_element(menu.menu_elements.boss_weight, 50),
+        comparison_radius = safe_get_menu_element(menu.menu_elements.comparison_radius, 3.0)
     }
     
-    local melee_range_sqr = melee_range * melee_range
-    local max_range_sqr = max_range * max_range
-    local cursor_pos = get_cursor_position and get_cursor_position() or nil
-    local cursor_range_sqr = 10.0 * 10.0
-    
-    -- Get weights from menu
-    local normal_weight = safe_get_menu_element(menu.menu_elements.any_weight, 2)
-    local elite_weight = safe_get_menu_element(menu.menu_elements.elite_weight, 10)
-    local champion_weight = safe_get_menu_element(menu.menu_elements.champion_weight, 15)
-    local boss_weight = safe_get_menu_element(menu.menu_elements.boss_weight, 50)
-    local comparison_radius = safe_get_menu_element(menu.menu_elements.comparison_radius, 3.0)
-    local comparison_radius_sqr = comparison_radius * comparison_radius
-    
     -- Get visibility/elevation filter settings
-    local enable_floor_filter = safe_get_menu_element(menu.menu_elements.enable_floor_filter, true)
-    local floor_height_threshold = safe_get_menu_element(menu.menu_elements.floor_height_threshold, 5.0)
-    local enable_visibility_filter = safe_get_menu_element(menu.menu_elements.enable_visibility_filter, true)
-    local visibility_collision_width = safe_get_menu_element(menu.menu_elements.visibility_collision_width, 1.0)
+    local filters = {
+        check_floor = safe_get_menu_element(menu.menu_elements.enable_floor_filter, true),
+        floor_height = safe_get_menu_element(menu.menu_elements.floor_height_threshold, 5.0),
+        check_visibility = safe_get_menu_element(menu.menu_elements.enable_visibility_filter, true),
+        visibility_width = safe_get_menu_element(menu.menu_elements.visibility_collision_width, 1.0)
+    }
     
-    local melee_candidates = {}
-    local ranged_candidates = {}
-    local cursor_candidates = {}
-    local closest_dist = math.huge
-    local closest_visible_dist = math.huge
-    local closest_cursor_dist = math.huge
+    local cursor_pos = get_cursor_position and get_cursor_position() or nil
     
-    -- First pass: collect valid enemies
-    for _, e in ipairs(enemies) do
-        if e and e:is_enemy() then
-            local is_dead = false
-            local is_immune = false
-            local is_untargetable = false
-            pcall(function() 
-                is_dead = e:is_dead() 
-                is_immune = e:is_immune()
-                is_untargetable = e:is_untargetable()
-            end)
-            
-            if not is_dead and not is_immune and not is_untargetable then
-                local pos = e:get_position()
-                if pos then
-                    local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
-                    if dist_sqr <= max_range_sqr then
-                        -- Elevation check
-                        if enable_floor_filter then
-                            local z_diff = math.abs(player_pos:z() - pos:z())
-                            if z_diff > floor_height_threshold then
-                                goto continue_collect
-                            end
-                        end
-                        
-                        table.insert(targets.valid_enemies, {unit = e, pos = pos, dist_sqr = dist_sqr})
-                    end
-                end
-            end
-            ::continue_collect::
-        end
-    end
-    
-    -- Second pass: calculate scores
-    for _, data in ipairs(targets.valid_enemies) do
-        local e = data.unit
-        local pos = data.pos
-        local dist_sqr = data.dist_sqr
-        
-        -- Visibility check
-        local is_visible = true
-        if enable_visibility_filter and target_selector and target_selector.is_wall_collision then
-            is_visible = not target_selector.is_wall_collision(player_pos, e, visibility_collision_width)
-        end
-        
-        -- Base score
-        local score = normal_weight
-        if e:is_boss() then score = boss_weight
-        elseif e:is_champion() then score = champion_weight
-        elseif e:is_elite() then score = elite_weight end
-        
-        if e:is_vulnerable() then score = score + 5 end -- Small bonus for vulnerable
-        
-        -- Cluster bonus
-        local cluster_count = 0
-        for _, other in ipairs(targets.valid_enemies) do
-            if other.unit ~= e then
-                if pos:squared_dist_to_ignore_z(other.pos) <= comparison_radius_sqr then
-                    cluster_count = cluster_count + 1
-                end
-            end
-        end
-        score = score + (cluster_count * 2) -- Add weight for density
-        
-        -- Distance penalty (prefer closer targets slightly)
-        score = score - (dist_sqr * 0.01)
-        
-        -- Track closest
-        if dist_sqr < closest_dist then
-            closest_dist = dist_sqr
-            targets.closest = e
-        end
-        if is_visible and dist_sqr < closest_visible_dist then
-            closest_visible_dist = dist_sqr
-            targets.closest_visible = e
-        end
-        
-        -- Categorize
-        if dist_sqr <= melee_range_sqr then
-            table.insert(melee_candidates, {unit = e, score = score, visible = is_visible})
-        end
-        table.insert(ranged_candidates, {unit = e, score = score, visible = is_visible})
-        
-        -- Cursor candidates
-        if cursor_pos then
-            local cursor_dist_sqr = pos:squared_dist_to_ignore_z(cursor_pos)
-            if cursor_dist_sqr <= cursor_range_sqr then
-                table.insert(cursor_candidates, {unit = e, score = score, cursor_dist = cursor_dist_sqr})
-                if cursor_dist_sqr < closest_cursor_dist then
-                    closest_cursor_dist = cursor_dist_sqr
-                    targets.closest_cursor = e
-                end
-            end
-        end
-    end
-    
-    -- Select best targets
-    local function get_best(candidates, check_visible)
-        local best = nil
-        local best_score = -math.huge
-        for _, c in ipairs(candidates) do
-            if (not check_visible or c.visible) and c.score > best_score then
-                best_score = c.score
-                best = c.unit
-            end
-        end
-        return best
-    end
-    
-    targets.best_melee = get_best(melee_candidates, false)
-    targets.best_melee_visible = get_best(melee_candidates, true)
-    targets.best_ranged = get_best(ranged_candidates, false)
-    targets.best_ranged_visible = get_best(ranged_candidates, true)
-    targets.best_cursor = get_best(cursor_candidates, false)
-    
-    -- Fallbacks
-    if not targets.best_melee then targets.best_melee = targets.best_ranged or targets.closest end
-    if not targets.best_melee_visible then targets.best_melee_visible = targets.best_ranged_visible or targets.closest_visible end
-    
-    return targets
+    -- Use the centralized target selector logic
+    return my_target_selector.get_best_targets(player_pos, melee_range, max_range, cursor_pos, weights, filters)
 end
 
 

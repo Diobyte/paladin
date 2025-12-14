@@ -1004,6 +1004,158 @@ local function analyze_target_area(source, scan_radius, normal_target_count, eli
     }
 end
 
+-- Get best targets for each category (melee, ranged, cursor)
+-- This replaces the monolithic evaluate_all_targets logic in main.lua
+local function get_best_targets(source, melee_range, max_range, cursor_pos, weights, filters)
+    local targets = {
+        best_melee = nil,
+        best_melee_visible = nil,
+        best_ranged = nil,
+        best_ranged_visible = nil,
+        best_cursor = nil,
+        closest = nil,
+        closest_visible = nil,
+        valid_enemies = {},
+    }
+
+    local melee_range_sqr = melee_range * melee_range
+    local max_range_sqr = max_range * max_range
+    local cursor_range_sqr = 10.0 * 10.0 -- 10 units around cursor
+    
+    -- Default weights if not provided
+    weights = weights or {}
+    local normal_weight = weights.normal or 2
+    local elite_weight = weights.elite or 10
+    local champion_weight = weights.champion or 15
+    local boss_weight = weights.boss or 50
+    local comparison_radius_sqr = (weights.comparison_radius or 3.0) ^ 2
+    
+    -- Default filters if not provided
+    filters = filters or {}
+    local floor_height_threshold = filters.floor_height or 5.0
+    local visibility_width = filters.visibility_width or 1.0
+    local check_floor = filters.check_floor ~= false
+    local check_visibility = filters.check_visibility ~= false
+
+    local enemies = {}
+    if target_selector and target_selector.get_near_target_list then
+        enemies = target_selector.get_near_target_list(source, max_range) or {}
+    else
+        enemies = actors_manager.get_enemy_npcs() or {}
+    end
+
+    local melee_candidates = {}
+    local ranged_candidates = {}
+    local cursor_candidates = {}
+    local closest_dist = math.huge
+    local closest_visible_dist = math.huge
+    local closest_cursor_dist = math.huge
+
+    -- First pass: collect valid enemies
+    for _, e in ipairs(enemies) do
+        if is_cached_target_valid(e, source, max_range) then
+            local pos = safe_get_position(e)
+            if pos then
+                -- Elevation check
+                if check_floor then
+                    local z_diff = math.abs(source:z() - pos:z())
+                    if z_diff > floor_height_threshold then
+                        goto continue_collect
+                    end
+                end
+                
+                local dist_sqr = pos:squared_dist_to_ignore_z(source)
+                table.insert(targets.valid_enemies, {unit = e, pos = pos, dist_sqr = dist_sqr})
+            end
+        end
+        ::continue_collect::
+    end
+
+    -- Second pass: calculate scores
+    for _, data in ipairs(targets.valid_enemies) do
+        local e = data.unit
+        local pos = data.pos
+        local dist_sqr = data.dist_sqr
+        
+        -- Visibility check
+        local is_visible = true
+        if check_visibility and target_selector and target_selector.is_wall_collision then
+            is_visible = not target_selector.is_wall_collision(source, e, visibility_width)
+        end
+        
+        -- Base score
+        local score = normal_weight
+        if safe_is_boss(e) then score = boss_weight
+        elseif safe_is_champion(e) then score = champion_weight
+        elseif safe_is_elite(e) then score = elite_weight end
+        
+        if e:is_vulnerable() then score = score + 5 end
+        
+        -- Cluster bonus
+        local cluster_count = 0
+        for _, other in ipairs(targets.valid_enemies) do
+            if other.unit ~= e then
+                if pos:squared_dist_to_ignore_z(other.pos) <= comparison_radius_sqr then
+                    cluster_count = cluster_count + 1
+                end
+            end
+        end
+        score = score + (cluster_count * 2)
+        
+        -- Distance penalty
+        score = score - (dist_sqr * 0.01)
+        
+        -- Track closest
+        if dist_sqr < closest_dist then
+            closest_dist = dist_sqr
+            targets.closest = e
+        end
+        if is_visible and dist_sqr < closest_visible_dist then
+            closest_visible_dist = dist_sqr
+            targets.closest_visible = e
+        end
+        
+        -- Categorize
+        if dist_sqr <= melee_range_sqr then
+            table.insert(melee_candidates, {unit = e, score = score, visible = is_visible})
+        end
+        table.insert(ranged_candidates, {unit = e, score = score, visible = is_visible})
+        
+        -- Cursor candidates
+        if cursor_pos then
+            local cursor_dist_sqr = pos:squared_dist_to_ignore_z(cursor_pos)
+            if cursor_dist_sqr <= cursor_range_sqr then
+                table.insert(cursor_candidates, {unit = e, score = score, cursor_dist = cursor_dist_sqr})
+            end
+        end
+    end
+    
+    -- Select best targets
+    local function get_best(candidates, check_visible)
+        local best = nil
+        local best_score = -math.huge
+        for _, c in ipairs(candidates) do
+            if (not check_visible or c.visible) and c.score > best_score then
+                best_score = c.score
+                best = c.unit
+            end
+        end
+        return best
+    end
+    
+    targets.best_melee = get_best(melee_candidates, false)
+    targets.best_melee_visible = get_best(melee_candidates, true)
+    targets.best_ranged = get_best(ranged_candidates, false)
+    targets.best_ranged_visible = get_best(ranged_candidates, true)
+    targets.best_cursor = get_best(cursor_candidates, false)
+    
+    -- Fallbacks
+    if not targets.best_melee then targets.best_melee = targets.best_ranged or targets.closest end
+    if not targets.best_melee_visible then targets.best_melee_visible = targets.best_ranged_visible or targets.closest_visible end
+    
+    return targets
+end
+
 return
 {
     get_target_list = get_target_list,
@@ -1019,5 +1171,6 @@ return
     
     -- Weighted targeting system
     get_weighted_target = get_weighted_target,
+    get_best_targets = get_best_targets,
     analyze_target_area = analyze_target_area
 }
