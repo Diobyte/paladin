@@ -45,8 +45,60 @@ local activation_filters = {
 local spell_delays = {
     instant_cast = 0.01,   -- instant cast abilities
     regular_cast = 0.10,   -- regular abilities with animation
-    move_delay = 0.50,     -- delay between movement commands (like druid)
+    move_delay = 0.35,     -- delay between movement commands (like druid)
+    cast_fail_delay = 0.15, -- delay after a failed cast before retry (prevents spam)
 }
+
+-- =====================================================
+-- GLOBAL MOVEMENT STATE (Spiritborn/Druid Pattern)
+-- Centralized movement tracking prevents oscillation from
+-- multiple spells competing for movement control
+-- =====================================================
+local next_time_allowed_move = 0.0
+local current_move_target_id = nil
+local last_move_time = 0.0
+
+-- Check if movement is currently allowed (global throttle)
+local function can_move_now()
+    local current_time = safe_get_time()
+    return current_time >= next_time_allowed_move
+end
+
+-- Request movement to a target position (Spiritborn pattern)
+-- Uses request_move instead of force_move_raw to prevent spam
+-- Returns true if movement was requested, false if throttled
+local function move_to_target(target_pos, optional_target_id)
+    local current_time = safe_get_time()
+    if current_time < next_time_allowed_move then
+        return false  -- Movement is throttled
+    end
+    
+    -- Use request_move (throttled) instead of force_move_raw (spam)
+    -- pathfinder.request_move only sends command if not already moving to same destination
+    if pathfinder and pathfinder.request_move then
+        pathfinder.request_move(target_pos)
+    elseif pathfinder and pathfinder.force_move_raw then
+        -- Fallback to force_move_raw if request_move not available
+        pathfinder.force_move_raw(target_pos)
+    end
+    
+    next_time_allowed_move = current_time + spell_delays.move_delay
+    current_move_target_id = optional_target_id
+    last_move_time = current_time
+    return true
+end
+
+-- Check if we're stuck (no movement progress)
+local function is_stuck(threshold_time)
+    threshold_time = threshold_time or 2.0
+    local current_time = safe_get_time()
+    return (current_time - last_move_time) > threshold_time
+end
+
+-- Clear movement state (call when combat target changes)
+local function clear_move_state()
+    current_move_target_id = nil
+end
 
 local evaluation_range_description = "\n      Range to check for enemies around the player      \n\n"
 
@@ -644,6 +696,11 @@ local my_utility = {
     get_melee_range = get_melee_range,
     is_in_range = is_in_range,
     spell_delays = spell_delays,
+    -- Centralized movement system
+    can_move_now = can_move_now,
+    move_to_target = move_to_target,
+    is_stuck = is_stuck,
+    clear_move_state = clear_move_state,
     -- Buff utilities (like Spiritborn script)
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,

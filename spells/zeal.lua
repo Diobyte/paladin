@@ -20,8 +20,7 @@ local menu_elements = {
 
 local spell_id = spell_data.zeal.spell_id
 local next_time_allowed_cast = 0.0
-local next_time_allowed_move = 0.0  -- Movement throttle (Druid pattern)
-local move_delay = 0.5              -- Time between movement commands
+-- Movement is now handled by my_utility.move_to_target() centralized system
 
 local function menu()
     if menu_elements.tree_tab:push("Zeal") then
@@ -100,18 +99,11 @@ local function logics(target)
     local melee_range = my_utility.get_melee_range()
     local in_range = my_utility.is_in_range(target, melee_range)
     
-    -- DRUID PATTERN: If out of range, move toward target then return false
-    -- This prevents oscillation by having movement inside spell logic
+    -- CENTRALIZED MOVEMENT: If out of range, use my_utility.move_to_target()
+    -- This prevents oscillation by using throttled request_move instead of force_move_raw
     if not in_range then
-        local current_time = get_time_since_inject()
-        if current_time >= next_time_allowed_move then
-            local target_position = target:get_position()
-            if target_position then
-                pathfinder.force_move_raw(target_position)
-                next_time_allowed_move = current_time + move_delay
-                if debug_enabled then console.print("[ZEAL DEBUG] Moving toward target - out of melee range") end
-            end
-        end
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[ZEAL DEBUG] Moving toward target - out of melee range") end
         return false, 0  -- Don't cast, just move
     end
     

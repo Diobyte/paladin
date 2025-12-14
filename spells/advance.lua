@@ -19,8 +19,7 @@ local menu_elements = {
 
 local spell_id = spell_data.advance.spell_id
 local next_time_allowed_cast = 0.0
-local next_time_allowed_move = 0.0
-local move_delay = 0.5  -- Delay between movement commands (match druid script)
+-- Advance is a gap-close skill, doesn't need movement tracking
 
 local function menu()
     if menu_elements.tree_tab:push("Advance") then

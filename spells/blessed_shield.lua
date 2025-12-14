@@ -23,6 +23,7 @@ local menu_elements = {
 
 local spell_id = spell_data.blessed_shield.spell_id
 local next_time_allowed_cast = 0.0
+-- Movement is now handled by my_utility.move_to_target() centralized system
 
 local function menu()
     if menu_elements.tree_tab:push("Blessed Shield") then
@@ -88,7 +89,9 @@ local function logics(target)
     local in_range = my_utility.is_in_range(target, cast_range)
     
     if not in_range then
-        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Target out of range") end
+        -- CENTRALIZED MOVEMENT: Use my_utility.move_to_target()
+        my_utility.move_to_target(target:get_position(), target:get_id())
+        if debug_enabled then console.print("[BLESSED SHIELD DEBUG] Moving toward target") end
         return false, 0
     end
     

@@ -22,8 +22,7 @@ local menu_elements = {
 
 local spell_id = spell_data.blessed_hammer.spell_id
 local next_time_allowed_cast = 0.0
-local next_time_allowed_move = 0.0  -- Movement throttle (Druid pattern)
-local move_delay = 0.5              -- Time between movement commands
+-- Movement is now handled by my_utility.move_to_target() centralized system
 
 local function menu()
     if menu_elements.tree_tab:push("Blessed Hammer") then
@@ -114,34 +113,26 @@ local function logics()
     end
 
     if near < min_enemies then
-        -- DRUID PATTERN: If no enemies in engage range, move toward closest enemy
-        -- This ensures we get close enough for hammers to hit
-        local current_time = get_time_since_inject()
-        if current_time >= next_time_allowed_move then
-            -- Find closest enemy (even if outside engage range)
-            local closest_enemy = nil
-            local closest_dist_sqr = math.huge
-            for _, e in ipairs(enemies) do
-                if e and e:is_enemy() and not e:is_dead() and not e:is_immune() and not e:is_untargetable() then
-                    local pos = e:get_position()
-                    if pos then
-                        local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
-                        if dist_sqr < closest_dist_sqr then
-                            closest_dist_sqr = dist_sqr
-                            closest_enemy = e
-                        end
+        -- CENTRALIZED MOVEMENT: If no enemies in engage range, move toward closest enemy
+        -- Find closest enemy (even if outside engage range)
+        local closest_enemy = nil
+        local closest_dist_sqr = math.huge
+        for _, e in ipairs(enemies) do
+            if e and e:is_enemy() and not e:is_dead() and not e:is_immune() and not e:is_untargetable() then
+                local pos = e:get_position()
+                if pos then
+                    local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
+                    if dist_sqr < closest_dist_sqr then
+                        closest_dist_sqr = dist_sqr
+                        closest_enemy = e
                     end
                 end
             end
-            
-            if closest_enemy then
-                local target_pos = closest_enemy:get_position()
-                if target_pos then
-                    pathfinder.force_move_raw(target_pos)
-                    next_time_allowed_move = current_time + move_delay
-                    if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving toward closest enemy - not enough in range") end
-                end
-            end
+        end
+        
+        if closest_enemy then
+            my_utility.move_to_target(closest_enemy:get_position(), closest_enemy:get_id())
+            if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving toward closest enemy - not enough in range") end
         end
         return false, 0
     end

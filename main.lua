@@ -57,6 +57,16 @@ local spell_priority = require("spell_priority")
 local menu = require("menu")
 local my_target_selector = require("my_utility/my_target_selector")
 
+-- GLOBAL STATE FOR LOOTEER COORDINATION
+-- Looteer checks this before looting to avoid conflicts with combat
+-- When in_combat=true or is_casting=true, Looteer should defer looting
+_G.PaladinRotation = {
+    in_combat = false,      -- True when we have valid combat targets
+    is_casting = false,     -- True when we're in cast animation
+    last_cast_time = 0,     -- Time of last successful cast
+    current_target_id = nil -- ID of current target for coordination
+}
+
 local function safe_on_render_menu(cb)
     if type(_G.safe_on_render_menu) == "function" then
         return _G.safe_on_render_menu(cb)
@@ -231,6 +241,15 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
     local cursor_pos = get_cursor_position()
     local cursor_range_sqr = 10.0 * 10.0  -- 10 unit radius around cursor
     
+    -- Get weights from menu (matching reference repos: Druid/Spiritborn)
+    -- Default values: normal=2, elite=10, champion=15, boss=50
+    local normal_weight = safe_get_menu_element(menu.menu_elements.any_weight, 2)
+    local elite_weight = safe_get_menu_element(menu.menu_elements.elite_weight, 10)
+    local champion_weight = safe_get_menu_element(menu.menu_elements.champion_weight, 15)
+    local boss_weight = safe_get_menu_element(menu.menu_elements.boss_weight, 50)
+    local comparison_radius = safe_get_menu_element(menu.menu_elements.comparison_radius, 3.0)
+    local comparison_radius_sqr = comparison_radius * comparison_radius
+    
     -- Collect valid enemies with scoring data
     local melee_candidates = {}
     local ranged_candidates = {}
@@ -240,68 +259,96 @@ local function evaluate_all_targets(player_pos, melee_range, max_range)
     local closest_visible_dist = math.huge
     local closest_visible_unit = nil
     
+    -- First pass: collect all valid enemies with positions
+    local valid_enemies = {}
     for _, e in ipairs(enemies) do
         if e and e:is_enemy() then
-            -- Filter out invalid targets
             if e:is_dead() or e:is_immune() or e:is_untargetable() then
-                goto continue_enemy
+                goto continue_collect
             end
-            
             local pos = e:get_position()
-            if not pos then goto continue_enemy end
-            
+            if not pos then goto continue_collect end
             local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
+            if dist_sqr > max_range_sqr then goto continue_collect end
             
-            -- CRITICAL FIX: Skip targets beyond max_range entirely
-            -- This prevents selecting off-screen/distant targets
-            if dist_sqr > max_range_sqr then
-                goto continue_enemy
-            end
-            
-            -- Check visibility (no wall collision)
-            local is_visible = true
-            if target_selector and target_selector.is_wall_collision then
-                is_visible = not target_selector.is_wall_collision(player_pos, e, 1.0)
-            end
-            
-            -- Calculate base score for weighted targeting
-            local score = 0
-            if e:is_boss() then
-                score = score + 5000
-            elseif e:is_champion() then
-                score = score + 2500
-            elseif e:is_elite() then
-                score = score + 1000
-            end
-            -- Distance penalty (slight)
-            score = score - (dist_sqr * 0.01)
-            
-            -- Track closest targets (now guaranteed within max_range)
-            if dist_sqr < closest_dist then
-                closest_dist = dist_sqr
-                closest_unit = e
-            end
-            if is_visible and dist_sqr < closest_visible_dist then
-                closest_visible_dist = dist_sqr
-                closest_visible_unit = e
-            end
-            
-            -- Categorize by range
-            if dist_sqr <= melee_range_sqr then
-                table.insert(melee_candidates, {unit = e, score = score, visible = is_visible})
-            end
-            -- All enemies are already within max_range, so add to ranged
-            table.insert(ranged_candidates, {unit = e, score = score, visible = is_visible})
-            
-            -- Cursor-based candidates (still within max_range)
-            if cursor_pos then
-                local cursor_dist_sqr = pos:squared_dist_to_ignore_z(cursor_pos)
-                if cursor_dist_sqr <= cursor_range_sqr then
-                    table.insert(cursor_candidates, {unit = e, score = score, cursor_dist = cursor_dist_sqr})
+            table.insert(valid_enemies, {unit = e, pos = pos, dist_sqr = dist_sqr})
+            ::continue_collect::
+        end
+    end
+    
+    -- Second pass: calculate scores with cluster weighting (like Druid/Spiritborn)
+    for _, data in ipairs(valid_enemies) do
+        local e = data.unit
+        local pos = data.pos
+        local dist_sqr = data.dist_sqr
+        
+        -- Check visibility (no wall collision)
+        local is_visible = true
+        if target_selector and target_selector.is_wall_collision then
+            is_visible = not target_selector.is_wall_collision(player_pos, e, 1.0)
+        end
+        
+        -- Calculate base score using menu weights (matching reference repos)
+        local score = normal_weight  -- Start with normal weight as base
+        if e:is_boss() then
+            score = boss_weight
+        elseif e:is_champion() then
+            score = champion_weight
+        elseif e:is_elite() then
+            score = elite_weight
+        end
+        
+        -- Add vulnerable bonus (like reference repos)
+        if e:is_vulnerable() then
+            score = score + 100  -- High priority for vulnerable targets
+        end
+        
+        -- Add cluster bonus: count nearby enemies and add their weights
+        -- This matches Druid/Spiritborn pattern of evaluating clusters
+        for _, other in ipairs(valid_enemies) do
+            if other.unit ~= e then
+                local cluster_dist_sqr = pos:squared_dist_to_ignore_z(other.pos)
+                if cluster_dist_sqr <= comparison_radius_sqr then
+                    -- Add weight based on nearby enemy type
+                    if other.unit:is_boss() then
+                        score = score + boss_weight
+                    elseif other.unit:is_champion() then
+                        score = score + champion_weight
+                    elseif other.unit:is_elite() then
+                        score = score + elite_weight
+                    else
+                        score = score + normal_weight
+                    end
                 end
             end
-            
-            ::continue_enemy::
+        end
+        
+        -- Distance penalty (slight) - closer targets get slight priority
+        score = score - (dist_sqr * 0.01)
+        
+        -- Track closest targets (now guaranteed within max_range)
+        if dist_sqr < closest_dist then
+            closest_dist = dist_sqr
+            closest_unit = e
+        end
+        if is_visible and dist_sqr < closest_visible_dist then
+            closest_visible_dist = dist_sqr
+            closest_visible_unit = e
+        end
+        
+        -- Categorize by range
+        if dist_sqr <= melee_range_sqr then
+            table.insert(melee_candidates, {unit = e, score = score, visible = is_visible})
+        end
+        -- All enemies are already within max_range, so add to ranged
+        table.insert(ranged_candidates, {unit = e, score = score, visible = is_visible})
+        
+        -- Cursor-based candidates (still within max_range)
+        if cursor_pos then
+            local cursor_dist_sqr = pos:squared_dist_to_ignore_z(cursor_pos)
+            if cursor_dist_sqr <= cursor_range_sqr then
+                table.insert(cursor_candidates, {unit = e, score = score, cursor_dist = cursor_dist_sqr})
+            end
         end
     end
     
@@ -503,9 +550,7 @@ end)
 
 local cast_end_time = 0.0
 local spell_last_cast_times = {}  -- Per-spell internal cooldown tracking
-local next_time_allowed_move = 0.0  -- Movement throttle to prevent oscillation
-local move_delay = 0.50  -- Time between movement commands (increased for stability)
-local current_move_target = nil  -- Track which target we're moving toward
+-- Movement is now centralized in my_utility.move_to_target()
 
 -- TARGET STICKINESS: Prevent oscillation by sticking to a target for a minimum time
 local sticky_target = nil
@@ -651,13 +696,26 @@ safe_on_update(function()
     -- Each spell picks its target based on its targeting_mode menu setting
     local evaluated_targets = evaluate_all_targets(player_position, melee_range, max_range)
     
-    -- If no targets at all, exit early
+    -- If no targets at all, exit early and update global state
     if not evaluated_targets.closest and not evaluated_targets.best_melee and not evaluated_targets.best_ranged then
+        -- Update global state for Looteer coordination
+        _G.PaladinRotation.in_combat = false
+        _G.PaladinRotation.is_casting = false
+        _G.PaladinRotation.current_target_id = nil
         return
     end
     
+    -- UPDATE GLOBAL STATE: We have combat targets
+    _G.PaladinRotation.in_combat = true
+    _G.PaladinRotation.is_casting = (current_time < cast_end_time)
+    
     -- Default target for spells without per-spell targeting_mode (uses closest for melee safety)
     local default_target = evaluated_targets.closest or evaluated_targets.best_melee
+    
+    -- Track current target for Looteer coordination
+    if default_target then
+        _G.PaladinRotation.current_target_id = default_target:get_id()
+    end
 
     -- Get equipped spells for spell casting logic
     local equipped_spells = get_equipped_spell_ids() or {}
@@ -751,6 +809,10 @@ safe_on_update(function()
                 -- This prevents animation canceling, NOT spell rotation
                 cast_end_time = current_time + my_utility.spell_delays.regular_cast
                 
+                -- Update global state for Looteer coordination
+                _G.PaladinRotation.last_cast_time = current_time
+                _G.PaladinRotation.is_casting = true
+                
                 -- Update internal cooldown tracking for this spell
                 spell_last_cast_times[spell_name] = current_time
                 
@@ -783,5 +845,5 @@ safe_on_update(function()
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.8 (Movement Fix - Druid Pattern - Dec 2025)")
+    console.print("Paladin_Rotation | Version 1.9 (Targeting & Weighting Fix - Dec 2025)")
 end
