@@ -1049,8 +1049,29 @@ safe_on_update(function()
         end
     end
     
-    -- MOVEMENT HANDLING: Removed from main.lua
-    -- Movement is now handled INSIDE each spell's logics() function using the Druid pattern
+    -- MOVEMENT HANDLING: Auto Play / Botting Support
+    -- If auto-play is enabled and we haven't cast a spell (and aren't in danger), move to target
+    if my_utility.is_auto_play_enabled() then
+        local player_pos = player:get_position()
+        local is_dangerous = false
+        if evade and evade.is_dangerous_position then
+            is_dangerous = evade.is_dangerous_position(player_pos)
+        end
+        
+        if not is_dangerous then
+            -- Use the closest target found earlier
+            local target = evaluated_targets.closest
+            if target then
+                local target_pos = target:get_position()
+                if target_pos then
+                    -- Move to within 4 yards of the target (melee range)
+                    -- get_extended: from target_pos, extend towards player_pos by 4.0 units
+                    local move_pos = target_pos:get_extended(player_pos, 4.0)
+                    my_utility.move_to_target(move_pos, target:get_id())
+                end
+            end
+        end
+    end
 end)
 
 -- Lightweight debug overlay (toggle with Enable Debug)
