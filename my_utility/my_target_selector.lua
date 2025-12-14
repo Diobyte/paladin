@@ -669,7 +669,7 @@ local function get_closest_valid_target(list, source)
     return closest
 end
 
-local function get_weighted_target(source, scan_radius, min_targets, comparison_radius, boss_weight, elite_weight, champion_weight, any_weight, refresh_rate, damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight, cluster_min_target_count, normal_target_count, champion_target_count, elite_target_count, boss_target_count, debug_enabled, floor_height_threshold)
+local function get_weighted_target(source, scan_radius, min_targets, comparison_radius, boss_weight, elite_weight, champion_weight, any_weight, refresh_rate, damage_resistance_provider_weight, damage_resistance_receiver_penalty, horde_objective_weight, vulnerable_debuff_weight, cluster_min_target_count, normal_target_count, champion_target_count, elite_target_count, boss_target_count, debug_enabled, floor_height_threshold, pre_filtered_list)
     -- Normalize inputs
     scan_radius = math.max(scan_radius or 0, 0.1)
     comparison_radius = math.max(comparison_radius or 0, 0.1)
@@ -694,8 +694,12 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
 
     local current_time = my_utility.safe_get_time()
     
+    -- Use pre-filtered list if provided (avoids double scanning)
+    if pre_filtered_list then
+        cached_target_list = pre_filtered_list
+        last_scan_time = current_time -- Update scan time to keep in sync
     -- Only scan for new targets if refresh time has passed
-    if current_time - last_scan_time >= refresh_rate then
+    elseif current_time - last_scan_time >= refresh_rate then
         last_scan_time = current_time
         if target_selector and target_selector.get_near_target_list then
             cached_target_list = target_selector.get_near_target_list(source_pos, scan_radius) or {}
@@ -715,15 +719,16 @@ local function get_weighted_target(source, scan_radius, min_targets, comparison_
             end
         end
         cached_target_list = filtered_list
+    end
 
-        -- No targets at all: clear cache and exit early
-        if #cached_target_list == 0 then
-            cached_weighted_target = nil
-            if debug_enabled then
-                console.print("[WEIGHTED TARGET DEBUG] No targets found in radius " .. scan_radius)
-            end
-            return nil
+    -- No targets at all: clear cache and exit early
+    if #cached_target_list == 0 then
+        cached_weighted_target = nil
+        if debug_enabled then
+            console.print("[WEIGHTED TARGET DEBUG] No targets found in radius " .. scan_radius)
         end
+        return nil
+    end
 
         if #cached_target_list < min_targets then
             cached_weighted_target = get_closest_valid_target(cached_target_list, source_pos)

@@ -79,12 +79,21 @@ local function logics(target)
     local enemy_type_filter = menu_elements.enemy_type_filter:get()
     
     -- Count enemies in range
-    -- OPTIMIZATION: Use target_selector.get_near_target_list if available (much faster than get_enemy_npcs)
-    local enemies = {}
-    if target_selector and target_selector.get_near_target_list then
-        enemies = target_selector.get_near_target_list(player_pos, engage) or {}
+    -- OPTIMIZATION: Use cached valid enemies from main.lua if available to avoid re-scanning
+    local enemies_list = {}
+    if _G.PaladinRotation and _G.PaladinRotation.valid_enemies then
+        -- Use the pre-filtered list from main.lua (already filtered by range, dead, immune, floor)
+        -- We just need to check the specific engage range for this spell
+        for _, data in ipairs(_G.PaladinRotation.valid_enemies) do
+            table.insert(enemies_list, data.unit)
+        end
     else
-        enemies = actors_manager.get_enemy_npcs() or {}
+        -- Fallback to target_selector or actors_manager
+        if target_selector and target_selector.get_near_target_list then
+            enemies_list = target_selector.get_near_target_list(player_pos, engage) or {}
+        else
+            enemies_list = actors_manager.get_enemy_npcs() or {}
+        end
     end
     
     local near = 0
@@ -98,30 +107,36 @@ local function logics(target)
         floor_height_threshold = menu.menu_elements.floor_height_threshold:get()
     end
 
-    for _, e in ipairs(enemies) do
+    for _, e in ipairs(enemies_list) do
         if e and e:is_enemy() then
-            -- Filter out dead, immune, and untargetable enemies
-            if e:is_dead() or e:is_immune() or e:is_untargetable() then
-                goto continue
+            -- Filter out dead, immune, and untargetable enemies (if not already filtered)
+            if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                if e:is_dead() or e:is_immune() or e:is_untargetable() then
+                    goto continue
+                end
             end
             
             local pos = e:get_position()
             if pos and pos:squared_dist_to_ignore_z(player_pos) <= engage_sqr then
-                -- Elevation check
-                if math.abs(player_pos:z() - pos:z()) <= floor_height_threshold then
-                    near = near + 1
-                    -- Check for priority targets based on filter
-                    if enemy_type_filter == 2 then
-                        -- Boss only
-                        if e:is_boss() then has_priority_target = true end
-                    elseif enemy_type_filter == 1 then
-                        -- Elite/Champion/Boss
-                        if e:is_elite() or e:is_champion() or e:is_boss() then
-                            has_priority_target = true
-                        end
-                    else
-                        has_priority_target = true  -- Any enemy counts
+                -- Elevation check (if not already filtered)
+                if not (_G.PaladinRotation and _G.PaladinRotation.valid_enemies) then
+                    if math.abs(player_pos:z() - pos:z()) > floor_height_threshold then
+                        goto continue
                     end
+                end
+                
+                near = near + 1
+                -- Check for priority targets based on filter
+                if enemy_type_filter == 2 then
+                    -- Boss only
+                    if e:is_boss() then has_priority_target = true end
+                elseif enemy_type_filter == 1 then
+                    -- Elite/Champion/Boss
+                    if e:is_elite() or e:is_champion() or e:is_boss() then
+                        has_priority_target = true
+                    end
+                else
+                    has_priority_target = true  -- Any enemy counts
                 end
             end
         end
@@ -147,7 +162,7 @@ local function logics(target)
 
         local closest_enemy = nil
         local closest_dist_sqr = math.huge
-        for _, e in ipairs(enemies) do
+        for _, e in ipairs(enemies_list) do
             if e and e:is_enemy() and not e:is_dead() and not e:is_immune() and not e:is_untargetable() then
                 local pos = e:get_position()
                 if pos then
