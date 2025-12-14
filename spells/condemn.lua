@@ -12,6 +12,7 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_condemn_enabled")),
     min_cooldown = slider_float:new(0.0, 20.0, 0.15, get_hash("paladin_rotation_condemn_min_cd")),  -- META: ARBITER TRIGGER - cast ASAP when available
+    pull_range = slider_float:new(4.0, 12.0, 8.0, get_hash("paladin_rotation_condemn_pull_range")),  -- Condemn AoE radius
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_condemn_min_enemies")),  -- 1 = always cast for Arbiter, even single target
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_condemn_enemy_type")),  -- 0 = All (Arbiter form is the priority)
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_condemn_use_min_weight")),
@@ -26,6 +27,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "ARBITER TRIGGER - Pull + Stun + 240% (CD: 15s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "Lower = more Arbiter uptime (CRITICAL)", 2)
+            menu_elements.pull_range:render("Pull Range", "Radius to check for enemies before casting", 1)
             menu_elements.min_enemies:render("Min Enemies", "Minimum enemies nearby to cast (1 = always)")
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
@@ -52,8 +54,8 @@ local function logics()
         return false, 0
     end
     
-    -- Count nearby enemies (Condemn has ~8 yard pull radius)
-    local condemn_range = 8.0
+    -- Count nearby enemies (Condemn has configurable pull radius)
+    local condemn_range = menu_elements.pull_range:get()
     local condemn_range_sqr = condemn_range * condemn_range
     local min_enemies = menu_elements.min_enemies:get()
     local enemy_type_filter = menu_elements.enemy_type_filter:get()

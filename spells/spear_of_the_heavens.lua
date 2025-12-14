@@ -11,6 +11,8 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_spear_of_the_heavens_enabled")),
     min_cooldown = slider_float:new(0.0, 10.0, 0.15, get_hash("paladin_rotation_spear_of_the_heavens_min_cd")),  -- Fast burst
+    cast_range = slider_float:new(5.0, 25.0, 15.0, get_hash("paladin_rotation_spear_of_the_heavens_cast_range")),  -- Max range to cast
+    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_spear_of_the_heavens_targeting_mode")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_spear_of_the_heavens_enemy_type")),
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_spear_of_the_heavens_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_spear_of_the_heavens_min_weight")),
@@ -25,6 +27,8 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Justice - 4 spears for 160% + 120% burst (CD: 14s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
+            menu_elements.cast_range:render("Cast Range", "Maximum distance to target for casting", 1)
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, "How to select target")
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
@@ -69,6 +73,18 @@ local function logics(target)
     
     if is_dead or is_immune or is_untargetable then
         return false, 0
+    end
+
+    -- Range check - position spell has max cast range
+    local player = get_local_player()
+    local player_pos = player and player:get_position() or nil
+    local target_pos = target:get_position()
+    local cast_range = menu_elements.cast_range:get()
+    
+    if player_pos and target_pos then
+        if not my_utility.is_in_range(target, cast_range) then
+            return false, 0  -- Out of range, don't cast
+        end
     end
 
     -- Enemy type filter check

@@ -12,11 +12,13 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_falling_star_enabled")),
     min_cooldown = slider_float:new(0.1, 10.0, 0.15, get_hash("paladin_rotation_falling_star_min_cd")),  -- META: ARBITER TRIGGER - cast ASAP
+    min_range = slider_float:new(0.0, 10.0, 0.0, get_hash("paladin_rotation_falling_star_min_range")),  -- 0 = always leap
+    max_range = slider_float:new(5.0, 25.0, 15.0, get_hash("paladin_rotation_falling_star_max_range")),  -- Max leap range
+    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_falling_star_targeting_mode")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_falling_star_enemy_type")),  -- 0 = All (Arbiter form priority)
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_falling_star_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_falling_star_min_weight")),
     prediction_time = slider_float:new(0.1, 1.0, 0.25, get_hash("paladin_rotation_falling_star_prediction")),  -- Slightly reduced for faster landing
-    min_range = slider_float:new(0.0, 10.0, 0.0, get_hash("paladin_rotation_falling_star_min_range")),  -- 0 = always leap, even on top of enemies (Arbiter trigger is priority!)
 }
 
 local spell_id = spell_data.falling_star.spell_id
@@ -27,7 +29,9 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "ARBITER TRIGGER - 320% damage + mobility (CD: 12s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "Lower = more Arbiter uptime (CRITICAL)", 2)
-            menu_elements.min_range:render("Min Range", "Minimum distance to target before leaping", 1)
+            menu_elements.min_range:render("Min Range", "Minimum distance to target before leaping (0 = always)", 1)
+            menu_elements.max_range:render("Max Range", "Maximum distance to target for leaping", 1)
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, "How to select target")
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
@@ -80,12 +84,18 @@ local function logics(target)
     local target_pos = target:get_position()
     
     if player_pos and target_pos then
+        local dist = player_pos:dist_to(target_pos)
+        
+        -- Min range check
         local min_range = menu_elements.min_range:get()
-        if min_range > 0 then
-            local dist = player_pos:dist_to(target_pos)
-            if dist < min_range then
-                return false, 0  -- Too close to leap (but 0 = always leap for Arbiter trigger)
-            end
+        if min_range > 0 and dist < min_range then
+            return false, 0  -- Too close to leap (but 0 = always leap for Arbiter trigger)
+        end
+        
+        -- Max range check
+        local max_range = menu_elements.max_range:get()
+        if dist > max_range then
+            return false, 0  -- Too far to leap
         end
     end
 

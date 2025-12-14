@@ -10,6 +10,8 @@ local menu_elements = {
     tree_tab = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_arbiter_enabled")),
     min_cooldown = slider_float:new(0.2, 10.0, 0.5, get_hash("paladin_rotation_arbiter_min_cd")),  -- React fast when ult is up
+    max_range = slider_float:new(5.0, 30.0, 20.0, get_hash("paladin_rotation_arbiter_max_range")),  -- Max leap range
+    targeting_mode = combo_box:new(0, get_hash("paladin_rotation_arbiter_targeting_mode")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_arbiter_enemy_type")),  -- 0 = use on any target for Arbiter form
     use_minimum_weight = checkbox:new(false, get_hash("paladin_rotation_arbiter_use_min_weight")),
     minimum_weight = slider_float:new(0.0, 50.0, 5.0, get_hash("paladin_rotation_arbiter_min_weight")),
@@ -24,6 +26,8 @@ local function menu()
         menu_elements.main_boolean:render("Enable", "Ultimate - 600% landing, Arbiter form 20s (CD: 120s)")
         if menu_elements.main_boolean:get() then
             menu_elements.min_cooldown:render("Min Cooldown", "", 2)
+            menu_elements.max_range:render("Max Range", "Maximum distance to target for leaping", 1)
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, "How to select target")
             menu_elements.prediction_time:render("Prediction Time", "How far ahead to predict enemy position", 2)
             menu_elements.enemy_type_filter:render("Enemy Type Filter", {"All", "Elite+", "Boss"}, "")
             menu_elements.use_minimum_weight:render("Use Minimum Weight", "")
@@ -68,6 +72,12 @@ local function logics(target)
 
     if is_dead or is_immune or is_untargetable then
         return false, 0
+    end
+
+    -- Max range check for leap
+    local max_range = menu_elements.max_range:get()
+    if not my_utility.is_in_range(target, max_range) then
+        return false, 0  -- Too far to leap
     end
 
     -- Enemy type filter check
