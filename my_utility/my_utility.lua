@@ -61,6 +61,14 @@ local function safe_get_time()
     return 0
 end
 
+-- Safe cursor position helper
+local function get_cursor_position_safe()
+    if type(get_cursor_position) == "function" then
+        return get_cursor_position()
+    end
+    return nil
+end
+
 -- Expose for other modules (avoids circular requires)
 _G.my_utility_safe_get_time = safe_get_time
 
@@ -765,6 +773,8 @@ local my_utility = {
     is_spell_affordable = is_spell_affordable,
     get_resource_pct = get_resource_pct,
     get_health_pct = get_health_pct,
+    get_cursor_position = get_cursor_position_safe,
+    get_cursor_pos = get_cursor_position_safe, -- Alias
     enemy_count_in_radius = enemy_count_in_radius,
     enemy_count_in_range = enemy_count_in_radius,  -- Alias for backward compatibility
     is_target_within_angle = is_target_within_angle,

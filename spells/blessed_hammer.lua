@@ -12,7 +12,7 @@ local menu_elements = {
     main_boolean = checkbox:new(true, get_hash("paladin_rotation_blessed_hammer_enabled")),
     debug_mode = checkbox:new(false, get_hash("paladin_rotation_blessed_hammer_debug_mode")),
     min_cooldown = slider_float:new(0.0, 1.0, 0.0, get_hash("paladin_rotation_blessed_hammer_min_cd")),  -- META: 0 = maximum spam rate
-    engage_range = slider_float:new(2.0, 25.0, 15.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),  -- Increased range - hammers spiral out
+    engage_range = slider_float:new(2.0, 25.0, 7.0, get_hash("paladin_rotation_blessed_hammer_engage_range")),  -- Reduced to 7.0 for effective spiral hits
     min_resource = slider_int:new(0, 100, 0, get_hash("paladin_rotation_blessed_hammer_min_resource")),  -- 0 = spam freely (meta)
     min_enemies = slider_int:new(1, 15, 1, get_hash("paladin_rotation_blessed_hammer_min_enemies")),
     enemy_type_filter = combo_box:new(0, get_hash("paladin_rotation_blessed_hammer_enemy_type")),
@@ -150,35 +150,10 @@ local function logics(target)
     end
 
     if near < required_enemies then
-        -- CENTRALIZED MOVEMENT: move toward evaluated target if provided, otherwise closest
-        if target and target.get_position then
-            local target_pos = target:get_position()
-            if target_pos then
-                my_utility.move_to_target(target_pos, target:get_id())
-                if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving toward spell target - not enough in range") end
-                return false, 0
-            end
-        end
-
-        local closest_enemy = nil
-        local closest_dist_sqr = math.huge
-        for _, e in ipairs(enemies_list) do
-            if e and e:is_enemy() and not e:is_dead() and not e:is_immune() and not e:is_untargetable() then
-                local pos = e:get_position()
-                if pos then
-                    local dist_sqr = pos:squared_dist_to_ignore_z(player_pos)
-                    if dist_sqr < closest_dist_sqr then
-                        closest_dist_sqr = dist_sqr
-                        closest_enemy = e
-                    end
-                end
-            end
-        end
-        
-        if closest_enemy then
-            my_utility.move_to_target(closest_enemy:get_position(), closest_enemy:get_id())
-            if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Moving toward closest enemy - not enough in range") end
-        end
+        -- CENTRALIZED MOVEMENT: Let main.lua handle movement if no spell is cast
+        -- We return false here so the rotation can try other spells (e.g. mobility/buffs)
+        -- If no other spell casts, main.lua will move us to the target
+        if debug_enabled then console.print("[BLESSED HAMMER DEBUG] Not enough enemies in range (" .. near .. " < " .. required_enemies .. ")") end
         return false, 0
     end
 
