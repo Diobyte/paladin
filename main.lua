@@ -206,19 +206,45 @@ safe_on_render_menu(function()
     menu.menu_elements.main_tree:pop();
 end)
 
+local function use_ability(spell_name, delay_after_cast)
+    local spell = spells[spell_name]
+    if not (spell and spell.menu_elements.main_boolean:get()) then
+        return false
+    end
+
+    local target_unit = nil
+    if spell.menu_elements.targeting_mode then
+        local targeting_mode = spell.menu_elements.targeting_mode:get()
+        target_unit = ({
+            [0] = best_ranged_target,
+            [1] = best_ranged_target_visible,
+            [2] = best_melee_target,
+            [3] = best_melee_target_visible,
+            [4] = closest_target,
+            [5] = closest_target_visible,
+            [6] = best_cursor_target,
+            [7] = closest_cursor_target
+        })[targeting_mode]
+    end
+
+    --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
+    if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
+        next_cast_time = get_time_since_inject() + delay_after_cast
+        return true
+    end
+
+    return false
+end
+
 safe_on_update(function()
-    if not menu.menu_elements.main_boolean:get() then
-        return
-    end
-
-    -- filter the code to work only with orbwalker running some mode
-    if orbwalker.get_orb_mode() == orb_mode.none then
-        return
-    end
-
     local current_time = get_time_since_inject()
-    if current_time < next_cast_time then
+    local local_player = get_local_player()
+    if not local_player or menu.menu_elements.main_boolean:get() == false or current_time < next_cast_time then
         return
+    end
+
+    if not my_utility.is_action_allowed() then
+        return;
     end
 
     -- Update targets if needed
@@ -244,9 +270,10 @@ safe_on_update(function()
     -- Cast spells in priority order
     for _, spell_name in ipairs(spell_priority) do
         local spell = spells[spell_name]
-        if spell and spell.logics(best_target) then
-            next_cast_time = current_time + 0.1 -- Small delay between casts
-            break
+        if spell then
+            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+                return
+            end
         end
     end
 end)
