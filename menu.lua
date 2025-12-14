@@ -4,7 +4,7 @@ local menu_elements =
     main_tree           = tree_node:new(0),
 
     settings_tree       = tree_node:new(1),
-    max_targeting_range = slider_int:new(5, 60, 30, get_hash("paladin_rotation_max_targeting_range")),
+    max_targeting_range = slider_int:new(1, 16, 8, get_hash("paladin_rotation_max_targeting_range")),  -- Reduced to match reference repos (was 5-60)
     prefer_elites       = checkbox:new(true, get_hash("paladin_rotation_prefer_elites")),
     treat_elite_as_boss = checkbox:new(true, get_hash("paladin_rotation_treat_elite_as_boss")),
     cluster_radius      = slider_float:new(2.0, 15.0, 6.0, get_hash("paladin_rotation_cluster_radius")),
@@ -31,7 +31,7 @@ local menu_elements =
     weighted_targeting_debug = checkbox:new(false, get_hash("paladin_rotation_weighted_targeting_debug")),
     
     -- Scan settings
-    scan_radius = slider_int:new(1, 30, 12, get_hash("paladin_rotation_scan_radius")),
+    scan_radius = slider_int:new(1, 16, 8, get_hash("paladin_rotation_scan_radius")),  -- Reduced to match reference repos
     scan_refresh_rate = slider_float:new(0.1, 1.0, 0.2, get_hash("paladin_rotation_scan_refresh_rate")),
     min_targets = slider_int:new(1, 10, 1, get_hash("paladin_rotation_min_targets")),
     comparison_radius = slider_float:new(0.1, 6.0, 3.0, get_hash("paladin_rotation_comparison_radius")),

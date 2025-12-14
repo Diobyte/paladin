@@ -210,7 +210,9 @@ end
 -- This runs once per update tick and returns all possible targets
 -- Spells then pick the appropriate target based on their targeting_mode setting
 local function evaluate_all_targets(player_pos, melee_range, max_range)
-    local enemies = actors_manager.get_enemy_npcs()
+    -- Use target_selector.get_near_target_list() for pre-filtered list by range
+    -- This matches reference repos (Druid, Spiritborn) and is more efficient
+    local enemies = target_selector.get_near_target_list(player_pos, max_range) or {}
     
     -- Result table with all target types
     local targets = {
@@ -772,39 +774,14 @@ safe_on_update(function()
         end
     end
     
-    -- MOVEMENT HANDLING (Improved - Prevent Oscillation):
-    -- Only move toward sticky_target or closest target if no spell was cast this frame
-    -- Use increased move_delay and target stickiness to prevent walking back and forth
-    local move_target = sticky_target or default_target
-    
-    if move_target and current_time >= next_time_allowed_move then
-        -- Validate move target is still valid
-        if move_target:is_dead() or move_target:is_immune() or move_target:is_untargetable() then
-            move_target = default_target  -- Fall back to closest
-            sticky_target = nil  -- Clear invalid sticky target
-        end
-        
-        if move_target then
-            local target_pos = move_target:get_position()
-            if target_pos then
-                -- Check if we're not in melee range of this target
-                local melee_range = my_utility.get_melee_range()
-                if not my_utility.is_in_range(move_target, melee_range) then
-                    pathfinder.request_move(target_pos)
-                    next_time_allowed_move = current_time + move_delay
-                    current_move_target = move_target
-                    
-                    -- Set this as sticky target so spells also target it
-                    if not sticky_target then
-                        sticky_target = move_target
-                        sticky_target_time = current_time
-                    end
-                end
-            end
-        end
-    end
+    -- MOVEMENT HANDLING: Removed from main.lua
+    -- Movement is now handled INSIDE each spell's logics() function using the Druid pattern:
+    -- 1. Spell checks if target is in range
+    -- 2. If out of range: pathfinder.force_move_raw(target_pos) with move_delay
+    -- 3. Return false (don't cast) and let next tick re-check
+    -- This prevents oscillation by having ONE source of movement decisions per spell
 end)
 
 if console and type(console.print) == "function" then
-    console.print("Paladin_Rotation | Version 1.7 (Target Stickiness + Movement Fix - Dec 2025)")
+    console.print("Paladin_Rotation | Version 1.8 (Movement Fix - Druid Pattern - Dec 2025)")
 end

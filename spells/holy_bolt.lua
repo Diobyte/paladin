@@ -21,6 +21,8 @@ local menu_elements = {
 
 local spell_id = spell_data.holy_bolt.spell_id
 local next_time_allowed_cast = 0.0
+local next_time_allowed_move = 0.0  -- Movement throttle (Druid pattern)
+local move_delay = 0.5              -- Time between movement commands
 local last_api_debug_time = 0.0
 
 local function dbg(msg)
@@ -105,8 +107,17 @@ local function logics(target)
     -- Range check for ranged projectile
     local cast_range = menu_elements.cast_range:get()
     if not my_utility.is_in_range(target, cast_range) then
-        if debug_enabled then console.print("[HOLY BOLT DEBUG] Target out of range") end
-        return false, 0  -- Out of range
+        -- DRUID PATTERN: If out of range, move toward target then return false
+        local current_time = get_time_since_inject()
+        if current_time >= next_time_allowed_move then
+            local target_position = target:get_position()
+            if target_position then
+                pathfinder.force_move_raw(target_position)
+                next_time_allowed_move = current_time + move_delay
+                if debug_enabled then console.print("[HOLY BOLT DEBUG] Moving toward target - out of range") end
+            end
+        end
+        return false, 0  -- Don't cast, just move
     end
 
     local cooldown = menu_elements.min_cooldown:get()
