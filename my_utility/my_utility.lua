@@ -375,7 +375,7 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
     end
 
     -- If orbwalker is unavailable, or returns nil/none, allow casting (default to self-managed rotation)
-    if current_orb_mode == nil or current_orb_mode == orb_mode.none then
+    if current_orb_mode == nil or (orb_mode and current_orb_mode == orb_mode.none) then
         if debug_mode then console.print("[is_spell_allowed] orbwalker idle/none; allowing cast") end
         return true
     end

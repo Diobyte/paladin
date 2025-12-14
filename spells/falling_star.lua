@@ -121,8 +121,8 @@ local function logics(target)
     -- Use prediction for AoE placement
     local prediction_time = menu_elements.prediction_time:get()
     if prediction and prediction.get_future_unit_position then
-        local predicted_pos = prediction.get_future_unit_position(target, prediction_time)
-        if predicted_pos then
+        local ok, predicted_pos = pcall(function() return prediction.get_future_unit_position(target, prediction_time) end)
+        if ok and predicted_pos then
             pos = predicted_pos
         end
     end

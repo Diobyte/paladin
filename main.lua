@@ -135,39 +135,48 @@ local function safe_on_render(cb)
     return false
 end
 
-local spells = {
-    -- Basic Skills (Resource Generators)
-    holy_bolt = require("spells/holy_bolt"),
-    zeal = require("spells/zeal"),
-    advance = require("spells/advance"),           -- Lunge mobility/generator
-    clash = require("spells/clash"),               -- Shield bash generator
-    
-    -- Core Skills (Main Damage)
-    blessed_hammer = require("spells/blessed_hammer"),
-    blessed_shield = require("spells/blessed_shield"), -- Bouncing shield throw
-    divine_lance = require("spells/divine_lance"),
-    brandish = require("spells/brandish"),
-    
-    -- Aura Skills (Buff Maintenance)
-    defiance_aura = require("spells/defiance_aura"),
-    fanaticism_aura = require("spells/fanaticism_aura"),
-    holy_light_aura = require("spells/holy_light_aura"),
-    
-    -- Valor Skills (Utility/Mobility)
-    shield_charge = require("spells/shield_charge"),
-    rally = require("spells/rally"),
-    
-    -- Justice Skills (Damage/Control)
-    spear_of_the_heavens = require("spells/spear_of_the_heavens"),
-    falling_star = require("spells/falling_star"),
-    condemn = require("spells/condemn"),           -- NEW: Pull + Stun AoE
-    consecration = require("spells/consecration"), -- NEW: Ground heal + damage
-    
-    -- Ultimate Skills
-    arbiter_of_justice = require("spells/arbiter_of_justice"),
-    heavens_fury = require("spells/heavens_fury"), -- NEW: Judicator Ultimate
-    zenith = require("spells/zenith"),             -- NEW: Zealot Ultimate
-}
+local spells = {}
+-- Safe spell loading helper
+local function load_spell(name, path)
+    local ok, mod = pcall(require, path)
+    if ok and mod then
+        spells[name] = mod
+    elseif console and console.print then
+        console.print("[Paladin_Rotation] Failed to load spell: " .. name)
+    end
+end
+
+-- Basic Skills (Resource Generators)
+load_spell("holy_bolt", "spells/holy_bolt")
+load_spell("zeal", "spells/zeal")
+load_spell("advance", "spells/advance")
+load_spell("clash", "spells/clash")
+
+-- Core Skills (Main Damage)
+load_spell("blessed_hammer", "spells/blessed_hammer")
+load_spell("blessed_shield", "spells/blessed_shield")
+load_spell("divine_lance", "spells/divine_lance")
+load_spell("brandish", "spells/brandish")
+
+-- Aura Skills (Buff Maintenance)
+load_spell("defiance_aura", "spells/defiance_aura")
+load_spell("fanaticism_aura", "spells/fanaticism_aura")
+load_spell("holy_light_aura", "spells/holy_light_aura")
+
+-- Valor Skills (Utility/Mobility)
+load_spell("shield_charge", "spells/shield_charge")
+load_spell("rally", "spells/rally")
+
+-- Justice Skills (Damage/Control)
+load_spell("spear_of_the_heavens", "spells/spear_of_the_heavens")
+load_spell("falling_star", "spells/falling_star")
+load_spell("condemn", "spells/condemn")
+load_spell("consecration", "spells/consecration")
+
+-- Ultimate Skills
+load_spell("arbiter_of_justice", "spells/arbiter_of_justice")
+load_spell("heavens_fury", "spells/heavens_fury")
+load_spell("zenith", "spells/zenith")
 
 local function dbg(msg)
     local enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
@@ -400,10 +409,10 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
     local debug_enabled = safe_get_menu_element(menu.menu_elements.enable_debug, false)
     
     -- Check if spell is enabled
-    if not spell.menu_elements or not spell.menu_elements.main_boolean then
+    if not spell or not spell.menu_elements or not spell.menu_elements.main_boolean then
         -- Self-cast spells without main_boolean (shouldn't happen)
         if debug_enabled then dbg(spell_name .. ": no main_boolean, trying logics()") end
-        if type(spell.logics) == "function" then
+        if spell and type(spell.logics) == "function" then
              local ok, success = pcall(spell.logics)
              if ok and success then return true end
         end
@@ -427,7 +436,16 @@ local function use_ability(spell_name, spell, spell_target, delay_after_cast)
         end
         
         -- Validate target
-        if spell_target:is_dead() or spell_target:is_immune() or spell_target:is_untargetable() then
+        local is_valid_target = false
+        if spell_target.is_dead and not spell_target:is_dead() then
+            if spell_target.is_immune and not spell_target:is_immune() then
+                if spell_target.is_untargetable and not spell_target:is_untargetable() then
+                    is_valid_target = true
+                end
+            end
+        end
+
+        if not is_valid_target then
             if debug_enabled then dbg(spell_name .. ": target is dead/immune/untargetable") end
             return false
         end
