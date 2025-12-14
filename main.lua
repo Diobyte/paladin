@@ -51,6 +51,10 @@ end
 -- set_clear_toggle(true): Allow the clear mode toggle to work
 orbwalker.set_block_movement(true)
 orbwalker.set_clear_toggle(true)
+-- Ensure orbwalker is in a casting-friendly mode on load
+if orbwalker.set_orbwalker_mode then
+    pcall(function() orbwalker.set_orbwalker_mode(orb_mode.clear) end)
+end
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -716,10 +720,16 @@ safe_on_update(function()
     -- Sync global flags from menu so gameplay reacts immediately to UI changes
     update_global_flags_from_menu()
 
-    -- Check orbwalker mode (matching Druid pattern)
-    -- orbwalker mode check is also in is_spell_allowed() but we check here for early exit
+    -- Check orbwalker mode (matching Druid pattern) and normalize when idle
+    -- If orbwalker reports none/nil, set it to clear so rotation proceeds
     local current_orb_mode = orbwalker.get_orb_mode()
-    
+    if current_orb_mode == nil or current_orb_mode == orb_mode.none then
+        if orbwalker.set_orbwalker_mode then
+            pcall(function() orbwalker.set_orbwalker_mode(orb_mode.clear) end)
+            current_orb_mode = orb_mode.clear
+        end
+    end
+
     -- Debug: Log orb mode periodically
     if debug_enabled then
         local now = my_utility.safe_get_time()
@@ -732,13 +742,6 @@ safe_on_update(function()
             elseif current_orb_mode == orb_mode.flee then mode_str = "flee"
             end
             dbg("Orb Mode: " .. mode_str .. " (raw: " .. tostring(current_orb_mode) .. ")")
-        end
-    end
-    
-    if current_orb_mode == orb_mode.none then
-        -- Allow if auto_play is active
-        if not my_utility.is_auto_play_enabled() then
-            return
         end
     end
 

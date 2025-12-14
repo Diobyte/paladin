@@ -326,28 +326,15 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         if ok_mode then current_orb_mode = mode_val end
     end
 
-    -- If orbwalker is unavailable, do not block casting
-    if current_orb_mode == nil then
-        if debug_mode then console.print("[is_spell_allowed] orbwalker missing; allowing cast") end
+    -- If orbwalker is unavailable, or returns nil/none, allow casting (default to self-managed rotation)
+    if current_orb_mode == nil or current_orb_mode == orb_mode.none then
+        if debug_mode then console.print("[is_spell_allowed] orbwalker idle/none; allowing cast") end
         return true
     end
 
-    if current_orb_mode == orb_mode.none then
-        -- Allow manual play mode to cast even when orbwalker is idle
-        if not (_G.PaladinRotation and _G.PaladinRotation.manual_play) then
-            if debug_mode then console.print("[is_spell_allowed] orb_mode is none") end
-            return false
-        end
-    end
-
-    local is_current_orb_mode_pvp = current_orb_mode == orb_mode.pvp
-    local is_current_orb_mode_clear = current_orb_mode == orb_mode.clear
-
-    -- Must be in pvp or clear mode to cast spells
-    if not is_current_orb_mode_pvp and not is_current_orb_mode_clear then
-        if debug_mode then console.print("[is_spell_allowed] not in pvp or clear mode") end
-        return false
-    end
+    -- Allow all active orbwalker modes (pvp, clear, flee) by default; do not block casting
+    -- This avoids the script stalling when the orbwalker is in a non-standard mode
+    return true
 
     if debug_mode then console.print("[is_spell_allowed] ALLOWED") end
     return true
