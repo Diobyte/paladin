@@ -45,10 +45,11 @@ local is_paladin = character_id == 7 -- Paladin class ID
 -- end
 
 -- Orbwalker settings (like druid/barb) - take control of movement
-if orbwalker then
-    orbwalker.set_block_movement(true)  -- We handle movement ourselves
-    orbwalker.set_clear_toggle(true)    -- Allow clear mode toggle
-end
+-- These MUST be called unconditionally at the top level, before any logic
+-- set_block_movement(true): We handle all movement in spell logics, not orbwalker
+-- set_clear_toggle(true): Allow the clear mode toggle to work
+orbwalker.set_block_movement(true)
+orbwalker.set_clear_toggle(true)
 
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
@@ -398,14 +399,13 @@ safe_on_update(function()
         return
     end
 
-    -- Check orbwalker mode (like barb/sorc)
-    if orbwalker then
-        local current_orb_mode = orbwalker.get_orb_mode()
-        if current_orb_mode == orb_mode.none then
-            -- Allow if auto_play is active
-            if not my_utility.is_auto_play_enabled() then
-                return
-            end
+    -- Check orbwalker mode (matching Druid pattern)
+    -- orbwalker mode check is also in is_spell_allowed() but we check here for early exit
+    local current_orb_mode = orbwalker.get_orb_mode()
+    if current_orb_mode == orb_mode.none then
+        -- Allow if auto_play is active
+        if not my_utility.is_auto_play_enabled() then
+            return
         end
     end
 

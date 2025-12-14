@@ -85,8 +85,8 @@ local function logics(target)
             -- Out of range - move toward target with throttling (Druid pattern)
             local current_time = my_utility.safe_get_time()
             if current_time >= next_time_allowed_move then
-                if pathfinder and pathfinder.request_move then
-                    pathfinder.request_move(target_pos)
+                if pathfinder and pathfinder.force_move_raw then
+                    pathfinder.force_move_raw(target_pos)
                 end
                 next_time_allowed_move = current_time + move_delay
             end

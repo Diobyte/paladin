@@ -199,7 +199,9 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return true
     end
 
-    local current_orb_mode = orbwalker and orbwalker.get_orb_mode and orbwalker.get_orb_mode()
+    -- Orbwalker mode check (matching Druid pattern exactly)
+    local current_orb_mode = orbwalker.get_orb_mode()
+
     if current_orb_mode == orb_mode.none then
         return false
     end
@@ -207,6 +209,7 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
     local is_current_orb_mode_pvp = current_orb_mode == orb_mode.pvp
     local is_current_orb_mode_clear = current_orb_mode == orb_mode.clear
 
+    -- Must be in pvp or clear mode to cast spells
     if not is_current_orb_mode_pvp and not is_current_orb_mode_clear then
         return false
     end
