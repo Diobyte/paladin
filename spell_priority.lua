@@ -1,40 +1,192 @@
--- To modify spell priority, edit the spell_priority table below.
--- The table is sorted from highest priority to lowest priority.
--- The priority is used to determine which spell to cast when multiple spells are valid to cast.
+-- To modify spell priority, edit the priority tables below.
+-- The function returns the appropriate priority list based on build_index.
+-- 0: Default, 1: Judgement Nuke Paladin
 
-local spell_priority = {
-    -- defensives and auras
-    "holy_light_aura",
-    "defiance_aura",
-    "fanaticism_aura",
-    "rally",
+local function get_spell_priority(build_index)
+    if build_index == 1 then  -- Judgement Nuke Paladin
+        return {
+            -- High priority for Judgement chain: mark, pop, auras, mobility, ultimate
+            "brandish",  -- Mark enemies with Judgement
+            "blessed_shield",  -- Pop Judgement for damage
+            "defiance_aura",  -- Defensive aura
+            "fanaticism_aura",  -- Offensive aura
+            "falling_star",  -- Mobility
+            "fortress",  -- Ultimate for damage and immunity
 
-    -- ultimates
-    "zenith",
-    "heavens_fury",
-    "spear_of_the_heavens",
-    "falling_star",
-    "aegis",
-    "fortress",
-    "purify",
+            -- Other defensives and auras
+            "holy_light_aura",
+            "rally",
 
-    -- main damage abilities
-    "blessed_hammer",
-    "condemn",
-    "blessed_shield",
-    "zeal",
-    "divine_lance",
-    "brandish",
-    "arbiter_of_justice",
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "purify",
 
-    -- mobility
-    "advance",
-    "shield_charge",
+            -- Other main damage abilities
+            "blessed_hammer",
+            "condemn",
+            "zeal",
+            "divine_lance",
+            "arbiter_of_justice",
 
-    -- filler abilities
-    "holy_bolt",
-    "clash",
-    "consecration",
-}
+            -- Other mobility
+            "advance",
+            "shield_charge",
 
-return spell_priority
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
+        }
+    elseif build_index == 2 then  -- Blessed Hammer (Hammerkuna)
+        return {
+            -- Blessed Hammer spam with auras and mobility
+            "blessed_hammer",  -- Main damage skill
+            "fanaticism_aura",  -- Attack speed aura
+            "defiance_aura",  -- Defensive aura
+            "falling_star",  -- Mobility
+            "arbiter_of_justice",  -- Ultimate
+            "rally",  -- Movement speed
+
+            -- Other defensives and auras
+            "holy_light_aura",
+
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+            "purify",
+
+            -- Other main damage abilities
+            "condemn",
+            "blessed_shield",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Other mobility
+            "advance",
+            "shield_charge",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
+        }
+    elseif build_index == 3 then  -- Arbiter Paladin
+        return {
+            -- Arbiter focused with mobility and auras
+            "arbiter_of_justice",  -- Main ultimate
+            "falling_star",  -- Mobility
+            "defiance_aura",  -- Defensive aura
+            "holy_light_aura",  -- Healing aura
+            "fanaticism_aura",  -- Attack speed aura
+            "aegis",  -- Ultimate
+
+            -- Other defensives and auras
+            "rally",
+
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "fortress",
+            "purify",
+
+            -- Main damage abilities
+            "blessed_hammer",
+            "condemn",
+            "blessed_shield",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Mobility
+            "advance",
+            "shield_charge",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
+        }
+    elseif build_index == 4 then  -- Blessed Shield (Captain America)
+        return {
+            -- Blessed Shield focused with auras and mobility
+            "blessed_shield",  -- Main damage skill
+            "fanaticism_aura",  -- Attack speed aura
+            "defiance_aura",  -- Defensive aura
+            "rally",  -- Movement speed
+            "falling_star",  -- Mobility
+            "holy_bolt",  -- Filler
+
+            -- Other defensives and auras
+            "holy_light_aura",
+
+            -- Ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+            "purify",
+            "arbiter_of_justice",
+
+            -- Other main damage abilities
+            "blessed_hammer",
+            "condemn",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Other mobility
+            "advance",
+            "shield_charge",
+
+            -- Filler abilities
+            "clash",
+            "consecration",
+        }
+    else  -- Default build
+        return {
+            -- defensives and auras
+            "holy_light_aura",
+            "defiance_aura",
+            "fanaticism_aura",
+            "rally",
+
+            -- ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "falling_star",
+            "aegis",
+            "fortress",
+            "purify",
+
+            -- main damage abilities
+            "blessed_hammer",
+            "condemn",
+            "blessed_shield",
+            "zeal",
+            "divine_lance",
+            "brandish",
+            "arbiter_of_justice",
+
+            -- mobility
+            "advance",
+            "shield_charge",
+
+            -- filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
+        }
+    end
+end
+
+return get_spell_priority

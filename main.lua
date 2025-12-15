@@ -16,7 +16,9 @@ orbwalker.set_clear_toggle(true);
 local my_target_selector = require("my_utility/my_target_selector");
 local my_utility = require("my_utility/my_utility");
 local spell_data = require("my_utility/spell_data");
-local spell_priority = require("spell_priority");
+local get_spell_priority = require("spell_priority");
+
+local current_spell_priority = get_spell_priority(0);  -- 0 for default build
 
 local menu_elements =
 {
@@ -40,6 +42,8 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "cursor_targeting_angle")),
     best_target_evaluation_radius  = slider_float:new(0.1, 6, 3,
         get_hash(my_utility.plugin_label .. "best_target_evaluation_radius")),
+
+    build_selector                = combo_box:new(0, get_hash(my_utility.plugin_label .. "build_selector")),
 
     enable_debug                   = checkbox:new(false, get_hash(my_utility.plugin_label .. "enable_debug")),
     debug_tree                     = tree_node:new(2),
@@ -140,6 +144,11 @@ on_render_menu(function()
             "       If you use huge aoe spells, you should increase this value       \n" ..
             "       Size is displayed with debug/display targets with faded white circles       ", 1)
 
+        menu_elements.build_selector:render("Build Selector", "Select a build to optimize spell priorities and timings for max DPS", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)"})
+
+        -- Update spell priority based on selected build
+        current_spell_priority = get_spell_priority(menu_elements.build_selector:get())
+
         menu_elements.custom_enemy_weights:render("Custom Enemy Weights",
             "Enable custom enemy weights for determining best targets within Enemy Evaluation Radius")
         if menu_elements.custom_enemy_weights:get() then
@@ -192,7 +201,7 @@ on_render_menu(function()
 
     if menu_elements.spells_tree:push("Equipped Spells") then
         -- Display spells in priority order, but only if they're equipped
-        for _, spell_name in ipairs(spell_priority) do
+        for _, spell_name in ipairs(current_spell_priority) do
             if equipped_lookup[spell_name] then
                 local spell = spells[spell_name]
                 if spell then
@@ -204,7 +213,7 @@ on_render_menu(function()
     end
 
     if menu_elements.disabled_spells_tree:push("Inactive Spells") then
-        for _, spell_name in ipairs(spell_priority) do
+        for _, spell_name in ipairs(current_spell_priority) do
             local spell = spells[spell_name]
             if spell and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
                 spell.menu()
@@ -479,7 +488,7 @@ on_update(function()
     end
 
     -- Ability usage - uses spell_priority to determine the order of spells
-    for _, spell_name in ipairs(spell_priority) do
+    for _, spell_name in ipairs(current_spell_priority) do
         local spell = spells[spell_name]
         if spell then
             if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
