@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Diablo 4 Paladin](https://img.shields.io/badge/Diablo%204-Paladin-red?style=for-the-badge&logo=diablo4)
+![Diablo 4 Paladin](https://img.shields.io/badge/Diablo%204-Paladin-red?style=for-the-badge)
 ![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)
 ![Season](https://img.shields.io/badge/Season-11-orange?style=for-the-badge)
 ![Lua](https://img.shields.io/badge/Lua-Scripting-yellow?style=for-the-badge)
@@ -11,7 +11,7 @@
 
 _A 1:1 port of the legendary [RotationSpiritborn_Dirty](https://github.com/Dirty-git/RotationSpiritborn_Dirty) repository, masterfully adapted for the **Paladin** class._
 
-[📥 Download](#installation) • [🎮 Usage](#usage) • [⚙️ Configuration](#customization) • [🐛 Troubleshooting](#troubleshooting)
+[📥 Download](#-installation) • [🎮 Usage](#-usage) • [⚙️ Configuration](#-customization) • [🐛 Troubleshooting](#-troubleshooting)
 
 ---
 
