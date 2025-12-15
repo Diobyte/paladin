@@ -8,8 +8,7 @@
 -- 
 -- Spell IDs verified from Wowhead Diablo 4 database (Dec 2025)
 -- https://www.wowhead.com/diablo-4/skills/paladin
---
--- TARGETING GUIDE (API Reference):
+-- All skills are active abilities that can be cast, not passive effects or build concepts
 -- cast_spell.self(spell_id, animation_time)              - Self-cast spells (auras, AoE around player)
 -- cast_spell.target(target, spell_id, animation_time, is_debug_mode) - Target a unit (melee, homing)
 -- cast_spell.position(spell_id, position, animation_time) - Cast at ground position (AoE, skillshots)
@@ -48,7 +47,7 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, target_pos) - dashes to location
     },
     clash = {
-        spell_id = 2097465,  -- Clash - Shield Bash basic skill
+        spell_id = 2097465,  -- Verified: wowhead.com/diablo-4/skill/clash-2097465
         category = "basic",
         cast_type = "target",    -- Melee shield bash at target
         damage_type = "physical",
@@ -72,7 +71,7 @@ local spell_data = {
         -- Targeting: cast_spell.self(spell_id) - hammers spiral from player position
     },
     blessed_shield = {
-        spell_id = 2082021,  -- Blessed Shield - Extended melee shield throw
+        spell_id = 2082021,  -- Verified: wowhead.com/diablo-4/skill/blessed-shield-2082021
         category = "core",
         cast_type = "target",    -- Extended melee skill (5.5-6.0 range)
         damage_type = "holy",
@@ -108,7 +107,7 @@ local spell_data = {
     -- buff_id may differ from spell_id - buff hash is used for buff detection
     -- =====================================================
     defiance_aura = {
-        spell_id = 2187578,  -- Verified via builds
+        spell_id = 2187578,  -- Verified: wowhead.com/diablo-4/skill/defiance-aura-2187578
         buff_id = 2187578,   -- Buff hash for detection (same as spell_id, verify in-game)
         buff_name_patterns = {"defiance", "resolve"},  -- Fallback name patterns
         category = "aura",
@@ -153,7 +152,7 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, target_pos) - charge in direction
     },
     rally = {
-        spell_id = 2303677,  -- Verified via builds
+        spell_id = 2303677,  -- Verified: wowhead.com/diablo-4/skill/rally-2303677
         category = "valor",
         cast_type = "self",      -- Self-cast buff
         charges = 3,
@@ -177,7 +176,7 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, target_pos) - AoE at location
     },
     falling_star = {
-        spell_id = 2106904,  -- Verified via builds
+        spell_id = 2106904,  -- Verified: wowhead.com/diablo-4/skill/falling-star-2106904
         category = "valor",      -- Changed from justice - it's a Valor mobility skill
         cast_type = "position",  -- Leap to position
         damage_type = "holy",

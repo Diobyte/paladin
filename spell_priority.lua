@@ -20,11 +20,11 @@ local spell_priority = {
 
     -- main damage abilities
     "blessed_hammer",
+    "condemn",
+    "blessed_shield",
     "zeal",
     "divine_lance",
-    "blessed_shield",
     "brandish",
-    "condemn",
     "arbiter_of_justice",
 
     -- mobility
