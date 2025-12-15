@@ -375,6 +375,24 @@ local targeting_modes = {
     "Closest Cursor Target"      -- 7
 }
 
+local targeting_modes_melee = {
+    "Melee Target",              -- 0 (Maps to 2)
+    "Melee Target (in sight)",   -- 1 (Maps to 3)
+    "Closest Target",            -- 2 (Maps to 4)
+    "Closest Target (in sight)", -- 3 (Maps to 5)
+    "Best Cursor Target",        -- 4 (Maps to 6)
+    "Closest Cursor Target"      -- 5 (Maps to 7)
+}
+
+local targeting_modes_ranged = {
+    "Ranged Target",             -- 0 (Maps to 0)
+    "Ranged Target (in sight)",  -- 1 (Maps to 1)
+    "Closest Target",            -- 2 (Maps to 4)
+    "Closest Target (in sight)", -- 3 (Maps to 5)
+    "Best Cursor Target",        -- 4 (Maps to 6)
+    "Closest Cursor Target"      -- 5 (Maps to 7)
+}
+
 local activation_filters = {
     "Any Enemy",         -- 0
     "Elite & Boss Only", -- 1
@@ -399,6 +417,8 @@ return
     activation_filters = activation_filters,
     targeting_mode_description = targeting_mode_description,
     targeting_modes = targeting_modes,
+    targeting_modes_melee = targeting_modes_melee,
+    targeting_modes_ranged = targeting_modes_ranged,
     evaluation_range_description = evaluation_range_description,
     plugin_label = plugin_label,
     is_spell_allowed = is_spell_allowed,

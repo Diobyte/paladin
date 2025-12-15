@@ -2,6 +2,7 @@ local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
 local max_spell_range = 5.0
+local targeting_type = "melee"
 local menu_elements =
 {
     tree_tab            = tree_node:new(1),
@@ -15,7 +16,7 @@ local function menu()
     if menu_elements.tree_tab:push("Clash") then
         menu_elements.main_boolean:render("Enable Clash", "")
         if menu_elements.main_boolean:get() then
-            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_melee,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
@@ -56,5 +57,6 @@ return
 {
     menu = menu,
     logics = logics,
-    menu_elements = menu_elements
+    menu_elements = menu_elements,
+    targeting_type = targeting_type
 }

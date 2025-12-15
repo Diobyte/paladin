@@ -6,17 +6,11 @@ local menu_elements =
 {
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "fortress_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "fortress_targeting_mode")),
-    min_target_range    = slider_float:new(0, 5, 0, get_hash(my_utility.plugin_label .. "fortress_min_target_range")),
 }
 
 local function menu()
     if menu_elements.tree_tab:push("Fortress") then
         menu_elements.main_boolean:render("Enable Fortress", "Fortification ultimate that provides damage reduction")
-        if menu_elements.main_boolean:get() then
-            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
-            menu_elements.min_target_range:render("Min Target Distance", "\n     Must be lower than Max Targeting Range     \n\n", 1)
-        end
         menu_elements.tree_tab:pop()
     end
 end

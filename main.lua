@@ -379,6 +379,32 @@ local function use_ability(spell_name, delay_after_cast)
     local target_unit = nil
     if spell.menu_elements.targeting_mode then
         local targeting_mode = spell.menu_elements.targeting_mode:get()
+        
+        -- Check for specific targeting maps in the spell module
+        if spell.targeting_type == "melee" then
+            -- Map melee modes to global indices
+            local map = {
+                [0] = 2, -- Melee Target
+                [1] = 3, -- Melee Target (in sight)
+                [2] = 4, -- Closest Target
+                [3] = 5, -- Closest Target (in sight)
+                [4] = 6, -- Best Cursor Target
+                [5] = 7  -- Closest Cursor Target
+            }
+            targeting_mode = map[targeting_mode] or 2 -- Default to Melee Target
+        elseif spell.targeting_type == "ranged" then
+            -- Map ranged modes to global indices
+            local map = {
+                [0] = 0, -- Ranged Target
+                [1] = 1, -- Ranged Target (in sight)
+                [2] = 4, -- Closest Target
+                [3] = 5, -- Closest Target (in sight)
+                [4] = 6, -- Best Cursor Target
+                [5] = 7  -- Closest Cursor Target
+            }
+            targeting_mode = map[targeting_mode] or 0 -- Default to Ranged Target
+        end
+
         target_unit = ({
             [0] = best_ranged_target,
             [1] = best_ranged_target_visible,
