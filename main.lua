@@ -106,6 +106,10 @@ local spells =
     spear_of_the_heavens = require("spells/spear_of_the_heavens"),
     zeal = require("spells/zeal"),
     zenith = require("spells/zenith"),
+    aegis = require("spells/aegis"),
+    fortress = require("spells/fortress"),
+    judgement = require("spells/judgement"),
+    purify = require("spells/purify"),
 }
 
 on_render_menu(function()
