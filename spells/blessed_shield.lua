@@ -41,7 +41,7 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.target(target, spell_data.blessed_shield, false) then
+    if cast_spell.target(target, spell_data.blessed_shield.spell_id, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
         console.print("Cast Blessed Shield - Target: " ..
