@@ -43,11 +43,11 @@ local function get_spell_priority(build_index)
     elseif build_index == 2 then  -- Blessed Hammer (Hammerkuna)
         return {
             -- Blessed Hammer spam with auras and mobility
-            "blessed_hammer",  -- Main damage skill
+            "arbiter_of_justice",  -- Ultimate (High priority)
+            "falling_star",  -- Mobility/Damage (High priority)
             "fanaticism_aura",  -- Attack speed aura
             "defiance_aura",  -- Defensive aura
-            "falling_star",  -- Mobility
-            "arbiter_of_justice",  -- Ultimate
+            "blessed_hammer",  -- Main damage skill (Spender)
             "rally",  -- Movement speed
 
             -- Other defensives and auras
