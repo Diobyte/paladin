@@ -16,7 +16,6 @@ local spell_priority = {
     "falling_star",
     "aegis",
     "fortress",
-    "judgement",
     "purify",
 
     -- main damage abilities

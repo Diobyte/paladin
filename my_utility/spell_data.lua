@@ -245,29 +245,25 @@ local spell_data = {
     aegis = {
         spell_id = 2302975,  -- Verified: wowhead.com/diablo-4/skill/aegis-2302975
         category = "ultimate",
-        cast_type = "self",
-        description = "Grants a barrier that absorbs damage.",
+        cast_type = "self",      -- Self-cast defensive barrier
+        description = "Grants a protective barrier that absorbs damage for you and nearby allies.",
+        -- Targeting: cast_spell.self(spell_id) - defensive barrier around player
     },
 
     fortress = {
         spell_id = 2302976,  -- Verified: wowhead.com/diablo-4/skill/fortress-2302976
         category = "ultimate",
-        cast_type = "self",
-        description = "Fortify yourself and nearby allies.",
-    },
-
-    judgement = {
-        spell_id = 2302977,  -- Verified: wowhead.com/diablo-4/skill/judgement-2302977
-        category = "ultimate",
-        cast_type = "target",
-        description = "Call down a pillar of light on an enemy.",
+        cast_type = "self",      -- Self-cast fortification
+        description = "Fortify yourself and nearby allies, granting damage reduction and Resolve stacks.",
+        -- Targeting: cast_spell.self(spell_id) - fortification effect around player
     },
 
     purify = {
         spell_id = 2302978,  -- Verified: wowhead.com/diablo-4/skill/purify-2302978
         category = "ultimate",
-        cast_type = "self",
-        description = "Remove negative effects and heal.",
+        cast_type = "self",      -- Self-cast cleansing
+        description = "Remove negative effects from yourself and nearby allies while restoring health.",
+        -- Targeting: cast_spell.self(spell_id) - cleansing and healing around player
     },
     
     -- =====================================================

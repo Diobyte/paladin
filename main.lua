@@ -108,7 +108,6 @@ local spells =
     zenith = require("spells/zenith"),
     aegis = require("spells/aegis"),
     fortress = require("spells/fortress"),
-    judgement = require("spells/judgement"),
     purify = require("spells/purify"),
 }
 

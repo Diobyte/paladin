@@ -12,7 +12,7 @@ local menu_elements =
 
 local function menu()
     if menu_elements.tree_tab:push("Purify") then
-        menu_elements.main_boolean:render("Enable Purify", "")
+        menu_elements.main_boolean:render("Enable Purify", "Cleansing ultimate that removes debuffs and heals")
         if menu_elements.main_boolean:get() then
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes, my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Distance", "\n     Must be lower than Max Targeting Range     \n\n", 1)
@@ -24,7 +24,7 @@ end
 local next_time_allowed_cast = 0;
 
 local function logics(target)
-    if not target then return false end;
+    -- Purify is a self-cast cleansing/healing skill - doesn't need a target
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_data.purify.spell_id);
     if not is_logic_allowed then return false end;
@@ -32,7 +32,7 @@ local function logics(target)
     if cast_spell.self(spell_data.purify.spell_id, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
-        console.print("Cast Purify - Target: " .. my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
+        console.print("Cast Purify - Cleansing Activated");
         return true;
     end;
 
