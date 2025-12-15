@@ -3,7 +3,7 @@
 <div align="center">
 
 ![Diablo 4 Paladin](https://img.shields.io/badge/Diablo%204-Paladin-red?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.0.1-blue?style=for-the-badge)
 ![Season](https://img.shields.io/badge/Season-11-orange?style=for-the-badge)
 ![Lua](https://img.shields.io/badge/Lua-Scripting-yellow?style=for-the-badge)
 
@@ -94,7 +94,7 @@ Welcome to **Paladin Dirty** - the most advanced automated rotation system for P
 3. **Load in Game**
    - Launch Diablo 4
    - Press `F5` to reload Lua scripts
-   - Press `F1` to open console and verify: _"Lua Plugin - Paladin Dirty - Version 1.0.0"_
+   - Press `F1` to open console and verify: _"Lua Plugin - Paladin Dirty - Version 1.0.1"_
 
 ### 📋 Requirements
 
@@ -111,7 +111,7 @@ Welcome to **Paladin Dirty** - the most advanced automated rotation system for P
 
 ### Getting Started
 
-1. **Enable Plugin**: Navigate to _"Paladin [Dirty] v1.0.0"_ in the in-game menu
+1. **Enable Plugin**: Navigate to _"Paladin [Dirty] v1.0.1"_ in the in-game menu
 2. **Check "Enable Plugin"**: Activate the rotation system
 3. **Equip Spells**: Ensure your Paladin has the desired abilities equipped
 4. **Start Combat**: The script will automatically handle rotations!
