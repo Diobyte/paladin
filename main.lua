@@ -116,7 +116,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu_elements.main_tree:push("Paladin [Dirty] v1.0.1") then
+    if not menu_elements.main_tree:push("Paladin [Dirty] v1.0.2") then
         return;
     end;
 
@@ -144,7 +144,7 @@ on_render_menu(function()
             "       If you use huge aoe spells, you should increase this value       \n" ..
             "       Size is displayed with debug/display targets with faded white circles       ", 1)
 
-        menu_elements.build_selector:render("Build Selector", "Select a build to optimize spell priorities and timings for max DPS", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)"})
+        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)", "Shield Bash Valkyrie", "Holy Avenger Wing Strikes"}, "Select a build to optimize spell priorities and timings for max DPS")
 
         -- Update spell priority based on selected build
         current_spell_priority = get_spell_priority(menu_elements.build_selector:get())

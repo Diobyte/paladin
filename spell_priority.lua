@@ -151,6 +151,80 @@ local function get_spell_priority(build_index)
             "clash",
             "consecration",
         }
+    elseif build_index == 5 then  -- Shield Bash Valkyrie
+        return {
+            -- Shield bash focused with charge and auras
+            "clash",  -- Shield bash
+            "shield_charge",  -- Shield charge
+            "defiance_aura",  -- Defensive aura
+            "fanaticism_aura",  -- Attack speed aura
+            "rally",  -- Movement speed
+            "falling_star",  -- Mobility
+
+            -- Other defensives and auras
+            "holy_light_aura",
+
+            -- Ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+            "purify",
+            "arbiter_of_justice",
+
+            -- Main damage abilities
+            "blessed_hammer",
+            "condemn",
+            "blessed_shield",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Other mobility
+            "advance",
+
+            -- Filler abilities
+            "holy_bolt",
+            "consecration",
+        }
+    elseif build_index == 6 then  -- Holy Avenger Wing Strikes
+        return {
+            -- Mobility and ultimate focused
+            "falling_star",  -- Wing strikes mobility
+            "arbiter_of_justice",  -- Ultimate
+            "blessed_hammer",  -- Damage
+            "defiance_aura",  -- Defensive aura
+            "fanaticism_aura",  -- Attack speed aura
+            "rally",  -- Movement speed
+
+            -- Other defensives and auras
+            "holy_light_aura",
+
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+            "purify",
+
+            -- Other main damage abilities
+            "condemn",
+            "blessed_shield",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Other mobility
+            "advance",
+            "shield_charge",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
+        }
     else  -- Default build
         return {
             -- defensives and auras
