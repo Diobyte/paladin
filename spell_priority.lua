@@ -491,6 +491,110 @@ local function get_base_spell_priority(build_index)
     end
 end
 
+-- Function to analyze equipped items and adjust spell priorities
+local function adjust_priorities_for_items(base_priorities)
+    local local_player = get_local_player()
+    if not local_player then
+        return base_priorities
+    end
+    -- Get equipped items to analyze stats
+    local equipped_items = local_player:get_equipped_items()
+    local attack_speed_total = 0
+    local cdr_total = 0
+    local crit_damage_total = 0
+    local resource_gen_total = 0
+
+    -- Analyze each equipped item for relevant stats
+    for _, item in ipairs(equipped_items) do
+        if item then
+            local affixes = item:get_affixes()
+            for _, affix in ipairs(affixes) do
+                if affix then
+                    local name = affix:get_name()
+                    local value = affix:get_roll()
+                    -- Check for attack speed (reduces aura priority)
+                    if name:find("Attack Speed") or name:find("attacks_per_second") then
+                        attack_speed_total = attack_speed_total + value
+                    end
+                    -- Check for cooldown reduction (increases ultimate priority)
+                    if name:find("Cooldown Reduction") or name:find("cooldown_reduction") then
+                        cdr_total = cdr_total + value
+                    end
+                    -- Check for critical hit damage
+                    if name:find("Critical Strike Damage") or name:find("crit_damage") then
+                        crit_damage_total = crit_damage_total + value
+                    end
+                    -- Check for resource generation
+                    if name:find("Resource Generation") or name:find("resource_generation") then
+                        resource_gen_total = resource_gen_total + value
+                    end
+                end
+            end
+        end
+    end
+
+    -- Create adjusted priorities based on item stats
+    local adjusted_priorities = {}
+
+    -- If high attack speed from items, reduce aura priority
+    local aura_priority_reduction = 0
+    if attack_speed_total > 50 then  -- High attack speed from gear
+        aura_priority_reduction = 2  -- Move auras down in priority
+    elseif attack_speed_total > 30 then
+        aura_priority_reduction = 1
+    end
+
+    -- If high CDR, increase ultimate priority
+    local ultimate_priority_boost = 0
+    if cdr_total > 20 then
+        ultimate_priority_boost = 2
+    elseif cdr_total > 10 then
+        ultimate_priority_boost = 1
+    end
+
+    -- Apply adjustments to the priority list
+    for i, spell_name in ipairs(base_priorities) do
+        local new_position = i
+
+        -- Adjust aura positions
+        if (spell_name == "fanaticism_aura" or spell_name == "defiance_aura") and aura_priority_reduction > 0 then
+            new_position = math.min(#base_priorities, i + aura_priority_reduction)
+        end
+
+        -- Adjust ultimate positions
+        if (spell_name == "arbiter_of_justice" or spell_name == "heavens_fury" or
+            spell_name == "spear_of_the_heavens" or spell_name == "zenith" or
+            spell_name == "aegis") and ultimate_priority_boost > 0 then
+            new_position = math.max(1, i - ultimate_priority_boost)
+        end
+
+        -- Boost certain skills based on crit damage
+        if crit_damage_total > 100 and (spell_name == "condemn" or spell_name == "blessed_shield") then
+            new_position = math.max(1, i - 1)
+        end
+
+        -- Boost spam skills if high resource generation
+        if resource_gen_total > 20 and (spell_name == "blessed_hammer" or spell_name == "zeal") then
+            new_position = math.max(1, i - 1)
+        end
+
+        adjusted_priorities[new_position] = adjusted_priorities[new_position] or {}
+        table.insert(adjusted_priorities[new_position], spell_name)
+    end
+
+    -- Flatten the adjusted priorities
+    local final_priorities = {}
+    for i = 1, #base_priorities do
+        if adjusted_priorities[i] then
+            for _, spell_name in ipairs(adjusted_priorities[i]) do
+                table.insert(final_priorities, spell_name)
+            end
+        end
+    end
+
+    return final_priorities
+end
+
 -- Main function that applies item adjustments
 local function get_spell_priority(build_index)
     local base_priorities = get_base_spell_priority(build_index)
