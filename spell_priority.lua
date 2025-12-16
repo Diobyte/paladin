@@ -1,110 +1,6 @@
--- To modify spell priority, edit the priority tables below.
--- The function returns the appropriate priority list based on build_index.
--- 0: Default, 1: Judgement Nuke Paladin
-
--- Function to analyze equipped items and adjust spell priorities
-local function adjust_priorities_for_items(base_priorities)
-    local local_player = get_local_player()
-    if not local_player then
-        return base_priorities
-    end
-    -- Get equipped items to analyze stats
-    local equipped_items = local_player:get_equipped_items()
-    local attack_speed_total = 0
-    local cdr_total = 0
-    local crit_damage_total = 0
-    local resource_gen_total = 0
-
-    -- Analyze each equipped item for relevant stats
-    for _, item in ipairs(equipped_items) do
-        if item then
-            local affixes = item:get_affixes()
-            for _, affix in ipairs(affixes) do
-                if affix then
-                    local name = affix:get_name()
-                    local value = affix:get_roll()
-                    -- Check for attack speed (reduces aura priority)
-                    if name:find("Attack Speed") or name:find("attacks_per_second") then
-                        attack_speed_total = attack_speed_total + value
-                    end
-                    -- Check for cooldown reduction (increases ultimate priority)
-                    if name:find("Cooldown Reduction") or name:find("cooldown_reduction") then
-                        cdr_total = cdr_total + value
-                    end
-                    -- Check for critical hit damage
-                    if name:find("Critical Strike Damage") or name:find("crit_damage") then
-                        crit_damage_total = crit_damage_total + value
-                    end
-                    -- Check for resource generation
-                    if name:find("Resource Generation") or name:find("resource_generation") then
-                        resource_gen_total = resource_gen_total + value
-                    end
-                end
-            end
-        end
-    end
-
-    -- Create adjusted priorities based on item stats
-    local adjusted_priorities = {}
-
-    -- If high attack speed from items, reduce aura priority
-    local aura_priority_reduction = 0
-    if attack_speed_total > 50 then  -- High attack speed from gear
-        aura_priority_reduction = 2  -- Move auras down in priority
-    elseif attack_speed_total > 30 then
-        aura_priority_reduction = 1
-    end
-
-    -- If high CDR, increase ultimate priority
-    local ultimate_priority_boost = 0
-    if cdr_total > 20 then
-        ultimate_priority_boost = 2
-    elseif cdr_total > 10 then
-        ultimate_priority_boost = 1
-    end
-
-    -- Apply adjustments to the priority list
-    for i, spell_name in ipairs(base_priorities) do
-        local new_position = i
-
-        -- Adjust aura positions
-        if (spell_name == "fanaticism_aura" or spell_name == "defiance_aura") and aura_priority_reduction > 0 then
-            new_position = math.min(#base_priorities, i + aura_priority_reduction)
-        end
-
-        -- Adjust ultimate positions
-        if (spell_name == "arbiter_of_justice" or spell_name == "heavens_fury" or
-            spell_name == "spear_of_the_heavens" or spell_name == "zenith" or
-            spell_name == "aegis") and ultimate_priority_boost > 0 then
-            new_position = math.max(1, i - ultimate_priority_boost)
-        end
-
-        -- Boost certain skills based on crit damage
-        if crit_damage_total > 100 and (spell_name == "condemn" or spell_name == "blessed_shield") then
-            new_position = math.max(1, i - 1)
-        end
-
-        -- Boost spam skills if high resource generation
-        if resource_gen_total > 20 and (spell_name == "blessed_hammer" or spell_name == "zeal") then
-            new_position = math.max(1, i - 1)
-        end
-
-        adjusted_priorities[new_position] = adjusted_priorities[new_position] or {}
-        table.insert(adjusted_priorities[new_position], spell_name)
-    end
-
-    -- Flatten the adjusted priorities
-    local final_priorities = {}
-    for i = 1, #base_priorities do
-        if adjusted_priorities[i] then
-            for _, spell_name in ipairs(adjusted_priorities[i]) do
-                table.insert(final_priorities, spell_name)
-            end
-        end
-    end
-
-    return final_priorities
-end
+-- Paladin Spell Priority Configuration
+-- Defines spell casting order for all 12 paladin builds
+-- Build indices: 0=default, 1-11=specialized builds
 
 -- Function to get base spell priority (without item adjustments)
 local function get_base_spell_priority(build_index)
@@ -115,12 +11,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- High priority for Judgement chain: mark, pop, auras, mobility, ultimate
-            "brandish",  -- Mark enemies with Judgement (HIGH PRIORITY)
-            "blessed_shield",  -- Pop Judgement for massive damage (HIGH PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "falling_star",  -- Mobility for positioning (HIGH PRIORITY)
-            "arbiter_of_justice",  -- Ultimate spam for DPS (HIGH PRIORITY)
+            "brandish",
+            "blessed_shield",
+            "fanaticism_aura",
+            "defiance_aura",
+            "falling_star",
+            "arbiter_of_justice",
 
             -- Other ultimates
             "zenith",
@@ -134,7 +30,7 @@ local function get_base_spell_priority(build_index)
             "holy_light_aura",
             "rally",
 
-            -- Other main damage abilities
+            -- Main damage abilities
             "blessed_hammer",
             "condemn",
             "zeal",
@@ -156,12 +52,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Blessed Hammer spam with auras and mobility - META AOE BUILD
-            "blessed_hammer",  -- Main damage skill (HIGHEST PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "falling_star",  -- Mobility for kiting (HIGH PRIORITY)
-            "rally",  -- Movement speed for positioning (HIGH PRIORITY)
-            "arbiter_of_justice",  -- Ultimate for DPS boost (HIGH PRIORITY)
+            "blessed_hammer",
+            "fanaticism_aura",
+            "defiance_aura",
+            "falling_star",
+            "rally",
+            "arbiter_of_justice",
 
             -- Other ultimates
             "zenith",
@@ -174,7 +70,7 @@ local function get_base_spell_priority(build_index)
             -- Other defensives and auras
             "holy_light_aura",
 
-            -- Other main damage abilities
+            -- Main damage abilities
             "condemn",
             "blessed_shield",
             "zeal",
@@ -197,12 +93,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Arbiter focused with mobility and auras - ULTIMATE SPAM BUILD
-            "arbiter_of_justice",  -- Main ultimate (HIGHEST PRIORITY)
-            "falling_star",  -- Mobility for positioning (HIGH PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "holy_light_aura",  -- Healing aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
+            "arbiter_of_justice",
+            "falling_star",
+            "fanaticism_aura",
+            "defiance_aura",
+            "holy_light_aura",
+            "rally",
 
             -- Other ultimates
             "zenith",
@@ -236,12 +132,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Blessed Shield focused with auras and mobility - SINGLE TARGET BUILD
-            "blessed_shield",  -- Main damage skill (HIGHEST PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
-            "falling_star",  -- Mobility (HIGH PRIORITY)
-            "arbiter_of_justice",  -- Ultimate spam (HIGH PRIORITY)
+            "blessed_shield",
+            "fanaticism_aura",
+            "defiance_aura",
+            "rally",
+            "falling_star",
+            "arbiter_of_justice",
 
             -- Other ultimates
             "zenith",
@@ -254,7 +150,7 @@ local function get_base_spell_priority(build_index)
             -- Other defensives and auras
             "holy_light_aura",
 
-            -- Other main damage abilities
+            -- Main damage abilities
             "blessed_hammer",
             "condemn",
             "zeal",
@@ -277,12 +173,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Shield bash focused with charge and auras - MELEE BUILD
-            "clash",  -- Shield bash (HIGHEST PRIORITY)
-            "shield_charge",  -- Shield charge (HIGH PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
-            "falling_star",  -- Mobility (HIGH PRIORITY)
+            "clash",
+            "shield_charge",
+            "fanaticism_aura",
+            "defiance_aura",
+            "rally",
+            "falling_star",
 
             -- Ultimates
             "arbiter_of_justice",
@@ -315,12 +211,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Mobility and ultimate focused - HIGH MOBILITY BUILD
-            "falling_star",  -- Wing strikes mobility (HIGHEST PRIORITY)
-            "arbiter_of_justice",  -- Ultimate (HIGH PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
-            "blessed_hammer",  -- AOE damage (HIGH PRIORITY)
+            "falling_star",
+            "arbiter_of_justice",
+            "fanaticism_aura",
+            "defiance_aura",
+            "rally",
+            "blessed_hammer",
 
             -- Other ultimates
             "zenith",
@@ -333,7 +229,7 @@ local function get_base_spell_priority(build_index)
             -- Other defensives and auras
             "holy_light_aura",
 
-            -- Other main damage abilities
+            -- Main damage abilities
             "condemn",
             "blessed_shield",
             "zeal",
@@ -354,12 +250,12 @@ local function get_base_spell_priority(build_index)
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and damage
             "paladin_evade",
             -- Evade focused with Blessed Hammer spam - META EVADE BUILD
-            "evade",  -- Evade for mobility and damage (HIGH PRIORITY)
-            "blessed_hammer",  -- Main damage skill (HIGH PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "consecration",  -- AOE damage and healing (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
+            "evade",
+            "blessed_hammer",
+            "fanaticism_aura",
+            "defiance_aura",
+            "consecration",
+            "rally",
 
             -- Other ultimates
             "arbiter_of_justice",
@@ -373,7 +269,7 @@ local function get_base_spell_priority(build_index)
             -- Other defensives and auras
             "holy_light_aura",
 
-            -- Other main damage abilities
+            -- Main damage abilities
             "condemn",
             "blessed_shield",
             "zeal",
@@ -390,15 +286,14 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 8 then  -- Arbiter Evade
         return {
-            -- HIGHEST PRIORITY - Enhanced Evade for mobility
-            "paladin_evade",
             -- Arbiter with evade for high mobility and ultimate spam - META BUILD
-            "evade",  -- Evade for mobility (HIGH PRIORITY)
-            "arbiter_of_justice",  -- Main ultimate (HIGH PRIORITY)
-            "falling_star",  -- Additional mobility (HIGH PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "holy_light_aura",  -- Healing aura (HIGH PRIORITY)
+            "paladin_evade",
+            "evade",
+            "arbiter_of_justice",
+            "falling_star",
+            "fanaticism_aura",
+            "defiance_aura",
+            "holy_light_aura",
 
             -- Other defensives and auras
             "rally",
@@ -435,16 +330,16 @@ local function get_base_spell_priority(build_index)
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
-            -- Core auras for all builds
-            "fanaticism_aura",  -- Attack speed (HIGHEST PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "holy_light_aura",  -- Healing aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
+            -- Core auras
+            "fanaticism_aura",
+            "defiance_aura",
+            "holy_light_aura",
+            "rally",
 
             -- High priority ultimates and mobility
-            "arbiter_of_justice",  -- Ultimate spam
-            "falling_star",  -- Mobility
-            "blessed_hammer",  -- AOE damage
+            "arbiter_of_justice",
+            "falling_star",
+            "blessed_hammer",
 
             -- Other ultimates
             "zenith",
@@ -478,12 +373,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Spear of the Heavens focused - RANGED ULTIMATE BUILD
-            "spear_of_the_heavens",  -- Main ultimate (HIGHEST PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
-            "falling_star",  -- Mobility (HIGH PRIORITY)
-            "blessed_hammer",  -- AOE damage (HIGH PRIORITY)
+            "spear_of_the_heavens",
+            "fanaticism_aura",
+            "defiance_aura",
+            "rally",
+            "falling_star",
+            "blessed_hammer",
 
             -- Other ultimates
             "arbiter_of_justice",
@@ -512,49 +407,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 11 then  -- Condemn Spam
-        return {
-            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
-            "paladin_evade",
-            -- HIGHEST PRIORITY - Evade for mobility and safety
-            "evade",
-
-            -- Condemn focused spam - HIGH SINGLE TARGET DPS
-            "condemn",  -- Main damage skill (HIGHEST PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
-            "falling_star",  -- Mobility (HIGH PRIORITY)
-            "arbiter_of_justice",  -- Ultimate spam (HIGH PRIORITY)
-
-            -- Other ultimates
-            "zenith",
-            "heavens_fury",
-            "spear_of_the_heavens",
-            "aegis",
-            "fortress",
-            "purify",
-
-            -- Other defensives and auras
-            "holy_light_aura",
-
-            -- Other main damage abilities
-            "blessed_hammer",
-            "blessed_shield",
-            "zeal",
-            "divine_lance",
-            "brandish",
-
-            -- Mobility
-            "advance",
-            "shield_charge",
-
-            -- Filler abilities
-            "holy_bolt",
-            "clash",
-            "consecration",
-        }
-    elseif build_index == 12 then  -- Zenith Aegis Tank
+    elseif build_index == 11 then  -- Zenith Aegis Tank
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -562,12 +415,12 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Zenith and Aegis focused - TANKY ULTIMATE BUILD
-            "zenith",  -- Ultimate (HIGHEST PRIORITY)
-            "aegis",  -- Ultimate (HIGH PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "holy_light_aura",  -- Healing aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
+            "zenith",
+            "aegis",
+            "fanaticism_aura",
+            "defiance_aura",
+            "holy_light_aura",
+            "rally",
 
             -- Other ultimates
             "arbiter_of_justice",
@@ -596,21 +449,20 @@ local function get_base_spell_priority(build_index)
         }
     else  -- Default build (build_index == 0 or any other value)
         return {
-            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            -- Core mobility and safety
             "paladin_evade",
-            -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
-            -- Core auras for all builds
-            "fanaticism_aura",  -- Attack speed (HIGHEST PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "holy_light_aura",  -- Healing aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
+            -- Core auras
+            "fanaticism_aura",
+            "defiance_aura",
+            "holy_light_aura",
+            "rally",
 
             -- High priority ultimates and mobility
-            "arbiter_of_justice",  -- Ultimate spam
-            "falling_star",  -- Mobility
-            "blessed_hammer",  -- AOE damage
+            "arbiter_of_justice",
+            "falling_star",
+            "blessed_hammer",
 
             -- Other ultimates
             "zenith",

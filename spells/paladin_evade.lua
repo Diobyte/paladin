@@ -1,14 +1,14 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
-local max_spell_range = 8.0
-local targeting_type = "melee"
+local max_spell_range = 10.0
+local targeting_type = "both"
 local menu_elements =
 {
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
-    targeting_mode      = combo_box:new(2, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
-    min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
+    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
+    min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
 }
 
@@ -16,7 +16,7 @@ local function menu()
     if menu_elements.tree_tab:push("Paladin Evade") then
         menu_elements.main_boolean:render("Enable Paladin Evade", "")
         if menu_elements.main_boolean:get() then
-            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_melee,
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
