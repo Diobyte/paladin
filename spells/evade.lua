@@ -83,25 +83,11 @@ local function logics(target)
         end
     end
 
-    -- Try primary spell ID first, then fallback if available
-    local spell_id_to_use = spell_data.evade.spell_id
-    local cast_success = false
-    
-    -- Try primary spell ID
-    if cast_spell.position(spell_id_to_use, cast_position, 0) then
-        cast_success = true
-    -- Try fallback spell ID if primary fails and fallback exists
-    elseif spell_data.evade.fallback_spell_id then
-        spell_id_to_use = spell_data.evade.fallback_spell_id
-        if cast_spell.position(spell_id_to_use, cast_position, 0) then
-            cast_success = true
-        end
-    end
-    
-    if cast_success then
+    -- Cast the evade spell
+    if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.instant_cast; -- Evade is instant
-        console.print("Cast Evade (ID: " .. spell_id_to_use .. ") - Target: " ..
+        console.print("Cast Evade (ID: " .. spell_data.evade.spell_id .. ") - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));
         return true;

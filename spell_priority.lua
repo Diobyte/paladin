@@ -110,7 +110,8 @@ end
 local function get_base_spell_priority(build_index)
     if build_index == 1 then  -- Judgement Nuke Paladin
         return {
-            -- HIGHEST PRIORITY - Evade for mobility and safety
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             "evade",
 
             -- High priority for Judgement chain: mark, pop, auras, mobility, ultimate
@@ -150,7 +151,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 2 then  -- Blessed Hammer (Hammerkuna)
         return {
-            -- HIGHEST PRIORITY - Evade for mobility and safety
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             "evade",
 
             -- Blessed Hammer spam with auras and mobility - META AOE BUILD
@@ -190,7 +192,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 3 then  -- Arbiter Paladin
         return {
-            -- HIGHEST PRIORITY - Evade for mobility and safety
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             "evade",
 
             -- Arbiter focused with mobility and auras - ULTIMATE SPAM BUILD
@@ -228,7 +231,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 4 then  -- Blessed Shield (Captain America)
         return {
-            -- HIGHEST PRIORITY - Evade for mobility and safety
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             "evade",
 
             -- Blessed Shield focused with auras and mobility - SINGLE TARGET BUILD
@@ -268,7 +272,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 5 then  -- Shield Bash Valkyrie
         return {
-            -- HIGHEST PRIORITY - Evade for mobility and safety
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             "evade",
 
             -- Shield bash focused with charge and auras - MELEE BUILD
@@ -305,7 +310,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 6 then  -- Holy Avenger Wing Strikes
         return {
-            -- HIGHEST PRIORITY - Evade for mobility and safety
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             "evade",
 
             -- Mobility and ultimate focused - HIGH MOBILITY BUILD
@@ -345,8 +351,10 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 7 then  -- Evade Hammerdin
         return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and damage
+            "paladin_evade",
             -- Evade focused with Blessed Hammer spam - META EVADE BUILD
-            "evade",  -- Evade for mobility and damage (HIGHEST PRIORITY)
+            "evade",  -- Evade for mobility and damage (HIGH PRIORITY)
             "blessed_hammer",  -- Main damage skill (HIGH PRIORITY)
             "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
             "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
@@ -382,8 +390,10 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 8 then  -- Arbiter Evade
         return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility
+            "paladin_evade",
             -- Arbiter with evade for high mobility and ultimate spam - META BUILD
-            "evade",  -- Evade for mobility (HIGHEST PRIORITY)
+            "evade",  -- Evade for mobility (HIGH PRIORITY)
             "arbiter_of_justice",  -- Main ultimate (HIGH PRIORITY)
             "falling_star",  -- Additional mobility (HIGH PRIORITY)
             "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
@@ -420,6 +430,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 9 then  -- Heaven's Fury Spam
         return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
@@ -460,6 +472,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 10 then  -- Spear of the Heavens
         return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
@@ -500,6 +514,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 11 then  -- Condemn Spam
         return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
@@ -540,6 +556,8 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 12 then  -- Zenith Aegis Tank
         return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
@@ -578,6 +596,8 @@ local function get_base_spell_priority(build_index)
         }
     else  -- Default build (build_index == 0 or any other value)
         return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 

@@ -92,6 +92,7 @@ local spells =
 {
     advance = require("spells/advance"),
     evade = require("spells/evade"),
+    paladin_evade = require("spells/paladin_evade"),
     arbiter_of_justice = require("spells/arbiter_of_justice"),
     blessed_hammer = require("spells/blessed_hammer"),
     blessed_shield = require("spells/blessed_shield"),
