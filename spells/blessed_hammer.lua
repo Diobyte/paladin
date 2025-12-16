@@ -1,7 +1,7 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
-local max_spell_range = 5.0
+local max_spell_range = 8.0
 local targeting_type = "melee"
 local menu_elements =
 {

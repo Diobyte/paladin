@@ -36,7 +36,7 @@ local function logics(target)
     local is_logic_allowed = my_utility.is_spell_allowed(
         menu_boolean,
         next_time_allowed_cast,
-        spell_data.advance.spell_id);
+        spell_data.evade.spell_id);
 
     if not is_logic_allowed then return false end;
 
@@ -82,7 +82,7 @@ local function logics(target)
         end
     end
 
-    if cast_spell.position(spell_data.advance.spell_id, cast_position, 0) then
+    if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.instant_cast; -- Evade is instant
         console.print("Cast Evade - Target: " ..
