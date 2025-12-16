@@ -92,7 +92,7 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             "evade",
 
-            -- Arbiter focused with mobility and auras - ULTIMATE SPAM BUILD
+            -- Arbiter focused with mobility and auras - PURE ULTIMATE BUILD
             "arbiter_of_justice",
             "falling_star",
             "fanaticism_aura",
@@ -100,30 +100,9 @@ local function get_base_spell_priority(build_index)
             "holy_light_aura",
             "rally",
 
-            -- Other ultimates
-            "zenith",
-            "heavens_fury",
-            "spear_of_the_heavens",
-            "aegis",
-            "fortress",
-            "purify",
-
-            -- Main damage abilities
-            "blessed_hammer",
-            "condemn",
-            "blessed_shield",
-            "zeal",
-            "divine_lance",
-            "brandish",
-
-            -- Mobility
+            -- Mobility only - no other ultimates or damage skills for pure Arbiter
             "advance",
             "shield_charge",
-
-            -- Filler abilities
-            "holy_bolt",
-            "clash",
-            "consecration",
         }
     elseif build_index == 4 then  -- Blessed Shield (Captain America)
         return {
