@@ -17,7 +17,7 @@ end
 
 local next_time_allowed_cast = 0;
 
-local function logics(target)
+local function logics()
     -- Fortress is a self-cast fortification - doesn't need a target
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_data.fortress.spell_id);

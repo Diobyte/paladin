@@ -28,7 +28,8 @@ end
 
 local next_time_allowed_cast = 0;
 
-local function logics(target)
+local function logics()
+    local target = target()
     if not target then return false end;
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
