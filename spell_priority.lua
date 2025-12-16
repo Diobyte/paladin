@@ -110,6 +110,9 @@ end
 local function get_base_spell_priority(build_index)
     if build_index == 1 then  -- Judgement Nuke Paladin
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- High priority for Judgement chain: mark, pop, auras, mobility, ultimate
             "brandish",  -- Mark enemies with Judgement (HIGH PRIORITY)
             "blessed_shield",  -- Pop Judgement for massive damage (HIGH PRIORITY)
@@ -135,7 +138,6 @@ local function get_base_spell_priority(build_index)
             "condemn",
             "zeal",
             "divine_lance",
-            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -148,6 +150,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 2 then  -- Blessed Hammer (Hammerkuna)
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Blessed Hammer spam with auras and mobility - META AOE BUILD
             "blessed_hammer",  -- Main damage skill (HIGHEST PRIORITY)
             "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
@@ -173,7 +178,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -186,6 +190,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 3 then  -- Arbiter Paladin
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Arbiter focused with mobility and auras - ULTIMATE SPAM BUILD
             "arbiter_of_justice",  -- Main ultimate (HIGHEST PRIORITY)
             "falling_star",  -- Mobility for positioning (HIGH PRIORITY)
@@ -209,7 +216,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -222,6 +228,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 4 then  -- Blessed Shield (Captain America)
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Blessed Shield focused with auras and mobility - SINGLE TARGET BUILD
             "blessed_shield",  -- Main damage skill (HIGHEST PRIORITY)
             "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
@@ -247,7 +256,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -260,6 +268,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 5 then  -- Shield Bash Valkyrie
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Shield bash focused with charge and auras - MELEE BUILD
             "clash",  -- Shield bash (HIGHEST PRIORITY)
             "shield_charge",  -- Shield charge (HIGH PRIORITY)
@@ -284,7 +295,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -295,6 +305,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 6 then  -- Holy Avenger Wing Strikes
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Mobility and ultimate focused - HIGH MOBILITY BUILD
             "falling_star",  -- Wing strikes mobility (HIGHEST PRIORITY)
             "arbiter_of_justice",  -- Ultimate (HIGH PRIORITY)
@@ -320,7 +333,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -408,6 +420,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 9 then  -- Heaven's Fury Spam
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Core auras for all builds
             "fanaticism_aura",  -- Attack speed (HIGHEST PRIORITY)
             "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
@@ -433,7 +448,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -446,6 +460,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 10 then  -- Spear of the Heavens
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Spear of the Heavens focused - RANGED ULTIMATE BUILD
             "spear_of_the_heavens",  -- Main ultimate (HIGHEST PRIORITY)
             "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
@@ -471,7 +488,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -484,6 +500,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 11 then  -- Condemn Spam
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Condemn focused spam - HIGH SINGLE TARGET DPS
             "condemn",  -- Main damage skill (HIGHEST PRIORITY)
             "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
@@ -509,7 +528,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -522,6 +540,9 @@ local function get_base_spell_priority(build_index)
         }
     elseif build_index == 12 then  -- Zenith Aegis Tank
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Zenith and Aegis focused - TANKY ULTIMATE BUILD
             "zenith",  -- Ultimate (HIGHEST PRIORITY)
             "aegis",  -- Ultimate (HIGH PRIORITY)
@@ -544,7 +565,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Mobility
             "falling_star",
@@ -558,6 +578,9 @@ local function get_base_spell_priority(build_index)
         }
     else  -- Default build (build_index == 0 or any other value)
         return {
+            -- HIGHEST PRIORITY - Evade for mobility and safety
+            "evade",
+
             -- Core auras for all builds
             "fanaticism_aura",  -- Attack speed (HIGHEST PRIORITY)
             "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
@@ -583,7 +606,6 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",

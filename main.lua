@@ -524,21 +524,6 @@ on_update(function()
             end
         end
     end
-
-    -- Out of combat spell usage - only when no enemies are nearby
-    local enemies_nearby = my_utility.enemy_count_simple(50) -- Check for enemies within 50 yards
-    if enemies_nearby == 0 then
-        for _, spell_name in ipairs(current_spell_priority) do
-            local spell = spells[spell_name]
-            if spell and spell.out_of_combat then
-                if spell.out_of_combat() then
-                    next_cast_time = get_time_since_inject() + my_utility.spell_delays.regular_cast
-                    my_utility.record_spell_cast(spell_name)
-                    return
-                end
-            end
-        end
-    end
 end)
 
 -- Debug
