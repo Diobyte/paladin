@@ -42,11 +42,10 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.position(spell_data.blessed_hammer.spell_id, target:get_position(), 0) then
+    if cast_spell.self(spell_data.blessed_hammer.spell_id, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
-        console.print("Cast Blessed Hammer - Target: " ..
-            my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
+        console.print("Cast Blessed Hammer");
         return true;
     end;
 
