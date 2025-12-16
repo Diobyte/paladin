@@ -694,4 +694,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - Paladin Dirty - Version 1.0.6")
+console.print("Lua Plugin - Paladin Dirty - Version 1.0.9")

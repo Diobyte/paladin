@@ -242,7 +242,7 @@ local spell_data = {
     -- ADDITIONAL ULTIMATES (Added from context)
     -- =====================================================
     aegis = {
-        spell_id = 2302975,  -- Verified: wowhead.com/diablo-4/skill/aegis-2302975
+        spell_id = 2292204,  -- Verified: wowhead.com/diablo-4/skill/aegis-2292204
         category = "ultimate",
         cast_type = "self",      -- Self-cast defensive barrier
         description = "Grants a protective barrier that absorbs damage for you and nearby allies.",
