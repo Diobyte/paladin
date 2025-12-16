@@ -343,7 +343,7 @@ local function is_in_range(target, range)
     return target_distance_sqr < range_sqr
 end
 
-local function enemy_count_in_range(range)
+local function enemy_count_simple(range)
     local player_position = get_player_position()
     local enemies = actors_manager.get_enemy_npcs()
     local count = 0
@@ -463,6 +463,7 @@ return
 
     get_best_point_rec = get_best_point_rec,
     enemy_count_in_range = enemy_count_in_range,
+    enemy_count_simple = enemy_count_simple,
     get_melee_range = get_melee_range,
     is_in_range = is_in_range,
     horde_objectives = horde_objectives

@@ -69,7 +69,7 @@ local function logics(target)
     else
         -- For evade builds, check for enemy clustering for optimal positioning
         if target then
-            local enemy_count = my_utility.enemy_count_in_range(5) -- 5 yard range for clustering
+            local enemy_count = my_utility.enemy_count_simple(5) -- 5 yard range for clustering
             -- Always cast against elites/bosses or when we have good clustering
             if not (target:is_elite() or target:is_champion() or target:is_boss()) then
                 if enemy_count < 2 then  -- Minimum 2 enemies for non-elite
