@@ -7,7 +7,7 @@ local menu_elements =
 {
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "condemn_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "condemn_targeting_mode")),
+    targeting_mode      = combo_box:new(2, get_hash(my_utility.plugin_label .. "condemn_targeting_mode")),
     min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "condemn_min_target_range")),
 }
@@ -28,8 +28,7 @@ end
 
 local next_time_allowed_cast = 0;
 
-local function logics()
-    local target = target()
+local function logics(target)
     if not target then return false end;
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
