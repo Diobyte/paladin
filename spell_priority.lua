@@ -4,8 +4,12 @@
 
 -- Function to analyze equipped items and adjust spell priorities
 local function adjust_priorities_for_items(base_priorities)
+    local local_player = get_local_player()
+    if not local_player then
+        return base_priorities
+    end
     -- Get equipped items to analyze stats
-    local equipped_items = get_equipped_items()
+    local equipped_items = local_player:get_equipped_items()
     local attack_speed_total = 0
     local cdr_total = 0
     local crit_damage_total = 0
@@ -14,21 +18,29 @@ local function adjust_priorities_for_items(base_priorities)
     -- Analyze each equipped item for relevant stats
     for _, item in ipairs(equipped_items) do
         if item then
-            -- Check for attack speed (reduces aura priority)
-            local attack_speed = item:get_attack_speed() or 0
-            attack_speed_total = attack_speed_total + attack_speed
-
-            -- Check for cooldown reduction (increases ultimate priority)
-            local cdr = item:get_cooldown_reduction() or 0
-            cdr_total = cdr_total + cdr
-
-            -- Check for critical hit damage
-            local crit_damage = item:get_critical_hit_damage() or 0
-            crit_damage_total = crit_damage_total + crit_damage
-
-            -- Check for resource generation
-            local resource_gen = item:get_resource_generation() or 0
-            resource_gen_total = resource_gen_total + resource_gen
+            local affixes = item:get_affixes()
+            for _, affix in ipairs(affixes) do
+                if affix then
+                    local name = affix:get_name()
+                    local value = affix:get_roll()
+                    -- Check for attack speed (reduces aura priority)
+                    if name:find("Attack Speed") or name:find("attacks_per_second") then
+                        attack_speed_total = attack_speed_total + value
+                    end
+                    -- Check for cooldown reduction (increases ultimate priority)
+                    if name:find("Cooldown Reduction") or name:find("cooldown_reduction") then
+                        cdr_total = cdr_total + value
+                    end
+                    -- Check for critical hit damage
+                    if name:find("Critical Strike Damage") or name:find("crit_damage") then
+                        crit_damage_total = crit_damage_total + value
+                    end
+                    -- Check for resource generation
+                    if name:find("Resource Generation") or name:find("resource_generation") then
+                        resource_gen_total = resource_gen_total + value
+                    end
+                end
+            end
         end
     end
 
@@ -261,9 +273,6 @@ local function get_base_spell_priority(build_index)
             "fortress",
             "purify",
 
-            -- Other defensives and auras
-            "holy_light_aura",
-
             -- Main damage abilities
             "blessed_hammer",
             "condemn",
@@ -415,43 +424,6 @@ local function get_base_spell_priority(build_index)
             -- Main damage abilities
             "blessed_shield",
             "condemn",
-            "zeal",
-            "divine_lance",
-            "brandish",
-
-            -- Mobility
-            "advance",
-            "shield_charge",
-
-            -- Filler abilities
-            "holy_bolt",
-            "clash",
-            "consecration",
-        }
-    elseif build_index == 9 then  -- Heaven's Fury Spam
-        return {
-            -- Heaven's Fury ultimate spam - HIGH DAMAGE BUILD
-            "heavens_fury",  -- Main ultimate (HIGHEST PRIORITY)
-            "fanaticism_aura",  -- Attack speed aura (HIGH PRIORITY)
-            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-            "rally",  -- Movement speed (HIGH PRIORITY)
-            "falling_star",  -- Mobility (HIGH PRIORITY)
-            "blessed_hammer",  -- AOE damage (HIGH PRIORITY)
-
-            -- Other ultimates
-            "arbiter_of_justice",
-            "zenith",
-            "spear_of_the_heavens",
-            "aegis",
-            "fortress",
-            "purify",
-
-            -- Other defensives and auras
-            "holy_light_aura",
-
-            -- Main damage abilities
-            "condemn",
-            "blessed_shield",
             "zeal",
             "divine_lance",
             "brandish",
