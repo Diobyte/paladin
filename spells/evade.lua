@@ -14,7 +14,7 @@ local menu_elements =
 
 local function menu()
     if menu_elements.tree_tab:push("Evade") then
-        menu_elements.main_boolean:render("Enable Evade", "")
+        menu_elements.main_boolean:render("Enable Evade - In combat", "")
         if menu_elements.main_boolean:get() then
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
@@ -33,8 +33,9 @@ local next_time_allowed_cast = 0;
 
 local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get();
+    -- Evade is always enabled regardless of checkbox state for universal availability
     local is_logic_allowed = my_utility.is_spell_allowed(
-        menu_boolean,
+        true,  -- Always treat as enabled for paladin universal evade
         next_time_allowed_cast,
         spell_data.evade.spell_id);
 
@@ -67,12 +68,12 @@ local function logics(target)
             cast_position = cursor_position
         end
     else
-        -- For evade builds, check for enemy clustering for optimal positioning
+        -- Check for enemy clustering for optimal positioning
         if target then
             local enemy_count = my_utility.enemy_count_simple(5) -- 5 yard range for clustering
             -- Always cast against elites/bosses or when we have good clustering
             if not (target:is_elite() or target:is_champion() or target:is_boss()) then
-                if enemy_count < 2 then  -- Minimum 2 enemies for non-elite
+                if enemy_count < 1 then  -- Minimum 1 enemies for non-elite (relaxed for general use)
                     return false
                 end
             end
@@ -82,10 +83,11 @@ local function logics(target)
         end
     end
 
+    -- Cast the evade spell
     if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.instant_cast; -- Evade is instant
-        console.print("Cast Evade - Target: " ..
+        console.print("Cast Evade (ID: " .. spell_data.evade.spell_id .. ") - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));
         return true;

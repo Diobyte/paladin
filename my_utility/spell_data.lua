@@ -269,14 +269,14 @@ local spell_data = {
     -- COMMON SKILLS
     -- =====================================================
     evade = {
-        spell_id = 337031,
+        spell_id = 337031,  -- Primary evade spell ID (publicly documented)
         category = "common",
         cast_type = "position",  -- Evade to position
         is_mobility = true,
         description = "Dodge roll to avoid damage",
         -- Targeting: cast_spell.position(spell_id, safe_pos) - dash to safety
     },
-    
+
     -- =====================================================
     -- ENEMY DEBUFFS/BUFFS (for targeting logic)
     -- =====================================================
@@ -288,7 +288,17 @@ local spell_data = {
                 receiver = 2182649012
             }
         }
-    }
+    },
+
+    -- =====================================================
+    paladin_evade = {
+        spell_id = 2256888,  -- Enhanced evade spell ID (internal reads)
+        category = "common",
+        cast_type = "position",  -- Evade to position
+        is_mobility = true,
+        description = "Enhanced paladin evade spell",
+        -- Targeting: cast_spell.position(spell_id, safe_pos) - enhanced dash to safety
+    },
 }
 
 return spell_data

@@ -92,6 +92,7 @@ local spells =
 {
     advance = require("spells/advance"),
     evade = require("spells/evade"),
+    paladin_evade = require("spells/paladin_evade"),
     arbiter_of_justice = require("spells/arbiter_of_justice"),
     blessed_hammer = require("spells/blessed_hammer"),
     blessed_shield = require("spells/blessed_shield"),
@@ -203,7 +204,7 @@ on_render_menu(function()
     if menu_elements.spells_tree:push("Equipped Spells") then
         -- Display spells in priority order, but only if they're equipped
         for _, spell_name in ipairs(current_spell_priority) do
-            if equipped_lookup[spell_name] then
+            if equipped_lookup[spell_name] or spell_name == "evade" then
                 local spell = spells[spell_name]
                 if spell then
                     spell.menu()
@@ -216,7 +217,7 @@ on_render_menu(function()
     if menu_elements.disabled_spells_tree:push("Inactive Spells") then
         for _, spell_name in ipairs(current_spell_priority) do
             local spell = spells[spell_name]
-            if spell and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
+            if spell and spell_name ~= "evade" and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
                 spell.menu()
             end
         end
@@ -693,4 +694,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - Paladin Dirty - Version 1.0.4")
+console.print("Lua Plugin - Paladin Dirty - Version 1.0.5")
