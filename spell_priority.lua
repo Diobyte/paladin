@@ -391,7 +391,7 @@ local function get_base_spell_priority(build_index)
             "advance",
             "consecration",
         }
-    else  -- Default build - Balanced DPS
+    elseif build_index == 9 then  -- Heaven's Fury Spam
         return {
             -- Core auras for all builds
             "fanaticism_aura",  -- Attack speed (HIGHEST PRIORITY)
