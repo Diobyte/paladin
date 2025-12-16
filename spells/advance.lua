@@ -8,6 +8,7 @@ local menu_elements =
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_main_bool_base")),
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "advance_targeting_mode")),
+    mobility_only       = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
     min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "advance_min_target_range")),
 }
@@ -18,8 +19,11 @@ local function menu()
         if menu_elements.main_boolean:get() then
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
-            menu_elements.min_target_range:render("Min Target Distance",
-                "\n     Must be lower than Max Targeting Range     \n\n", 1)
+            menu_elements.mobility_only:render("Only use for mobility", "")
+            if menu_elements.mobility_only:get() then
+                menu_elements.min_target_range:render("Min Target Distance",
+                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+            end
         end
 
         menu_elements.tree_tab:pop()
@@ -29,7 +33,6 @@ end
 local next_time_allowed_cast = 0;
 
 local function logics(target)
-    if not target then return false end;
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
         menu_boolean,
@@ -38,15 +41,47 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
-    if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
-        return false
+    local mobility_only = menu_elements.mobility_only:get();
+    
+    -- Check if we have a valid target based on targeting mode
+    if not target then
+        -- No target found with current targeting mode
+        if not mobility_only then
+            return false  -- Can't cast without a target in combat mode
+        end
+    end
+    
+    local cast_position = nil
+    if mobility_only then
+        if target then
+            if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
+                return false
+            end
+            cast_position = target:get_position()
+        else
+            -- For mobility without target, cast towards cursor
+            local cursor_position = get_cursor_position()
+            local player_position = get_player_position()
+            if cursor_position:squared_dist_to_ignore_z(player_position) > max_spell_range * max_spell_range then
+                return false  -- Cursor too far
+            end
+            cast_position = cursor_position
+        end
+    else
+        -- Combat mode: require target
+        if not target then return false end
+        if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
+            return false
+        end
+        cast_position = target:get_position()
     end
 
-    if cast_spell.position(spell_data.advance.spell_id, target:get_position(), 0) then
+    if cast_spell.position(spell_data.advance.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        next_time_allowed_cast = current_time + my_utility.spell_delays.instant_cast; -- Advance is instant
         console.print("Cast Advance - Target: " ..
-            my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
+            (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
+            ", Mobility: " .. tostring(mobility_only));
         return true;
     end;
 

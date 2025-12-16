@@ -26,8 +26,20 @@ local function logics()
 
     if not is_logic_allowed then return false end;
 
+    -- Check if we already have the buff or cast it recently to save charges
+    -- Rally duration is 8s. We want to refresh it only if it's about to expire or not active.
+    -- However, is_buff_active might not be reliable for self-buffs depending on the API.
+    -- Using the cache system to ensure we don't spam all 3 charges instantly.
+    
+    local current_time = get_time_since_inject()
+    local last_cast = my_utility.get_last_cast_time("rally")
+    
+    -- Don't cast if we cast it less than 6 seconds ago (Duration is 8s)
+    if current_time < last_cast + 6.0 then
+        return false
+    end
+
     if cast_spell.self(spell_data.rally.spell_id, 0) then
-        local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
         console.print("Cast Rally");
         return true;

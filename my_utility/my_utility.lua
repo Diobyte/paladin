@@ -343,6 +343,20 @@ local function is_in_range(target, range)
     return target_distance_sqr < range_sqr
 end
 
+local function enemy_count_in_range(range)
+    local player_position = get_player_position()
+    local enemies = actors_manager.get_enemy_npcs()
+    local count = 0
+    for _, enemy in ipairs(enemies) do
+        local enemy_position = enemy:get_position()
+        local distance_sqr = player_position:squared_dist_to_ignore_z(enemy_position)
+        if distance_sqr < (range * range) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
 local spell_delays = {
     -- NOTE: if a regular cast is used, it means even instant abilities will be on cooldown for the duration of the regular cast, not optimal
     instant_cast = 0.01, -- instant cast abilites should be used as soon as possible
@@ -409,6 +423,16 @@ local targeting_mode_description =
     "       Best Cursor Target: Targets the most valuable enemy around the cursor      \n" ..
     "       Closest Cursor Target: Targets the enemy nearest to the cursor      \n"
 
+local spell_cast_history = {}
+
+local function record_spell_cast(spell_name)
+    spell_cast_history[spell_name] = get_time_since_inject()
+end
+
+local function get_last_cast_time(spell_name)
+    return spell_cast_history[spell_name] or 0
+end
+
 local plugin_label = "BASE_PALADIN_PLUGIN_DIRTY_"
 
 return
@@ -426,6 +450,9 @@ return
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,
     buff_stack_count = buff_stack_count,
+    
+    record_spell_cast = record_spell_cast,
+    get_last_cast_time = get_last_cast_time,
 
     is_auto_play_enabled = is_auto_play_enabled,
 

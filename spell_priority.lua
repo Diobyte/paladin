@@ -225,6 +225,80 @@ local function get_spell_priority(build_index)
             "clash",
             "consecration",
         }
+    elseif build_index == 7 then  -- Evade Hammerdin
+        return {
+            -- Evade focused with Blessed Hammer spam
+            "evade",  -- Evade for mobility and damage
+            "blessed_hammer",  -- Main damage skill (Spender)
+            "fanaticism_aura",  -- Attack speed aura
+            "defiance_aura",  -- Defensive aura
+            "consecration",  -- AOE damage and healing
+
+            -- Other defensives and auras
+            "holy_light_aura",
+
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+            "purify",
+            "arbiter_of_justice",
+
+            -- Other main damage abilities
+            "condemn",
+            "blessed_shield",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Other mobility
+            "shield_charge",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "rally",
+        }
+    elseif build_index == 8 then  -- Arbiter Evade
+        return {
+            -- Arbiter with evade for high mobility and ultimate spam
+            "evade",  -- Evade for mobility
+            "arbiter_of_justice",  -- Main ultimate
+            "falling_star",  -- Mobility/Damage
+            "defiance_aura",  -- Defensive aura
+            "holy_light_aura",  -- Healing aura
+            "fanaticism_aura",  -- Attack speed aura
+
+            -- Other defensives and auras
+            "rally",
+
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+            "purify",
+
+            -- Main damage abilities
+            "blessed_hammer",
+            "condemn",
+            "blessed_shield",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Other mobility
+            "shield_charge",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "advance",
+            "consecration",
+        }
     else  -- Default build
         return {
             -- defensives and auras

@@ -38,8 +38,24 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
-    if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
+    if not my_utility.is_in_range(target, max_spell_range) then
         return false
+    end
+
+    -- Logic:
+    -- 1. If outside min_range (Gap Close): Cast immediately.
+    -- 2. If inside min_range (Boss DPS): Cast only if recast_delay has passed.
+    local is_in_min_range = my_utility.is_in_range(target, menu_elements.min_target_range:get())
+    
+    if is_in_min_range then
+        -- We are in melee range (Boss logic)
+        if not target:is_boss() then return false end
+        
+        local current_time = get_time_since_inject()
+        local last_cast = my_utility.get_last_cast_time("shield_charge")
+        if current_time < last_cast + 2.0 then -- Hardcoded 2.0s delay for Shield Charge weaving
+            return false
+        end
     end
 
     if cast_spell.position(spell_data.shield_charge.spell_id, target:get_position(), 0) then

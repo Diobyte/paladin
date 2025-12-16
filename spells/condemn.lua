@@ -38,7 +38,7 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
-    if not my_utility.is_in_range(target, max_spell_range) then
+    if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         return false
     end
 

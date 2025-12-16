@@ -91,6 +91,7 @@ local cursor_target_description =
 local spells =
 {
     advance = require("spells/advance"),
+    evade = require("spells/evade"),
     arbiter_of_justice = require("spells/arbiter_of_justice"),
     blessed_hammer = require("spells/blessed_hammer"),
     blessed_shield = require("spells/blessed_shield"),
@@ -144,7 +145,7 @@ on_render_menu(function()
             "       If you use huge aoe spells, you should increase this value       \n" ..
             "       Size is displayed with debug/display targets with faded white circles       ", 1)
 
-        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)", "Shield Bash Valkyrie", "Holy Avenger Wing Strikes"}, "Select a build to optimize spell priorities and timings for max DPS")
+        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)", "Shield Bash Valkyrie", "Holy Avenger Wing Strikes", "Evade Hammerdin", "Arbiter Evade"}, "Select a build to optimize spell priorities and timings for max DPS")
 
         -- Update spell priority based on selected build
         current_spell_priority = get_spell_priority(menu_elements.build_selector:get())
@@ -420,6 +421,7 @@ local function use_ability(spell_name, delay_after_cast)
     --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
     if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
         next_cast_time = get_time_since_inject() + delay_after_cast
+        my_utility.record_spell_cast(spell_name)
         return true
     end
 
