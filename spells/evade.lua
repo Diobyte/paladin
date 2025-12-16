@@ -10,11 +10,14 @@ local menu_elements =
     mobility_only       = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
     min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "evade_min_target_range")),
+    ooc_boolean         = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_ooc_bool")),
+    min_ooc_evade_range = slider_float:new(1, 20, 8,
+        get_hash(my_utility.plugin_label .. "evade_min_ooc_range")),
 }
 
 local function menu()
     if menu_elements.tree_tab:push("Evade") then
-        menu_elements.main_boolean:render("Enable Evade", "")
+        menu_elements.main_boolean:render("Enable Evade - In combat", "")
         if menu_elements.main_boolean:get() then
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
@@ -23,6 +26,12 @@ local function menu()
                 menu_elements.min_target_range:render("Min Target Distance",
                     "\n     Must be lower than Max Targeting Range     \n\n", 1)
             end
+        end
+        
+        menu_elements.ooc_boolean:render("Enable Evade - Out of combat", "")
+        if menu_elements.ooc_boolean:get() then
+            menu_elements.min_ooc_evade_range:render("Min OOC Evade Distance",
+                "\n     Minimum distance to trigger evade when moving     \n\n", 1)
         end
 
         menu_elements.tree_tab:pop()
@@ -33,8 +42,9 @@ local next_time_allowed_cast = 0;
 
 local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get();
+    -- Evade is always enabled regardless of checkbox state for universal availability
     local is_logic_allowed = my_utility.is_spell_allowed(
-        menu_boolean,
+        true,  -- Always treat as enabled for paladin universal evade
         next_time_allowed_cast,
         spell_data.evade.spell_id);
 
@@ -67,12 +77,12 @@ local function logics(target)
             cast_position = cursor_position
         end
     else
-        -- For evade builds, check for enemy clustering for optimal positioning
+        -- Check for enemy clustering for optimal positioning
         if target then
             local enemy_count = my_utility.enemy_count_simple(5) -- 5 yard range for clustering
             -- Always cast against elites/bosses or when we have good clustering
             if not (target:is_elite() or target:is_champion() or target:is_boss()) then
-                if enemy_count < 2 then  -- Minimum 2 enemies for non-elite
+                if enemy_count < 1 then  -- Minimum 1 enemies for non-elite (relaxed for general use)
                     return false
                 end
             end
@@ -82,12 +92,74 @@ local function logics(target)
         end
     end
 
-    if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
+    -- Try primary spell ID first, then fallback if available
+    local spell_id_to_use = spell_data.evade.spell_id
+    local cast_success = false
+    
+    -- Try primary spell ID
+    if cast_spell.position(spell_id_to_use, cast_position, 0) then
+        cast_success = true
+    -- Try fallback spell ID if primary fails and fallback exists
+    elseif spell_data.evade.fallback_spell_id then
+        spell_id_to_use = spell_data.evade.fallback_spell_id
+        if cast_spell.position(spell_id_to_use, cast_position, 0) then
+            cast_success = true
+        end
+    end
+    
+    if cast_success then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.instant_cast; -- Evade is instant
-        console.print("Cast Evade - Target: " ..
+        console.print("Cast Evade (ID: " .. spell_id_to_use .. ") - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));
+        return true;
+    end;
+
+    return false;
+end
+
+local function out_of_combat()
+    local ooc_boolean = menu_elements.ooc_boolean:get();
+    if not ooc_boolean then return false end;
+    
+    local is_logic_allowed = my_utility.is_spell_allowed(
+        true,  -- Always treat as enabled for paladin universal evade
+        next_time_allowed_cast,
+        spell_data.evade.spell_id);
+
+    if not is_logic_allowed then return false end;
+
+    -- Check if player is moving and cursor is far enough
+    local player_position = get_player_position()
+    local cursor_position = get_cursor_position()
+    local distance_to_cursor = cursor_position:squared_dist_to_ignore_z(player_position)
+    local min_distance = menu_elements.min_ooc_evade_range:get()
+    
+    if distance_to_cursor < (min_distance * min_distance) then
+        return false  -- Not far enough to trigger evade
+    end
+    
+    -- Cast evade towards cursor position
+    -- Try primary spell ID first, then fallback if available
+    local spell_id_to_use = spell_data.evade.spell_id
+    local cast_success = false
+    
+    -- Try primary spell ID
+    if cast_spell.position(spell_id_to_use, cursor_position, 0) then
+        cast_success = true
+    -- Try fallback spell ID if primary fails and fallback exists
+    elseif spell_data.evade.fallback_spell_id then
+        spell_id_to_use = spell_data.evade.fallback_spell_id
+        if cast_spell.position(spell_id_to_use, cursor_position, 0) then
+            cast_success = true
+        end
+    end
+    
+    if cast_success then
+        local current_time = get_time_since_inject();
+        next_time_allowed_cast = current_time + my_utility.spell_delays.instant_cast;
+        console.print("Cast Evade OOC (ID: " .. spell_id_to_use .. ") - Distance: " .. string.format("%.1f", math.sqrt(distance_to_cursor)));
         return true;
     end;
 
@@ -98,5 +170,6 @@ return
 {
     menu = menu,
     logics = logics,
+    out_of_combat = out_of_combat,
     menu_elements = menu_elements
 }

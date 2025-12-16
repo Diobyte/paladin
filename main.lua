@@ -203,7 +203,7 @@ on_render_menu(function()
     if menu_elements.spells_tree:push("Equipped Spells") then
         -- Display spells in priority order, but only if they're equipped
         for _, spell_name in ipairs(current_spell_priority) do
-            if equipped_lookup[spell_name] then
+            if equipped_lookup[spell_name] or spell_name == "evade" then
                 local spell = spells[spell_name]
                 if spell then
                     spell.menu()
@@ -216,7 +216,7 @@ on_render_menu(function()
     if menu_elements.disabled_spells_tree:push("Inactive Spells") then
         for _, spell_name in ipairs(current_spell_priority) do
             local spell = spells[spell_name]
-            if spell and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
+            if spell and spell_name ~= "evade" and (not equipped_lookup[spell_name] or not spell.menu_elements.main_boolean:get()) then
                 spell.menu()
             end
         end
@@ -521,6 +521,21 @@ on_update(function()
         if spell then
             if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
                 return
+            end
+        end
+    end
+
+    -- Out of combat spell usage - only when no enemies are nearby
+    local enemies_nearby = my_utility.enemy_count_simple(50) -- Check for enemies within 50 yards
+    if enemies_nearby == 0 then
+        for _, spell_name in ipairs(current_spell_priority) do
+            local spell = spells[spell_name]
+            if spell and spell.out_of_combat then
+                if spell.out_of_combat() then
+                    next_cast_time = get_time_since_inject() + my_utility.spell_delays.regular_cast
+                    my_utility.record_spell_cast(spell_name)
+                    return
+                end
             end
         end
     end

@@ -135,6 +135,7 @@ local function get_base_spell_priority(build_index)
             "condemn",
             "zeal",
             "divine_lance",
+            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -172,6 +173,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -207,6 +209,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -244,6 +247,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -280,6 +284,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -315,6 +320,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Other mobility
             "advance",
@@ -427,6 +433,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -464,6 +471,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -501,6 +509,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
@@ -535,6 +544,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Mobility
             "falling_star",
@@ -573,6 +583,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "evade",  -- Available in all rotations
 
             -- Mobility
             "advance",
