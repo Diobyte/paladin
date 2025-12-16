@@ -426,6 +426,51 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
+    elseif build_index == 12 then  -- Auradin Holy Light Aura
+        return {
+            -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
+            "paladin_evade",
+            "evade",
+
+            -- Holy Light Aura - PRIMARY DAMAGE SOURCE (emanation from allies)
+            "holy_light_aura",
+
+            -- High priority mobility for positioning
+            "advance",
+            "shield_charge",
+            "falling_star",
+
+            -- Supporting auras
+            "fanaticism_aura",
+            "defiance_aura",
+            "rally",
+
+            -- Damage abilities that synergize with Holy Light Aura
+            "blessed_hammer",
+            "zeal",
+            "divine_lance",
+
+            -- Pull ability
+            "condemn",
+
+            -- Ultimates (lower priority in Auradin)
+            "arbiter_of_justice",
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+
+            -- Utility
+            "purify",
+            "blessed_shield",
+            "brandish",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
+        }
     else  -- Default build (build_index == 0 or any other value)
         return {
             -- Core mobility and safety
