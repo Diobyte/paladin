@@ -574,45 +574,44 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
+    else  -- Default build (build_index == 0 or any other value)
+        return {
+            -- Core auras for all builds
+            "fanaticism_aura",  -- Attack speed (HIGHEST PRIORITY)
+            "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
+            "holy_light_aura",  -- Healing aura (HIGH PRIORITY)
+            "rally",  -- Movement speed (HIGH PRIORITY)
+
+            -- High priority ultimates and mobility
+            "arbiter_of_justice",  -- Ultimate spam
+            "falling_star",  -- Mobility
+            "blessed_hammer",  -- AOE damage
+
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "spear_of_the_heavens",
+            "aegis",
+            "fortress",
+            "purify",
+
+            -- Main damage abilities
+            "blessed_shield",
+            "condemn",
+            "zeal",
+            "divine_lance",
+            "brandish",
+
+            -- Mobility
+            "advance",
+            "shield_charge",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
+        }
     end
-
-    -- Return default build if no match
-    return {
-        -- Core auras for all builds
-        "fanaticism_aura",  -- Attack speed (HIGHEST PRIORITY)
-        "defiance_aura",  -- Defensive aura (HIGH PRIORITY)
-        "holy_light_aura",  -- Healing aura (HIGH PRIORITY)
-        "rally",  -- Movement speed (HIGH PRIORITY)
-
-        -- High priority ultimates and mobility
-        "arbiter_of_justice",  -- Ultimate spam
-        "falling_star",  -- Mobility
-        "blessed_hammer",  -- AOE damage
-
-        -- Other ultimates
-        "zenith",
-        "heavens_fury",
-        "spear_of_the_heavens",
-        "aegis",
-        "fortress",
-        "purify",
-
-        -- Main damage abilities
-        "blessed_shield",
-        "condemn",
-        "zeal",
-        "divine_lance",
-        "brandish",
-
-        -- Mobility
-        "advance",
-        "shield_charge",
-
-        -- Filler abilities
-        "holy_bolt",
-        "clash",
-        "consecration",
-    }
 end
 
 -- Main function that applies item adjustments
