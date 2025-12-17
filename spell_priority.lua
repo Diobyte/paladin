@@ -680,7 +680,7 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         end
 
         -- Auradin-specific dynamic adjustments
-        if build_index == 12 then
+        if build_index == 13 then
             -- Emergency: If Faith critically low, prioritize Rally above everything
             if faith_current < (faith_max * 0.2) and spell_name == "rally" then
                 new_position = 3  -- Right after evade spells
