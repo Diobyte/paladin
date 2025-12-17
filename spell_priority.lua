@@ -631,10 +631,92 @@ local function adjust_priorities_for_items(base_priorities)
     return final_priorities
 end
 
--- Main function that applies item adjustments
+-- Function for dynamic runtime adjustments based on current game state
+local function apply_dynamic_adjustments(base_priorities, build_index)
+    local local_player = get_local_player()
+    if not local_player then
+        return base_priorities
+    end
+
+    local adjusted_priorities = {}
+    local faith_current = local_player:get_primary_resource_current()  -- Faith resource
+    local faith_max = local_player:get_primary_resource_max()
+
+    -- Faith-based adjustments (boost Faith generation when low)
+    local faith_priority_boost = 0
+    if faith_current < (faith_max * 0.25) then  -- Faith below 25% - EMERGENCY
+        faith_priority_boost = 4
+    elseif faith_current < (faith_max * 0.4) then  -- Faith below 40%
+        faith_priority_boost = 3
+    elseif faith_current < (faith_max * 0.6) then  -- Faith below 60%
+        faith_priority_boost = 2
+    elseif faith_current < (faith_max * 0.8) then  -- Faith below 80%
+        faith_priority_boost = 1
+    end
+
+    -- Health-based defensive adjustments
+    local health_percent = (local_player:get_current_health() / local_player:get_max_health()) * 100
+    local defensive_boost = 0
+    if health_percent < 30 then  -- Critical health
+        defensive_boost = 3
+    elseif health_percent < 50 then  -- Low health
+        defensive_boost = 2
+    elseif health_percent < 70 then  -- Moderate health
+        defensive_boost = 1
+    end
+
+    -- Apply dynamic adjustments
+    for i, spell_name in ipairs(base_priorities) do
+        local new_position = i
+
+        -- Faith management (all builds)
+        if faith_priority_boost > 0 and (spell_name == "blessed_hammer" or spell_name == "zeal" or spell_name == "rally") then
+            new_position = math.max(1, i - faith_priority_boost)
+        end
+
+        -- Defensive boosts when health is low
+        if defensive_boost > 0 and (spell_name == "aegis" or spell_name == "purify" or spell_name == "rally") then
+            new_position = math.max(1, i - defensive_boost)
+        end
+
+        -- Auradin-specific dynamic adjustments
+        if build_index == 12 then
+            -- Emergency: If Faith critically low, prioritize Rally above everything
+            if faith_current < (faith_max * 0.2) and spell_name == "rally" then
+                new_position = 3  -- Right after evade spells
+            end
+
+            -- Emergency: If health critical, prioritize Aegis immediately
+            if health_percent < 25 and spell_name == "aegis" then
+                new_position = 2  -- Right after evade
+            end
+
+            -- Boost Condemn if we need to pull enemies into aura range
+            -- (This would require enemy position data to implement fully)
+        end
+
+        adjusted_priorities[new_position] = adjusted_priorities[new_position] or {}
+        table.insert(adjusted_priorities[new_position], spell_name)
+    end
+
+    -- Flatten the adjusted priorities
+    local final_priorities = {}
+    for i = 1, #base_priorities do
+        if adjusted_priorities[i] then
+            for _, spell_name in ipairs(adjusted_priorities[i]) do
+                table.insert(final_priorities, spell_name)
+            end
+        end
+    end
+
+    return final_priorities
+end
+
+-- Main function that applies all adjustments
 local function get_spell_priority(build_index)
     local base_priorities = get_base_spell_priority(build_index)
-    return adjust_priorities_for_items(base_priorities)
+    local item_adjusted = adjust_priorities_for_items(base_priorities)
+    return apply_dynamic_adjustments(item_adjusted, build_index)
 end
 
 return get_spell_priority
