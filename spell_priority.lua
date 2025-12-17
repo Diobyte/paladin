@@ -732,11 +732,11 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
             if spell_name == "blessed_hammer" then
                 new_position = math.max(1, i - 1)
             end
-        elseif build_index == 3 then  -- Arbiter: Prioritize Wrath generators
+        elseif build_index == 3 then  -- Arbiter: Prioritize Wrath generators (proxy via Faith generators since Wrath not directly accessible)
             if spell_name == "zeal" or spell_name == "divine_lance" then
                 new_position = math.max(1, i - 2)
             end
-        elseif build_index == 10 then  -- Spear: Prioritize Wrath generators
+        elseif build_index == 10 then  -- Spear: Prioritize Wrath generators (proxy via Faith generators since Wrath not directly accessible)
             if spell_name == "zeal" or spell_name == "divine_lance" then
                 new_position = math.max(1, i - 2)
             end
@@ -747,9 +747,15 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
             new_position = math.max(1, i - defensive_boost)
         end
 
-        -- High Faith: Boost ultimate consumers
-        if faith_current > (faith_max * 0.8) and (spell_name == "arbiter_of_justice" or spell_name == "heavens_fury" or spell_name == "spear_of_the_heavens") then
-            new_position = math.max(1, i - 1)
+        -- High Faith: Boost one ultimate consumer (mutual exclusion)
+        if faith_current > (faith_max * 0.8) then
+            local ultimates = {"arbiter_of_justice", "heavens_fury", "spear_of_the_heavens", "zenith", "aegis", "fortress"}
+            for _, ult_name in ipairs(ultimates) do
+                if spell_name == ult_name and spell_data[ult_name] and utility.is_spell_ready(spell_data[ult_name].spell_id) then
+                    new_position = math.max(1, i - 1)
+                    break  -- Only boost the first ready ultimate
+                end
+            end
         end
 
         -- Auradin-specific dynamic adjustments
@@ -759,8 +765,20 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
                 new_position = 2  -- Right after evade
             end
 
-            -- Boost Condemn if we need to pull enemies into aura range
-            -- (This would require enemy position data to implement fully)
+            -- Boost Condemn if enemies are far (need to pull into aura range)
+            if spell_name == "condemn" then
+                local enemies = actors_manager.get_enemy_actors()
+                local far_enemies = 0
+                for _, enemy in ipairs(enemies) do
+                    local dist = enemy:get_position():dist_to(local_player:get_position())
+                    if dist > 8 then  -- Beyond typical aura range
+                        far_enemies = far_enemies + 1
+                    end
+                end
+                if far_enemies > 0 then
+                    new_position = math.max(1, i - 2)  -- Boost condemn
+                end
+            end
         end
 
         -- Affordability check: Deprioritize spells that cost more Faith than available
