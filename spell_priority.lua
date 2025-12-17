@@ -2,9 +2,12 @@
 -- Defines spell casting order for all 12 paladin builds
 -- Build indices: 0=default, 1-11=specialized builds
 
+local my_utility = require("my_utility/my_utility");
+local spell_data = require("my_utility/spell_data");
+
 -- Function to get base spell priority (without item adjustments)
 local function get_base_spell_priority(build_index)
-    if build_index == 1 then  -- Judgement Nuke Paladin
+    if build_index == 1 then  -- Judgement Nuke
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -32,9 +35,10 @@ local function get_base_spell_priority(build_index)
 
             -- Main damage abilities
             "blessed_hammer",
-            "condemn",
             "zeal",
             "divine_lance",
+            "condemn",
+            "shield_bash",
 
             -- Other mobility
             "advance",
@@ -45,7 +49,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 2 then  -- Blessed Hammer (Hammerkuna)
+    elseif build_index == 2 then  -- Hammerkuna
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -71,11 +75,11 @@ local function get_base_spell_priority(build_index)
             "holy_light_aura",
 
             -- Main damage abilities
-            "condemn",
-            "blessed_shield",
             "zeal",
             "divine_lance",
             "brandish",
+            "shield_bash",
+            "condemn",
 
             -- Other mobility
             "advance",
@@ -86,7 +90,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 3 then  -- Arbiter Paladin
+    elseif build_index == 3 then  -- Arbiter
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -100,11 +104,35 @@ local function get_base_spell_priority(build_index)
             "holy_light_aura",
             "rally",
 
-            -- Mobility only - no other ultimates or damage skills for pure Arbiter
+            -- Wrath builders for Arbiter
+            "zeal",
+            "divine_lance",
+            "spear_of_the_heavens",
+
+            -- Other ultimates
+            "zenith",
+            "heavens_fury",
+            "aegis",
+            "fortress",
+            "purify",
+
+            -- Main damage abilities
+            "blessed_hammer",
+            "condemn",
+            "blessed_shield",
+            "brandish",
+            "shield_bash",
+
+            -- Mobility
             "advance",
             "shield_charge",
+
+            -- Filler abilities
+            "holy_bolt",
+            "clash",
+            "consecration",
         }
-    elseif build_index == 4 then  -- Blessed Shield (Captain America)
+    elseif build_index == 4 then  -- Captain America
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -117,6 +145,9 @@ local function get_base_spell_priority(build_index)
             "rally",
             "falling_star",
             "arbiter_of_justice",
+
+            -- Shield synergy
+            "shield_bash",
 
             -- Other ultimates
             "zenith",
@@ -145,17 +176,19 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 5 then  -- Shield Bash Valkyrie
+    elseif build_index == 5 then  -- Shield Bash
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
             "evade",
 
             -- Shield bash focused with charge and auras - MELEE BUILD
+            "shield_bash",
             "clash",
             "shield_charge",
             "fanaticism_aura",
             "defiance_aura",
+            "holy_light_aura",
             "rally",
             "falling_star",
 
@@ -183,7 +216,7 @@ local function get_base_spell_priority(build_index)
             "holy_bolt",
             "consecration",
         }
-    elseif build_index == 6 then  -- Holy Avenger Wing Strikes
+    elseif build_index == 6 then  -- Wing Strikes
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -196,6 +229,10 @@ local function get_base_spell_priority(build_index)
             "defiance_aura",
             "rally",
             "blessed_hammer",
+
+            -- High mobility
+            "advance",
+            "shield_charge",
 
             -- Other ultimates
             "zenith",
@@ -214,17 +251,14 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
-
-            -- Other mobility
-            "advance",
-            "shield_charge",
+            "shield_bash",
 
             -- Filler abilities
             "holy_bolt",
             "clash",
             "consecration",
         }
-    elseif build_index == 7 then  -- Evade Hammerdin
+    elseif build_index == 7 then  -- Evade Hammer
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and damage
             "paladin_evade",
@@ -249,19 +283,20 @@ local function get_base_spell_priority(build_index)
             "holy_light_aura",
 
             -- Main damage abilities
-            "condemn",
-            "blessed_shield",
             "zeal",
             "divine_lance",
             "brandish",
+            "shield_bash",
+            "condemn",
 
             -- Other mobility
             "shield_charge",
+            "falling_star",
+            "advance",
 
             -- Filler abilities
             "holy_bolt",
             "clash",
-            "falling_star",
         }
     elseif build_index == 8 then  -- Arbiter Evade
         return {
@@ -274,13 +309,17 @@ local function get_base_spell_priority(build_index)
             "defiance_aura",
             "holy_light_aura",
 
+            -- Wrath builders
+            "zeal",
+            "divine_lance",
+            "spear_of_the_heavens",
+
             -- Other defensives and auras
             "rally",
 
             -- Other ultimates
             "zenith",
             "heavens_fury",
-            "spear_of_the_heavens",
             "aegis",
             "fortress",
             "purify",
@@ -289,9 +328,8 @@ local function get_base_spell_priority(build_index)
             "blessed_hammer",
             "condemn",
             "blessed_shield",
-            "zeal",
-            "divine_lance",
             "brandish",
+            "shield_bash",
 
             -- Other mobility
             "shield_charge",
@@ -302,7 +340,7 @@ local function get_base_spell_priority(build_index)
             "advance",
             "consecration",
         }
-    elseif build_index == 9 then  -- Heaven's Fury Spam
+    elseif build_index == 9 then  -- Heaven's Fury
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -316,13 +354,13 @@ local function get_base_spell_priority(build_index)
             "rally",
 
             -- High priority ultimates and mobility
+            "heavens_fury",
             "arbiter_of_justice",
             "falling_star",
             "blessed_hammer",
 
             -- Other ultimates
             "zenith",
-            "heavens_fury",
             "spear_of_the_heavens",
             "aegis",
             "fortress",
@@ -344,7 +382,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 10 then  -- Spear of the Heavens
+    elseif build_index == 10 then  -- Spear
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -359,6 +397,10 @@ local function get_base_spell_priority(build_index)
             "falling_star",
             "blessed_hammer",
 
+            -- Wrath builders
+            "zeal",
+            "divine_lance",
+
             -- Other ultimates
             "arbiter_of_justice",
             "zenith",
@@ -373,9 +415,8 @@ local function get_base_spell_priority(build_index)
             -- Main damage abilities
             "condemn",
             "blessed_shield",
-            "zeal",
-            "divine_lance",
             "brandish",
+            "shield_bash",
 
             -- Mobility
             "advance",
@@ -386,7 +427,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 11 then  -- Zenith Aegis Tank
+    elseif build_index == 11 then  -- Zenith Tank
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -426,7 +467,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 13 then  -- Auradin Holy Light Aura
+    elseif build_index == 12 then  -- Auradin
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -445,11 +486,11 @@ local function get_base_spell_priority(build_index)
             -- Consecration - POWERFUL BUFFS from Sundered Night (auto-cast)
             "consecration",
 
-            -- Pull enemies into Holy Light Aura range
-            "condemn",
-
             -- Rally - FAITH RESTORATION + UNSTOPPABLE/RESOLVE stacks for damage reduction
             "rally",
+
+            -- Pull enemies into Holy Light Aura range
+            "condemn",
 
             -- Supporting auras - MAINTAIN CONSTANTLY for buffs and Resplendence glyph refresh
             "fanaticism_aura",
@@ -642,16 +683,24 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
     local faith_current = local_player:get_primary_resource_current()  -- Faith resource
     local faith_max = local_player:get_primary_resource_max()
 
-    -- Faith-based adjustments (boost Faith generation when low)
-    local faith_priority_boost = 0
-    if faith_current < (faith_max * 0.25) then  -- Faith below 25% - EMERGENCY
-        faith_priority_boost = 4
-    elseif faith_current < (faith_max * 0.4) then  -- Faith below 40%
-        faith_priority_boost = 3
-    elseif faith_current < (faith_max * 0.6) then  -- Faith below 60%
-        faith_priority_boost = 2
-    elseif faith_current < (faith_max * 0.8) then  -- Faith below 80%
-        faith_priority_boost = 1
+    -- Intelligent Faith-based adjustments
+    local faith_emergency = faith_current < (faith_max * 0.2)  -- Critical: prioritize restoration
+    local faith_low = faith_current < (faith_max * 0.4)       -- Low: prioritize generation
+    local faith_moderate = faith_current < (faith_max * 0.6)  -- Moderate: slight boost
+
+    -- Faith priority adjustments
+    local rally_boost = 0
+    local generator_boost = 0
+    local consumer_penalty = 0
+
+    if faith_emergency then
+        rally_boost = 5  -- Emergency Rally
+        consumer_penalty = 3  -- Deprioritize consumers
+    elseif faith_low then
+        generator_boost = 3  -- Boost generators
+        consumer_penalty = 1
+    elseif faith_moderate then
+        generator_boost = 1
     end
 
     -- Health-based defensive adjustments
@@ -669,9 +718,28 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
     for i, spell_name in ipairs(base_priorities) do
         local new_position = i
 
-        -- Faith management (all builds)
-        if faith_priority_boost > 0 and (spell_name == "blessed_hammer" or spell_name == "zeal" or spell_name == "rally") then
-            new_position = math.max(1, i - faith_priority_boost)
+        -- Intelligent Faith management
+        if spell_name == "rally" and rally_boost > 0 then
+            new_position = math.max(1, i - rally_boost)
+        elseif (spell_name == "blessed_hammer" or spell_name == "zeal") and generator_boost > 0 then
+            new_position = math.max(1, i - generator_boost)
+        elseif consumer_penalty > 0 and (spell_name == "arbiter_of_justice" or spell_name == "heavens_fury" or spell_name == "spear_of_the_heavens") then
+            new_position = math.min(#base_priorities, i + consumer_penalty)
+        end
+
+        -- Build-specific Faith optimizations
+        if build_index == 2 then  -- Hammerkuna: Always prioritize Blessed Hammer for Faith gen
+            if spell_name == "blessed_hammer" then
+                new_position = math.max(1, i - 1)
+            end
+        elseif build_index == 3 then  -- Arbiter: Prioritize Wrath generators
+            if spell_name == "zeal" or spell_name == "divine_lance" then
+                new_position = math.max(1, i - 2)
+            end
+        elseif build_index == 10 then  -- Spear: Prioritize Wrath generators
+            if spell_name == "zeal" or spell_name == "divine_lance" then
+                new_position = math.max(1, i - 2)
+            end
         end
 
         -- Defensive boosts when health is low
@@ -679,13 +747,13 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
             new_position = math.max(1, i - defensive_boost)
         end
 
-        -- Auradin-specific dynamic adjustments
-        if build_index == 13 then
-            -- Emergency: If Faith critically low, prioritize Rally above everything
-            if faith_current < (faith_max * 0.2) and spell_name == "rally" then
-                new_position = 3  -- Right after evade spells
-            end
+        -- High Faith: Boost ultimate consumers
+        if faith_current > (faith_max * 0.8) and (spell_name == "arbiter_of_justice" or spell_name == "heavens_fury" or spell_name == "spear_of_the_heavens") then
+            new_position = math.max(1, i - 1)
+        end
 
+        -- Auradin-specific dynamic adjustments
+        if build_index == 12 then
             -- Emergency: If health critical, prioritize Aegis immediately
             if health_percent < 25 and spell_name == "aegis" then
                 new_position = 2  -- Right after evade
@@ -693,6 +761,30 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
 
             -- Boost Condemn if we need to pull enemies into aura range
             -- (This would require enemy position data to implement fully)
+        end
+
+        -- Affordability check: Deprioritize spells that cost more Faith than available
+        if spell_data[spell_name] and spell_data[spell_name].faith_cost and faith_current < spell_data[spell_name].faith_cost then
+            new_position = #base_priorities
+        end
+
+        -- Buff check: Boost auras if not active
+        if (spell_name == "fanaticism_aura" or spell_name == "defiance_aura" or spell_name == "holy_light_aura") then
+            if spell_data[spell_name] and not my_utility.is_buff_active(spell_data[spell_name].spell_id, spell_data[spell_name].buff_id) then
+                new_position = math.max(1, i - 2)
+            end
+        end
+
+        -- Enemy count: Boost AOE spells if many enemies
+        local enemy_count = #actors_manager.get_enemy_actors()
+        local aoe_boost = 0
+        if enemy_count >= 5 then
+            aoe_boost = 2
+        elseif enemy_count >= 3 then
+            aoe_boost = 1
+        end
+        if aoe_boost > 0 and (spell_name == "blessed_hammer" or spell_name == "heavens_fury" or spell_name == "consecration") then
+            new_position = math.max(1, i - aoe_boost)
         end
 
         adjusted_priorities[new_position] = adjusted_priorities[new_position] or {}

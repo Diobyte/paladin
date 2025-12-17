@@ -109,6 +109,7 @@ local spells =
     holy_light_aura = require("spells/holy_light_aura"),
     rally = require("spells/rally"),
     shield_charge = require("spells/shield_charge"),
+    shield_bash = require("spells/shield_bash"),
     spear_of_the_heavens = require("spells/spear_of_the_heavens"),
     zeal = require("spells/zeal"),
     zenith = require("spells/zenith"),
@@ -118,7 +119,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu_elements.main_tree:push("Paladin [Dirty] v1.3.0") then
+    if not menu_elements.main_tree:push("DirtyDio v2.0.0") then
         return;
     end;
 
@@ -146,10 +147,9 @@ on_render_menu(function()
             "       If you use huge aoe spells, you should increase this value       \n" ..
             "       Size is displayed with debug/display targets with faded white circles       ", 1)
 
-        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)", "Shield Bash Valkyrie", "Holy Avenger Wing Strikes", "Evade Hammerdin", "Arbiter Evade", "Heaven's Fury Spam", "Spear of the Heavens", "Condemn Spam", "Zenith Aegis Tank", "Auradin Holy Light Aura"}, "Select a build to optimize spell priorities and timings for max DPS")
+        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke", "Hammerkuna", "Arbiter", "Captain America", "Shield Bash", "Wing Strikes", "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin"}, "Select a build to optimize spell priorities and timings for max DPS")
 
-        -- Update spell priority based on selected build
-        current_spell_priority = get_spell_priority(menu_elements.build_selector:get())
+        -- Spell priority is now updated in on_update for real-time adjustments
 
         menu_elements.custom_enemy_weights:render("Custom Enemy Weights",
             "Enable custom enemy weights for determining best targets within Enemy Evaluation Radius")
@@ -431,6 +431,9 @@ end
 
 -- on_update callback
 on_update(function()
+    -- Update spell priority dynamically every frame for real-time adjustments
+    current_spell_priority = get_spell_priority(menu_elements.build_selector:get())
+
     local current_time = get_time_since_inject()
     local local_player = get_local_player()
     if not local_player or menu_elements.main_boolean:get() == false or current_time < next_cast_time then
@@ -694,4 +697,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - Paladin Dirty - Version 1.3.0")
+console.print("Lua Plugin - DirtyDio - Version 2.0.0")

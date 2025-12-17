@@ -10,7 +10,7 @@ local menu_elements =
 
 local function menu()
     if menu_elements.tree_tab:push("Fortress") then
-        menu_elements.main_boolean:render("Enable Fortress", "Fortification ultimate that provides damage reduction")
+        menu_elements.main_boolean:render("Enable Fortress", "Create defensive area that grants immunity and resolve stacks")
         menu_elements.tree_tab:pop()
     end
 end
@@ -18,7 +18,7 @@ end
 local next_time_allowed_cast = 0;
 
 local function logics()
-    -- Fortress is a self-cast fortification - doesn't need a target
+    -- Fortress is a self-cast fortification ultimate
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_data.fortress.spell_id);
     if not is_logic_allowed then return false end;
@@ -26,7 +26,7 @@ local function logics()
     if cast_spell.self(spell_data.fortress.spell_id, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
-        console.print("Cast Fortress - Fortification Activated");
+        console.print("Cast Fortress - Defensive area activated");
         return true;
     end;
 
