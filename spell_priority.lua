@@ -432,29 +432,36 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             "evade",
 
-            -- Holy Light Aura - PRIMARY DAMAGE SOURCE (emanation from allies)
+            -- Holy Light Aura - PRIMARY DAMAGE SOURCE (emanation from allies) + ACTIVE for burst/healing
             "holy_light_aura",
 
-            -- High priority mobility for positioning
+            -- Falling Star - ASCENT INTO ARBITER oath setup (critical for power)
+            "falling_star",
+
+            -- High priority mobility for positioning (March of the Stalwart Soul, Flash of the Blade)
             "advance",
             "shield_charge",
-            "falling_star",
+
+            -- Consecration - POWERFUL BUFFS from Sundered Night (auto-cast)
+            "consecration",
 
             -- Pull enemies into Holy Light Aura range
             "condemn",
 
-            -- Rally for aura effectiveness boost
+            -- Rally - FAITH RESTORATION + UNSTOPPABLE/RESOLVE stacks for damage reduction
             "rally",
 
-            -- Supporting auras
+            -- Supporting auras - MAINTAIN CONSTANTLY for buffs and Resplendence glyph refresh
             "fanaticism_aura",
             "defiance_aura",
 
             -- Defensive ultimate for survivability
             "aegis",
 
-            -- Damage abilities that synergize with Holy Light Aura
+            -- Blessed Hammer - PRIMARY SPAM SKILL (Faith gen, Holy Light procs, high frequency)
             "blessed_hammer",
+
+            -- Zeal - SECONDARY SPAM SKILL (Faith gen, multi-strike damage)
             "zeal",
             "divine_lance",
 
