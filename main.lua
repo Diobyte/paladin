@@ -118,7 +118,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu_elements.main_tree:push("Paladin [Dirty] v1.0.4") then
+    if not menu_elements.main_tree:push("Paladin [Dirty] v1.1.3") then
         return;
     end;
 
