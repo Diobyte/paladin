@@ -119,7 +119,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu_elements.main_tree:push("Paladin [Dirty] v1.3.0") then
+    if not menu_elements.main_tree:push("Paladin [Dirty] v2.0.0") then
         return;
     end;
 
@@ -697,4 +697,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - Paladin Dirty - Version 1.3.0")
+console.print("Lua Plugin - Paladin Dirty - Version 2.0.0")
