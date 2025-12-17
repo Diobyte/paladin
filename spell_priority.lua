@@ -787,21 +787,6 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
             new_position = math.max(1, i - aoe_boost)
         end
 
-        -- Distance check: Boost mobility if target is far
-        local target = target_selector.get_target_closest(15.0)
-        local mobility_boost = 0
-        if target then
-            local dist = target:get_position():dist_to(local_player:get_position())
-            if dist > 10 then
-                mobility_boost = 2
-            elseif dist > 5 then
-                mobility_boost = 1
-            end
-        end
-        if mobility_boost > 0 and (spell_name == "advance" or spell_name == "shield_charge" or spell_name == "falling_star") then
-            new_position = math.max(1, i - mobility_boost)
-        end
-
         adjusted_priorities[new_position] = adjusted_priorities[new_position] or {}
         table.insert(adjusted_priorities[new_position], spell_name)
     end
