@@ -8,7 +8,7 @@ local menu_elements =
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "condemn_main_bool_base")),
     targeting_mode      = combo_box:new(2, get_hash(my_utility.plugin_label .. "condemn_targeting_mode")),
-    min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
+    min_target_range    = slider_float:new(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "condemn_min_target_range")),
 }
 
