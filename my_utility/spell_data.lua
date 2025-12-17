@@ -258,7 +258,7 @@ local spell_data = {
     },
 
     purify = {
-        spell_id = 2302978,  -- Verified: wowhead.com/diablo-4/skill/purify-2302978
+        spell_id = 2261380,  -- Verified: wowhead.com/diablo-4/skill/purify-2261380
         category = "ultimate",
         cast_type = "self",      -- Self-cast cleansing
         description = "Remove negative effects from yourself and nearby allies while restoring health.",
