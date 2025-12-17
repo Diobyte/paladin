@@ -461,9 +461,12 @@ local function get_base_spell_priority(build_index)
             -- Blessed Hammer - PRIMARY SPAM SKILL (Faith gen, Holy Light procs, high frequency)
             "blessed_hammer",
 
-            -- Zeal - SECONDARY SPAM SKILL (Faith gen, multi-strike damage)
+            -- Other damage abilities that synergize with Holy Light Aura
             "zeal",
             "divine_lance",
+
+            -- Purify - REMOVE DEBUFFS that could interrupt aura uptime
+            "purify",
 
             -- Other ultimates (lower priority in Auradin)
             "arbiter_of_justice",
@@ -472,15 +475,13 @@ local function get_base_spell_priority(build_index)
             "spear_of_the_heavens",
             "fortress",
 
-            -- Utility
-            "purify",
+            -- Other utility
             "blessed_shield",
             "brandish",
 
             -- Filler abilities
             "holy_bolt",
             "clash",
-            "consecration",
         }
     else  -- Default build (build_index == 0 or any other value)
         return {
