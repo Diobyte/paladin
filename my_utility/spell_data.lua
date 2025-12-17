@@ -6,7 +6,7 @@
 -- Skill Groups: Basic, Core, Aura, Valor, Justice, Ultimate
 -- Unique Mechanic: Oaths (Disciple, Judicator, Juggernaut, Zealot)
 -- 
--- Spell IDs verified from Wowhead Diablo 4 database (Dec 2025)
+-- Spell IDs verified from Wowhead Diablo 4 database (December 2025)
 -- https://www.wowhead.com/diablo-4/skills/paladin
 -- All skills are active abilities that can be cast, not passive effects or build concepts
 -- cast_spell.self(spell_id, animation_time)              - Self-cast spells (auras, AoE around player)
@@ -250,16 +250,27 @@ local spell_data = {
     },
 
     fortress = {
-        spell_id = 2302976,  -- Verified: wowhead.com/diablo-4/skill/fortress-2302976
+        spell_id = 2301078,  -- Verified: wowhead.com/diablo-4/skill/fortress-2301078
         category = "ultimate",
         cast_type = "self",      -- Self-cast fortification
-        description = "Fortify yourself and nearby allies, granting damage reduction and Resolve stacks.",
+        description = "Create a defensive area around you, becoming Immune and granting Resolve stacks.",
         -- Targeting: cast_spell.self(spell_id) - fortification effect around player
+    },
+
+    shield_bash = {
+        spell_id = 2087548,  -- Verified: wowhead.com/diablo-4/skill/shield-bash-2087548
+        category = "core",
+        cast_type = "target",    -- Charge at enemy and bash
+        damage_type = "physical",
+        faith_cost = 32,
+        description = "Charge at an enemy and bash in front of you, dealing 205% damage. Costs 32 Faith.",
+        is_mobility = true,
+        -- Targeting: cast_spell.target(target, spell_id) - charges to target location
     },
 
     purify = {
         spell_id = 2261380,  -- Verified: wowhead.com/diablo-4/skill/purify-2261380
-        category = "ultimate",
+        category = "justice",
         cast_type = "self",      -- Self-cast cleansing
         description = "Remove negative effects from yourself and nearby allies while restoring health.",
         -- Targeting: cast_spell.self(spell_id) - cleansing and healing around player
