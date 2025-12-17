@@ -146,7 +146,7 @@ on_render_menu(function()
             "       If you use huge aoe spells, you should increase this value       \n" ..
             "       Size is displayed with debug/display targets with faded white circles       ", 1)
 
-        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)", "Shield Bash Valkyrie", "Holy Avenger Wing Strikes", "Evade Hammerdin", "Arbiter Evade", "Heaven's Fury Spam", "Spear of the Heavens", "Condemn Spam", "Zenith Aegis Tank"}, "Select a build to optimize spell priorities and timings for max DPS")
+        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke Paladin", "Blessed Hammer (Hammerkuna)", "Arbiter Paladin", "Blessed Shield (Captain America)", "Shield Bash Valkyrie", "Holy Avenger Wing Strikes", "Evade Hammerdin", "Arbiter Evade", "Heaven's Fury Spam", "Spear of the Heavens", "Condemn Spam", "Zenith Aegis Tank", "Auradin Holy Light Aura"}, "Select a build to optimize spell priorities and timings for max DPS")
 
         -- Update spell priority based on selected build
         current_spell_priority = get_spell_priority(menu_elements.build_selector:get())

@@ -426,7 +426,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 12 then  -- Auradin Holy Light Aura
+    elseif build_index == 13 then  -- Auradin Holy Light Aura
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
