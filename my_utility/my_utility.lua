@@ -433,7 +433,7 @@ local function get_last_cast_time(spell_name)
     return spell_cast_history[spell_name] or 0
 end
 
-local plugin_label = "BASE_PALADIN_PLUGIN_DIRTY_"
+local plugin_label = "DIRTYDIO_PLUGIN_"
 
 return
 {
