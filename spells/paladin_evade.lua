@@ -10,6 +10,7 @@ local menu_elements =
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
     min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
+    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
 }
 
 local function menu()
@@ -20,6 +21,7 @@ local function menu()
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
+            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -42,9 +44,9 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.position(spell_data.paladin_evade.spell_id, target:get_position(), 0.0) then
+    if cast_spell.position(spell_data.paladin_evade.spell_id, target:get_position(), 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Paladin Evade");
         return true;
     end;

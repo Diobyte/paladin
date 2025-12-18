@@ -5,6 +5,7 @@ local menu_elements =
 {
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
+    cast_on_cooldown    = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
     cast_delay          = slider_float:new(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "rally_cast_delay")),
 }
@@ -12,7 +13,10 @@ local menu_elements =
 local function menu()
     if menu_elements.tree_tab:push("Rally") then
         menu_elements.main_boolean:render("Enable Rally", "")
-        menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+        if menu_elements.main_boolean:get() then
+            menu_elements.cast_on_cooldown:render("Cast on Cooldown", "Always cast when ready (maintains buff constantly)")
+            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+        end
 
         menu_elements.tree_tab:pop()
     end
@@ -29,11 +33,19 @@ local function logics()
 
     if not is_logic_allowed then return false end;
 
-    -- Check if we already have the buff or cast it recently to save charges
-    -- Rally duration is 8s. We want to refresh it only if it's about to expire or not active.
-    -- However, is_buff_active might not be reliable for self-buffs depending on the API.
-    -- Using the cache system to ensure we don't spam all 3 charges instantly.
-    
+    -- Check cast on cooldown option
+    if menu_elements.cast_on_cooldown:get() then
+        -- Cast immediately when ready with minimal delay to maintain buff
+        if cast_spell.self(spell_data.rally.spell_id, 0) then
+            local current_time = get_time_since_inject();
+            next_time_allowed_cast = current_time + 0.1; -- Small delay to prevent spam
+            console.print("Cast Rally (On Cooldown)");
+            return true;
+        end;
+        return false;
+    end
+
+    -- Original logic for situational casting
     local current_time = get_time_since_inject()
     local last_cast = my_utility.get_last_cast_time("rally")
     

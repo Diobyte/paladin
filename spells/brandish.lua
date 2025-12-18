@@ -49,7 +49,7 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.target(target, spell_data.brandish.spell_id, 0) then
+    if cast_spell.target(target, spell_data.brandish.spell_id, 0, false) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Brandish - Target: " ..
