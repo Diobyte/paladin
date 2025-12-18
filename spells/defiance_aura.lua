@@ -48,7 +48,7 @@ local function logics()
 
     if cast_spell.self(spell_data.defiance_aura.spell_id, 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
+        next_time_allowed_cast = current_time + my_utility.spell_delays.defiance_aura;
         console.print("Cast Defiance Aura");
         return true;
     end;

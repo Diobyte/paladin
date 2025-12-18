@@ -139,11 +139,7 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false;
     end;
 
-    if not utility.is_spell_affordable(spell_id) then
-        return false;
-    end;
-
-    if not utility.can_cast_spell(spell_id) then
+    if not utility.has_enough_resources_for_spell(spell_id) then
         return false;
     end;
 
@@ -338,7 +334,39 @@ end
 local spell_delays = {
     -- NOTE: if a regular cast is used, it means even instant abilities will be on cooldown for the duration of the regular cast, not optimal
     instant_cast = 0.01, -- instant cast abilites should be used as soon as possible
-    regular_cast = 0.1   -- regular abilites with animation should be used with a delay
+    regular_cast = 0.1,   -- regular abilites with animation should be used with a delay
+    
+    -- Spell-specific optimal cast delays (hardcoded for best performance)
+    blessed_hammer = 0.05,    -- AOE spam spell
+    divine_lance = 0.08,      -- Charged attack
+    zeal = 0.06,              -- Chain attack
+    condemn = 0.1,            -- Pull spell
+    shield_bash = 0.07,       -- Stun spell
+    holy_bolt = 0.04,         -- Filler damage
+    arbiter_of_justice = 0.12, -- Ultimate AOE
+    heavens_fury = 0.15,      -- Sustained beam
+    spear_of_the_heavens = 0.1, -- Ultimate barrage
+    falling_star = 0.08,      -- Mobility ultimate
+    brandish = 0.05,          -- Mark spell
+    blessed_shield = 0.06,    -- Shield spell
+    clash = 0.07,             -- Melee spell
+    advance = 0.08,           -- Dash spell
+    shield_charge = 0.09,     -- Charge spell
+    evade = 0.5,              -- Minimum enforced delay
+    paladin_evade = 0.5,      -- Minimum enforced delay
+    
+    -- Aura spells (longer delays for buff maintenance)
+    rally = 0.2,
+    defiance_aura = 0.15,
+    holy_light_aura = 0.12,
+    fanaticism_aura = 0.15,
+    consecration = 0.18,
+    fortress = 0.25,
+    zenith = 0.2,
+    aegis = 0.22,
+    
+    -- Utility spells
+    purify = 0.3,             -- Cleansing ultimate
 }
 
 -- skin name patterns for infernal horde objectives

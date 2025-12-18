@@ -35,7 +35,7 @@ local menu_elements =
     settings_tree                  = tree_node:new(1),
     enemy_count_threshold          = slider_int:new(1, 10, 1,
         get_hash(my_utility.plugin_label .. "enemy_count_threshold")),
-    max_targeting_range            = slider_int:new(1, 30, 12, get_hash(my_utility.plugin_label .. "max_targeting_range")),
+    max_targeting_range            = slider_int:new(1, 50, 15, get_hash(my_utility.plugin_label .. "max_targeting_range")),
     cursor_targeting_radius        = slider_float:new(0.1, 6, 3,
         get_hash(my_utility.plugin_label .. "cursor_targeting_radius")),
     cursor_targeting_angle         = slider_int:new(20, 50, 30,
@@ -137,7 +137,7 @@ on_render_menu(function()
         menu_elements.targeting_refresh_interval:render("Targeting Refresh Interval",
             "       Time between target checks in seconds       ", 1)
         menu_elements.max_targeting_range:render("Max Targeting Range",
-            "       Maximum range for targeting       ")
+            "       Maximum range for targeting (automatically adjusts based on enabled spells)       ", 1)
         menu_elements.cursor_targeting_radius:render("Cursor Targeting Radius",
             "       Area size for selecting target around the cursor       ", 1)
         menu_elements.cursor_targeting_angle:render("Cursor Targeting Angle",
@@ -413,11 +413,11 @@ local function use_ability(spell_name, delay_after_cast)
             [6] = best_cursor_target,
             [7] = closest_cursor_target
         })[targeting_mode]
-    end
-
     --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
     if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
-        next_cast_time = get_time_since_inject() + delay_after_cast
+        -- Use spell-specific delay instead of generic delay
+        local spell_delay = my_utility.spell_delays[spell_name] or delay_after_cast
+        next_cast_time = get_time_since_inject() + spell_delay
         my_utility.record_spell_cast(spell_name)
         return true
     end
@@ -444,7 +444,60 @@ on_update(function()
     -- Only update targets if targeting_refresh_interval has expired
     if current_time >= next_target_update_time then
         local player_position = get_player_position()
-        max_targeting_range = menu_elements.max_targeting_range:get()
+
+        -- Calculate dynamic targeting range based on enabled spells
+        local effective_targeting_range = menu_elements.max_targeting_range:get()
+
+        -- Check if we should use dynamic range based on enabled spells
+        local dynamic_range_enabled = true  -- Could make this a menu option
+        if dynamic_range_enabled then
+            local max_spell_range_needed = 0
+            for spell_name, spell in pairs(spells) do
+                if spell.menu_elements and spell.menu_elements.main_boolean and spell.menu_elements.main_boolean:get() then
+                    -- Get the spell's max range from the spell file
+                    local spell_range = 0
+                    if spell_name == "blessed_hammer" then spell_range = 8.0
+                    elseif spell_name == "condemn" then spell_range = 15.0
+                    elseif spell_name == "holy_bolt" then spell_range = 15.0
+                    elseif spell_name == "arbiter_of_justice" then spell_range = 14.0
+                    elseif spell_name == "divine_lance" then spell_range = 15.0
+                    elseif spell_name == "falling_star" then spell_range = 15.0
+                    elseif spell_name == "heavens_fury" then spell_range = 15.0
+                    elseif spell_name == "spear_of_the_heavens" then spell_range = 15.0
+                    elseif spell_name == "shield_bash" then spell_range = 15.0
+                    elseif spell_name == "holy_light_aura" then spell_range = 15.0
+                    elseif spell_name == "defiance_aura" then spell_range = 15.0
+                    elseif spell_name == "zeal" then spell_range = 5.0
+                    elseif spell_name == "shield_charge" then spell_range = 12.0
+                    elseif spell_name == "evade" then spell_range = 10.0
+                    elseif spell_name == "paladin_evade" then spell_range = 10.0
+                    elseif spell_name == "brandish" then spell_range = 5.0
+                    elseif spell_name == "blessed_shield" then spell_range = 5.0
+                    elseif spell_name == "clash" then spell_range = 5.0
+                    elseif spell_name == "advance" then spell_range = 10.0
+                    elseif spell_name == "aegis" then spell_range = 0.0
+                    elseif spell_name == "fortress" then spell_range = 0.0
+                    elseif spell_name == "purify" then spell_range = 0.0
+                    elseif spell_name == "zenith" then spell_range = 0.0
+                    elseif spell_name == "rally" then spell_range = 0.0
+                    elseif spell_name == "consecration" then spell_range = 0.0
+                    elseif spell_name == "fanaticism_aura" then spell_range = 0.0
+                    end
+                    max_spell_range_needed = math.max(max_spell_range_needed, spell_range)
+                end
+            end
+            effective_targeting_range = math.max(effective_targeting_range, max_spell_range_needed)
+        end
+
+        max_targeting_range = effective_targeting_range
+
+        -- Debug: Log dynamic range adjustment
+        if menu_elements.enable_debug:get() then
+            console.print(string.format("Targeting Range: %.1f (Menu: %.1f, Dynamic: %s)",
+                max_targeting_range,
+                menu_elements.max_targeting_range:get(),
+                dynamic_range_enabled and "Enabled" or "Disabled"))
+        end
 
         local entity_list_visible, entity_list = my_target_selector.get_target_list(
             player_position,
@@ -518,9 +571,60 @@ on_update(function()
     -- Ability usage - uses spell_priority to determine the order of spells
     for _, spell_name in ipairs(current_spell_priority) do
         local spell = spells[spell_name]
-        if spell then
-            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
-                return
+        if spell and spell.menu_elements and spell.menu_elements.main_boolean:get() then
+            -- Skip self-timed spells - they manage their own timing
+            if spell.menu_elements.self_timer and spell.menu_elements.self_timer:get() then
+                -- Self-timed spell: call its logic directly with current targets
+                local target_unit = nil
+                if spell.menu_elements.targeting_mode then
+                    local targeting_mode = spell.menu_elements.targeting_mode:get()
+                    
+                    -- Check for specific targeting maps in the spell module
+                    if spell.targeting_type == "melee" then
+                        -- Map melee modes to global indices
+                        local map = {
+                            [0] = 2, -- Melee Target
+                            [1] = 3, -- Melee Target (in sight)
+                            [2] = 4, -- Closest Target
+                            [3] = 5, -- Closest Target (in sight)
+                            [4] = 6, -- Best Cursor Target
+                            [5] = 7  -- Closest Cursor Target
+                        }
+                        targeting_mode = map[targeting_mode] or 2 -- Default to Melee Target
+                    elseif spell.targeting_type == "ranged" then
+                        -- Map ranged modes to global indices
+                        local map = {
+                            [0] = 0, -- Ranged Target
+                            [1] = 1, -- Ranged Target (in sight)
+                            [2] = 4, -- Closest Target
+                            [3] = 5, -- Closest Target (in sight)
+                            [4] = 6, -- Best Cursor Target
+                            [5] = 7  -- Closest Cursor Target
+                        }
+                        targeting_mode = map[targeting_mode] or 0 -- Default to Ranged Target
+                    end
+
+                    target_unit = ({
+                        [0] = best_ranged_target,
+                        [1] = best_ranged_target_visible,
+                        [2] = best_melee_target,
+                        [3] = best_melee_target_visible,
+                        [4] = closest_target,
+                        [5] = closest_target_visible,
+                        [6] = best_cursor_target,
+                        [7] = closest_cursor_target
+                    })[targeting_mode]
+                end
+
+                -- Call self-timed spell logic
+                if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
+                    return
+                end
+            else
+                -- Regular rotation spell
+                if use_ability(spell_name) then
+                    return
+                end
             end
         end
     end
