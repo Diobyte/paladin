@@ -26,7 +26,7 @@ local function menu()
                     "\n     Must be lower than Max Targeting Range     \n\n", 1)
             end
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds (minimum 0.5s enforced)", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -92,10 +92,14 @@ local function logics(target)
     -- Cast the evade spell
     if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
+        -- Enforce minimum delay to prevent spamming, especially with evade charge boots
+        local user_delay = menu_elements.cast_delay:get();
+        local min_delay = 0.5; -- Minimum 0.5 seconds between casts to prevent spam
+        local actual_delay = math.max(user_delay, min_delay);
+        next_time_allowed_cast = current_time + actual_delay;
         console.print("Cast Evade (ID: " .. spell_data.evade.spell_id .. ") - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
-            ", Mobility: " .. tostring(mobility_only));
+            ", Mobility: " .. tostring(mobility_only) .. ", Delay: " .. string.format("%.2f", actual_delay) .. "s");
         return true;
     end;
 
