@@ -11,6 +11,8 @@ local menu_elements =
     mobility_only       = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
     min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "advance_min_target_range")),
+    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
+    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "advance_cast_delay")),
 }
 
 local function menu()
@@ -24,6 +26,8 @@ local function menu()
                 menu_elements.min_target_range:render("Min Target Distance",
                     "\n     Must be lower than Max Targeting Range     \n\n", 1)
             end
+            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -50,6 +54,8 @@ local function logics(target)
             return false  -- Can't cast without a target in combat mode
         end
     end
+    
+    if target and menu_elements.elites_only:get() and not target:is_elite() then return false end
     
     local cast_position = nil
     if mobility_only then
@@ -78,7 +84,7 @@ local function logics(target)
 
     if cast_spell.position(spell_data.advance.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.instant_cast; -- Advance is instant
+        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));

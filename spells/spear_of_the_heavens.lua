@@ -10,6 +10,8 @@ local menu_elements =
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_targeting_mode")),
     min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "spear_of_the_heavens_min_target_range")),
+    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_elites_only")),
+    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_cast_delay")),
 }
 
 local function menu()
@@ -20,6 +22,8 @@ local function menu()
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
+            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -30,6 +34,7 @@ local next_time_allowed_cast = 0;
 
 local function logics(target)
     if not target then return false end;
+    if menu_elements.elites_only:get() and not target:is_elite() then return false end
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
         menu_boolean,
@@ -44,7 +49,7 @@ local function logics(target)
 
     if cast_spell.position(spell_data.spear_of_the_heavens.spell_id, target:get_position(), 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Spear of the Heavens - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
         return true;

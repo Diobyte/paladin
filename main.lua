@@ -119,7 +119,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu_elements.main_tree:push("DirtyDio v2.0.0") then
+    if not menu_elements.main_tree:push("DirtyDio v2.1.0") then
         return;
     end;
 

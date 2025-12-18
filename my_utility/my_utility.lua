@@ -102,17 +102,17 @@ local function is_action_allowed()
     local is_blood_mist = false;
     local is_shrine_conduit = false;
     local local_player_buffs = local_player:get_buffs();
-    for _, buff in ipairs(local_player_buffs) do
-        -- console.print("buff name ", buff:name());
-        -- console.print("buff hash ", buff.name_hash);
-        if buff.name_hash == mount_buff_name_hash_c then
-            is_mounted = true;
-            break;
-        end
+    if local_player_buffs then
+        for _, buff in ipairs(local_player_buffs) do
+            if buff.name_hash == mount_buff_name_hash_c then
+                is_mounted = true;
+                break;
+            end
 
-        if buff.name_hash == shrine_conduit_buff_name_hash_c then
-            is_shrine_conduit = true;
-            break;
+            if buff.name_hash == shrine_conduit_buff_name_hash_c then
+                is_shrine_conduit = true;
+                break;
+            end
         end
     end
 
@@ -147,10 +147,6 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false;
     end;
 
-
-    -- "Combo & Clear", "Combo Only", "Clear Only"
-    -- local current_cast_mode = spell_cast_mode
-
     -- evade abort
     local local_player = get_local_player();
     if local_player then
@@ -160,18 +156,9 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         end
     end
 
-    -- -- automatic
-    -- if current_cast_mode == 4 then
-    --     return true
-    -- end
-
     if is_auto_play_enabled() then
         return true;
     end
-
-    -- local is_pvp_or_clear = current_cast_mode == 0
-    -- local is_pvp_only = current_cast_mode == 1
-    -- local is_clear_only = current_cast_mode == 2
 
     local current_orb_mode = orbwalker.get_orb_mode()
 
@@ -181,15 +168,6 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
 
     local is_current_orb_mode_pvp = current_orb_mode == orb_mode.pvp
     local is_current_orb_mode_clear = current_orb_mode == orb_mode.clear
-    -- local is_current_orb_mode_flee = current_orb_mode == orb_mode.flee
-
-    -- if is_pvp_only and not is_current_orb_mode_pvp then
-    --     return false
-    -- end
-
-    -- if is_clear_only and not is_current_orb_mode_clear then
-    --     return false
-    -- end
 
     -- is pvp or clear (both)
     if not is_current_orb_mode_pvp and not is_current_orb_mode_clear then

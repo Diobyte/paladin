@@ -12,6 +12,8 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
     recast_delay        = slider_float:new(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
+    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
+    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
 }
 
 local function menu()
@@ -24,6 +26,8 @@ local function menu()
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.recast_delay:render("Recast Delay (Melee)",
                 "\n     Minimum time between casts when in melee range (prevents spamming on bosses)     \n\n", 1)
+            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -34,6 +38,7 @@ local next_time_allowed_cast = 0;
 
 local function logics(target)
     if not target then return false end;
+    if menu_elements.elites_only:get() and not target:is_elite() then return false end
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
         menu_boolean,
@@ -64,7 +69,7 @@ local function logics(target)
 
     if cast_spell.position(spell_data.falling_star.spell_id, target:get_position(), 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Falling Star - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
         return true;
