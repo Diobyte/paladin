@@ -119,7 +119,7 @@ local spells =
 }
 
 on_render_menu(function()
-    if not menu_elements.main_tree:push("DirtyDio v2.1.0") then
+    if not menu_elements.main_tree:push("DirtyDio v2.2.0") then
         return;
     end;
 
@@ -303,13 +303,9 @@ local function evaluate_targets(target_list, melee_range)
         end
 
         local total_score = normal_units_count * normal_monster_value
-        if boss_units_count > 0 then
-            total_score = total_score + boss_value * boss_units_count
-        elseif champion_units_count > 0 then
-            total_score = total_score + champion_value * champion_units_count
-        elseif elite_units_count > 0 then
-            total_score = total_score + elite_value * elite_units_count
-        end
+        total_score = total_score + (boss_value * boss_units_count)
+        total_score = total_score + (champion_value * champion_units_count)
+        total_score = total_score + (elite_value * elite_units_count)
 
         -- Check if unit has damage resistance buff
         for _, buff in ipairs(buffs) do
@@ -697,4 +693,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - DirtyDio - Version 2.0.0")
+console.print("Lua Plugin - DirtyDio - Version 2.2.0")
