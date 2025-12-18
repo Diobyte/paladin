@@ -14,6 +14,8 @@ local menu_elements =
     cast_delay          = slider_float:new(0.01, 1.0, 0.1,
         get_hash(my_utility.plugin_label .. "zeal_cast_delay")),
 }
+
+local function menu()
     if menu_elements.tree_tab:push("Zeal") then
         menu_elements.main_boolean:render("Enable Zeal", "")
         if menu_elements.main_boolean:get() then
