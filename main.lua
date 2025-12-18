@@ -413,6 +413,7 @@ local function use_ability(spell_name, delay_after_cast)
             [6] = best_cursor_target,
             [7] = closest_cursor_target
         })[targeting_mode]
+    end
     --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
     if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
         -- Use spell-specific delay instead of generic delay
