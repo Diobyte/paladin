@@ -9,6 +9,7 @@ local menu_elements =
     cast_on_cooldown    = checkbox:new(false, get_hash(my_utility.plugin_label .. "fanaticism_aura_cast_on_cooldown")),
     cast_delay          = slider_float:new(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "fanaticism_aura_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "fanaticism_aura_is_independent")),
 }
 
 local function menu()
@@ -17,6 +18,7 @@ local function menu()
         if menu_elements.main_boolean:get() then
             menu_elements.cast_on_cooldown:render("Cast on Cooldown", "Always cast when ready (maintains buff constantly)")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
         menu_elements.tree_tab:pop()
     end
@@ -32,6 +34,11 @@ local function logics()
         spell_data.fanaticism_aura.spell_id);
 
     if not is_logic_allowed then return false end;
+
+    -- Check if buff is already active
+    if my_utility.is_spell_active(spell_data.fanaticism_aura.spell_id) then
+        return false
+    end
 
     -- Check cast on cooldown option
     if menu_elements.cast_on_cooldown:get() then

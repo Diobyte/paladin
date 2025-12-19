@@ -14,7 +14,6 @@ local function is_auto_play_enabled()
 end
 
 local mount_buff_name = "Generic_SetCannotBeAddedToAITargetList";
-local mount_buff_name_hash = mount_buff_name;
 local mount_buff_name_hash_c = 1923;
 
 local shrine_conduit_buff_name = "Shine_Conduit";
@@ -99,7 +98,6 @@ local function is_action_allowed()
     end
 
     local is_mounted = false;
-    local is_blood_mist = false;
     local is_shrine_conduit = false;
     local local_player_buffs = local_player:get_buffs();
     if local_player_buffs then
@@ -116,8 +114,8 @@ local function is_action_allowed()
         end
     end
 
-    -- do not make any actions while in blood mist
-    if is_blood_mist or is_mounted or is_shrine_conduit then
+    -- do not make any actions while mounted or in shrine conduit form
+    if is_mounted or is_shrine_conduit then
         -- console.print("Blocking Actions for Some Buff");
         return false;
     end

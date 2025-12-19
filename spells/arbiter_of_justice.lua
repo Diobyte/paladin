@@ -10,8 +10,10 @@ local menu_elements =
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "arbiter_of_justice_targeting_mode")),
     min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "arbiter_of_justice_min_target_range")),
+    min_enemy_count     = slider_int:new(1, 10, 3, get_hash(my_utility.plugin_label .. "arbiter_of_justice_min_enemy_count")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "arbiter_of_justice_elites_only")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "arbiter_of_justice_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "arbiter_of_justice_is_independent")),
 }
 
 local function menu()
@@ -22,8 +24,10 @@ local function menu()
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
+            menu_elements.min_enemy_count:render("Min Enemy Count", "Minimum number of enemies in range to cast", 1)
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
 
         menu_elements.tree_tab:pop()
@@ -47,7 +51,28 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.position(spell_data.arbiter_of_justice.spell_id, target:get_position(), 0) then
+    -- AoE Optimization: Find best cluster
+    local cast_position = target:get_position()
+    
+    -- Use prediction for moving targets
+    local predicted_position = prediction.get_future_unit_position(target, 0.5)
+    if predicted_position then
+        cast_position = predicted_position
+    end
+
+    local best_point_data = my_utility.get_best_point(cast_position, 6.0, {}) -- 6.0 radius estimate for Ultimate
+    
+    if best_point_data and best_point_data.hits >= menu_elements.min_enemy_count:get() then
+        cast_position = best_point_data.point
+    elseif target:is_boss() or target:is_elite() then
+        -- Cast on priority target even if count is low
+        cast_position = predicted_position or target:get_position()
+    else
+        -- Not enough enemies and not a priority target
+        return false
+    end
+
+    if cast_spell.position(spell_data.arbiter_of_justice.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Arbiter of Justice - Target: " ..

@@ -12,6 +12,10 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "evade_min_target_range")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "evade_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_is_independent")),
+    hp_threshold        = slider_float:new(0.0, 1.0, 0.35, get_hash(my_utility.plugin_label .. "evade_hp_threshold")),
+    gap_close_only      = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_gap_close_only")),
+    engage_distance     = slider_float:new(1.0, 10.0, 3.0, get_hash(my_utility.plugin_label .. "evade_engage_distance")),
 }
 
 local function menu()
@@ -27,6 +31,13 @@ local function menu()
             end
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds (minimum 0.5s enforced)", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
+            
+            menu_elements.hp_threshold:render("Defensive HP Threshold", "Evade away from enemies if HP is below this %", 2)
+            menu_elements.gap_close_only:render("Gap Close Only", "Only evade towards enemies if they are far away")
+            if menu_elements.gap_close_only:get() then
+                menu_elements.engage_distance:render("Engage Distance", "Minimum distance to enemy to trigger evade", 2)
+            end
         end
 
         menu_elements.tree_tab:pop()
@@ -44,6 +55,51 @@ local function logics(target)
         spell_data.evade.spell_id);
 
     if not is_logic_allowed then return false end;
+
+    local local_player = get_local_player();
+    if not local_player then return false end
+
+    -- Defensive Logic (High Priority)
+    local current_hp_pct = local_player:get_current_health() / local_player:get_max_health();
+    if current_hp_pct < menu_elements.hp_threshold:get() then
+        -- Evade away from target if exists, or cursor
+        local cast_position = nil;
+        if target then
+            local player_pos = local_player:get_position();
+            local target_pos = target:get_position();
+            -- Vector from target to player
+            local evade_vec = vec3:new(
+                player_pos:x() - target_pos:x(),
+                player_pos:y() - target_pos:y(),
+                player_pos:z() - target_pos:z()
+            ):normalize();
+            
+            -- Evade distance is roughly 5.0 units
+            local evade_dist = 5.0
+            local potential_pos = vec3:new(
+                player_pos:x() + evade_vec:x() * evade_dist,
+                player_pos:y() + evade_vec:y() * evade_dist,
+                player_pos:z() + evade_vec:z() * evade_dist
+            )
+            
+            -- Safety Check: Don't evade into danger
+            if not evade.is_dangerous_position(potential_pos) then
+                cast_position = potential_pos
+            else
+                -- If backward is dangerous, try sideways? For now, just don't cast to avoid suicide
+                return false
+            end
+        else
+            cast_position = get_cursor_position();
+        end
+        
+        if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
+            local current_time = get_time_since_inject();
+            next_time_allowed_cast = current_time + 0.5;
+            console.print("Cast Evade (Defensive) - HP: " .. string.format("%.2f", current_hp_pct));
+            return true;
+        end
+    end
 
     local mobility_only = menu_elements.mobility_only:get();
     
@@ -74,15 +130,17 @@ local function logics(target)
             cast_position = cursor_position
         end
     else
-        -- Check for enemy clustering for optimal positioning
+        -- Combat Logic
         if target then
-            local enemy_count = my_utility.enemy_count_simple(5) -- 5 yard range for clustering
-            -- Always cast against elites/bosses or when we have good clustering
-            if not (target:is_elite() or target:is_champion() or target:is_boss()) then
-                if enemy_count < 1 then  -- Minimum 1 enemies for non-elite (relaxed for general use)
-                    return false
+            local dist_sq = target:get_position():squared_dist_to_ignore_z(local_player:get_position());
+            local engage_dist = menu_elements.engage_distance:get();
+            
+            if menu_elements.gap_close_only:get() then
+                if dist_sq < engage_dist * engage_dist then
+                    return false; -- Too close, don't waste evade
                 end
             end
+            
             cast_position = target:get_position()
         else
             return false

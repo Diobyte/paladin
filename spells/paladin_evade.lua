@@ -8,9 +8,10 @@ local menu_elements =
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
-    min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
+    min_target_range    = slider_float:new(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "paladin_evade_is_independent")),
 }
 
 local function menu()
@@ -22,6 +23,7 @@ local function menu()
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
 
         menu_elements.tree_tab:pop()
@@ -42,6 +44,32 @@ local function logics(target)
 
     if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         return false
+    end
+
+    -- Defensive Logic: Dash AWAY if low HP
+    local local_player = get_local_player()
+    if local_player then
+        local current_hp_pct = local_player:get_current_health() / local_player:get_max_health()
+        if current_hp_pct < 0.3 then
+            local player_pos = local_player:get_position()
+            local target_pos = target:get_position()
+            -- Calculate vector away from target
+            local away_vector = (player_pos - target_pos):normalize()
+            local safe_spot = vec3:new(
+                player_pos:x() + away_vector:x() * 5.0,
+                player_pos:y() + away_vector:y() * 5.0,
+                player_pos:z() + away_vector:z() * 5.0
+            )
+            
+            if not evade.is_dangerous_position(safe_spot) then
+                if cast_spell.position(spell_data.paladin_evade.spell_id, safe_spot, 0) then
+                    console.print("Cast Paladin Evade - Defensive Dash Away")
+                    local current_time = get_time_since_inject();
+                    next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
+                    return true;
+                end
+            end
+        end
     end
 
     if cast_spell.position(spell_data.paladin_evade.spell_id, target:get_position(), 0) then

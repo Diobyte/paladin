@@ -12,6 +12,7 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "brandish_min_target_range")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "brandish_elites_only")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "brandish_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "brandish_is_independent")),
 }
 
 local function menu()
@@ -24,6 +25,7 @@ local function menu()
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
 
         menu_elements.tree_tab:pop()

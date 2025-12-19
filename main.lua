@@ -515,10 +515,19 @@ on_update(function()
         next_target_update_time = current_time + targeting_refresh_interval
     end
 
-    -- Ability usage - uses spell_priority to determine the order of spells
+    -- 1. Check Independent Spells (Cast Delay Logic)
+    for spell_name, spell in pairs(spells) do
+        if spell.menu_elements.is_independent and spell.menu_elements.is_independent:get() then
+            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+                return
+            end
+        end
+    end
+
+    -- 2. Check Priority List (Normal Rotation)
     for _, spell_name in ipairs(current_spell_priority) do
         local spell = spells[spell_name]
-        if spell then
+        if spell and not (spell.menu_elements.is_independent and spell.menu_elements.is_independent:get()) then
             if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
                 return
             end

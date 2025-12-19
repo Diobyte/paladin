@@ -29,7 +29,7 @@
 -- game_object, lowest max health boss
 -- game_object, highest max health boss
 
-local function get_unit_weight(unit)
+local function get_unit_weight(unit, all_units)
     local score = 0
     local debuff_priorities = {
         [391682] = 1,    -- Inner Sight
@@ -56,6 +56,11 @@ local function get_unit_weight(unit)
     local health_percentage = current_health / max_health
     local is_fresh = health_percentage >= 1.0
 
+    -- Execute Priority: Finish off low HP enemies
+    if health_percentage < 0.3 then
+        score = score + 5000
+    end
+
     local is_vulnerable = unit:is_vulnerable()
     if is_vulnerable then
         score = score + 10000
@@ -73,10 +78,28 @@ local function get_unit_weight(unit)
             score = score + 5000
         end
     end
+    
+    local is_boss = unit:is_boss()
+    if is_boss then
+        score = score + 25000 -- Always prioritize bosses
+    end
 
-    local is_champion = unit:is_elite()
-    if is_champion then
-        score = score + 400
+    local is_elite = unit:is_elite()
+    if is_elite then
+        score = score + 2000 -- Increased from 400 to prioritize elites over fresh trash
+    end
+
+    -- Density Priority: Prioritize enemies with neighbors (for AoE/Ricochet)
+    if all_units then
+        local unit_pos = unit:get_position()
+        local density_radius_sqr = 16.0 -- 4.0 yards squared
+        for _, other in ipairs(all_units) do
+            if unit ~= other then
+                if unit_pos:squared_dist_to_ignore_z(other:get_position()) < density_radius_sqr then
+                    score = score + 150 -- Add weight for each neighbor
+                end
+            end
+        end
     end
 
     return score
@@ -90,7 +113,7 @@ local function get_best_weighted_target(entity_list)
     -- Iterate over all entities in the list
     for _, unit in ipairs(entity_list) do
         -- Calculate the score for each unit
-        local score = get_unit_weight(unit)
+        local score = get_unit_weight(unit, entity_list)
 
         -- Update the best target if this unit's score is higher than the current highest
         if score > highest_score then
@@ -99,6 +122,24 @@ local function get_best_weighted_target(entity_list)
         end
     end
 
+    return best_target
+end
+
+local function get_target_enemy(range)
+    local player_pos = get_player_position()
+    local enemies = target_selector.get_near_target_list(player_pos, range)
+    local best_target = nil
+    local highest_score = -1
+    
+    for _, unit in ipairs(enemies) do
+        if unit:is_enemy() and not unit:is_untargetable() and not unit:is_immune() then
+            local score = get_unit_weight(unit, enemies)
+            if score > highest_score then
+                highest_score = score
+                best_target = unit
+            end
+        end
+    end
     return best_target
 end
 
@@ -614,4 +655,5 @@ return
 
     get_unit_weight = get_unit_weight,
     get_best_weighted_target = get_best_weighted_target,
+    get_target_enemy = get_target_enemy,
 }

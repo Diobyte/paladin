@@ -13,6 +13,7 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "advance_min_target_range")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "advance_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_is_independent")),
 }
 
 local function menu()
@@ -28,6 +29,7 @@ local function menu()
             end
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
 
         menu_elements.tree_tab:pop()
@@ -68,6 +70,12 @@ local function logics(target)
             -- For mobility without target, cast towards cursor
             local cursor_position = get_cursor_position()
             local player_position = get_player_position()
+            
+            -- Safety check: Don't dash into danger
+            if evade.is_dangerous_position(cursor_position) then
+                return false
+            end
+
             if cursor_position:squared_dist_to_ignore_z(player_position) > max_spell_range * max_spell_range then
                 return false  -- Cursor too far
             end
@@ -76,6 +84,30 @@ local function logics(target)
     else
         -- Combat mode: require target
         if not target then return false end
+        
+        -- Defensive Logic: Dash AWAY if low HP
+        local local_player = get_local_player()
+        if local_player then
+            local current_hp_pct = local_player:get_current_health() / local_player:get_max_health()
+            if current_hp_pct < 0.3 then
+                local player_pos = local_player:get_position()
+                local target_pos = target:get_position()
+                -- Calculate vector away from target
+                local away_vector = (player_pos - target_pos):normalize()
+                local safe_spot = player_pos + (away_vector * 5.0) -- Dash 5 yards away
+                
+                if not evade.is_dangerous_position(safe_spot) then
+                    cast_position = safe_spot
+                    console.print("Cast Advance - Defensive Dash Away")
+                    if cast_spell.position(spell_data.advance.spell_id, cast_position, 0) then
+                        local current_time = get_time_since_inject();
+                        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
+                        return true;
+                    end
+                end
+            end
+        end
+
         if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
             return false
         end

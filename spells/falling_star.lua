@@ -12,8 +12,10 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
     recast_delay        = slider_float:new(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
+    min_enemy_count     = slider_int:new(1, 10, 3, get_hash(my_utility.plugin_label .. "falling_star_min_enemy_count")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_is_independent")),
 }
 
 local function menu()
@@ -26,8 +28,10 @@ local function menu()
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.recast_delay:render("Recast Delay (Melee)",
                 "\n     Minimum time between casts when in melee range (prevents spamming on bosses)     \n\n", 1)
+            menu_elements.min_enemy_count:render("Min Enemy Count", "Minimum number of enemies in range to cast (AoE Optimization)", 1)
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
 
         menu_elements.tree_tab:pop()
@@ -67,7 +71,26 @@ local function logics(target)
         end
     end
 
-    if cast_spell.position(spell_data.falling_star.spell_id, target:get_position(), 0) then
+    -- AoE Optimization: Find best cluster
+    local cast_position = target:get_position()
+    
+    -- Use prediction for moving targets
+    local predicted_position = prediction.get_future_unit_position(target, 0.5)
+    if predicted_position then
+        cast_position = predicted_position
+    end
+
+    local best_point_data = my_utility.get_best_point(cast_position, 5.0, {}) -- 5.0 radius estimate
+    if best_point_data and best_point_data.hits >= menu_elements.min_enemy_count:get() then
+        cast_position = best_point_data.point
+    elseif not target:is_boss() and not target:is_elite() and best_point_data.hits < menu_elements.min_enemy_count:get() then
+        -- If not enough enemies and not a priority target, skip (unless it's a gap closer)
+        if is_in_min_range then
+            return false
+        end
+    end
+
+    if cast_spell.position(spell_data.falling_star.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Falling Star - Target: " ..

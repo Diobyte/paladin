@@ -56,6 +56,7 @@ local function get_base_spell_priority(build_index)
             "evade",
 
             -- Blessed Hammer spam with auras and mobility - META AOE BUILD
+            "condemn", -- Group enemies first
             "blessed_hammer",
             "fanaticism_aura",
             "defiance_aura",

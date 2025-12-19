@@ -8,10 +8,11 @@ local menu_elements =
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_bolt_main_bool_base")),
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "holy_bolt_targeting_mode")),
-    min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
+    min_target_range    = slider_float:new(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "holy_bolt_min_target_range")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "holy_bolt_elites_only")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "holy_bolt_cast_delay")),
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "holy_bolt_is_independent")),
 }
 
 local function menu()
@@ -24,6 +25,7 @@ local function menu()
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
 
         menu_elements.tree_tab:pop()
@@ -47,7 +49,14 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.target(target, spell_data.holy_bolt.spell_id, 0, false) then
+    -- Use prediction for moving targets
+    local cast_position = target:get_position()
+    local predicted_position = prediction.get_future_unit_position(target, 0.3) -- 0.3s delay estimate
+    if predicted_position then
+        cast_position = predicted_position
+    end
+
+    if cast_spell.position(spell_data.holy_bolt.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
         next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Holy Bolt - Target: " ..
