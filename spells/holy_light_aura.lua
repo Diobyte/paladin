@@ -7,7 +7,6 @@ local menu_elements =
     tree_tab            = tree_node:new(1),
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_light_aura_main_bool_base")),
     cast_on_cooldown    = checkbox:new(false, get_hash(my_utility.plugin_label .. "holy_light_aura_cast_on_cooldown")),
-    max_cast_range      = slider_float:new(1.0, 15.0, 5.0, get_hash(my_utility.plugin_label .. "holy_light_aura_max_cast_range")),
     cast_delay          = slider_float:new(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "holy_light_aura_cast_delay")),
     is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "holy_light_aura_is_independent")),
@@ -18,7 +17,6 @@ local function menu()
         menu_elements.main_boolean:render("Enable Holy Light Aura", "")
         if menu_elements.main_boolean:get() then
             menu_elements.cast_on_cooldown:render("Cast on Cooldown", "Always cast when ready (maintains buff constantly)")
-            menu_elements.max_cast_range:render("Max Cast Range", "Only cast when enemies are within this range", 1)
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
             menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
         end
@@ -42,10 +40,6 @@ local function logics()
     if my_utility.is_spell_active(spell_data.holy_light_aura.spell_id) then
         return false
     end
-
-    -- Check if there are enemies within the specified range
-    local enemy_count = my_utility.enemy_count_simple(menu_elements.max_cast_range:get());
-    if enemy_count == 0 then return false end;
 
     -- Check cast on cooldown option
     if menu_elements.cast_on_cooldown:get() then
