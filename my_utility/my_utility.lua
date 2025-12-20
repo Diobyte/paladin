@@ -1,5 +1,4 @@
 -- local target_selector = require("my_utility/my_target_selector")
-local my_target_selector = require("my_utility/my_target_selector")
 local spell_data = require("my_utility/spell_data")
 
 local function is_auto_play_enabled()
@@ -81,11 +80,6 @@ local function buff_stack_count(spell_id, buff_id)
     return 0
 end
 
-local function is_high_priority_target(target)
-    if not target then return false end
-    return target:is_boss() or target:is_champion() or target:is_elite()
-end
-
 local function is_action_allowed()
     -- evade abort
     local local_player = get_local_player();
@@ -145,6 +139,14 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false;
     end;
 
+    if not utility.is_spell_affordable(spell_id) then
+        return false;
+    end;
+
+    if not utility.can_cast_spell(spell_id) then
+        return false;
+    end;
+
     -- evade abort
     local local_player = get_local_player();
     if local_player then
@@ -199,43 +201,29 @@ local function get_best_point(target_position, circle_radius, current_hit_list)
         local hit_list = utility.get_units_inside_circle_list(point, circle_radius);
 
         local hit_list_collision_less = {};
-        local total_score = 0
         for _, obj in ipairs(hit_list) do
-            local is_wall_collision = prediction.is_wall_collision(player_position, obj:get_position(), 2.0);
+            local is_wall_collision = target_selector.is_wall_collision(player_position, obj, 2.0);
             if not is_wall_collision then
                 table.insert(hit_list_collision_less, obj);
-                total_score = total_score + my_target_selector.get_unit_weight(obj)
             end
         end
 
         table.insert(hit_table, {
             point = point,
             hits = #hit_list_collision_less,
-            score = total_score,
             victim_list = hit_list_collision_less
         });
     end
 
-    -- sort by the score
-    table.sort(hit_table, function(a, b) return a.score > b.score end);
+    -- sort by the number of hits
+    table.sort(hit_table, function(a, b) return a.hits > b.hits end);
 
     local current_hit_list_amount = #current_hit_list;
-    local current_score = 0
-    for _, obj in ipairs(current_hit_list) do
-        current_score = current_score + my_target_selector.get_unit_weight(obj)
-    end
-
-    if hit_table[1].score > current_score then
+    if hit_table[1].hits > current_hit_list_amount then
         return hit_table[1]; -- returning the point with the most hits
     end
 
-    return {
-        point = target_position,
-        hits = current_hit_list_amount,
-        score = current_score,
-        victim_list =
-            current_hit_list
-    };
+    return { point = target_position, hits = current_hit_list_amount, victim_list = current_hit_list };
 end
 
 function is_target_within_angle(origin, reference, target, max_angle)
@@ -269,34 +257,17 @@ local function get_best_point_rec(target_position, rectangle_radius, width, curr
         local destination = vec3.new(point:x() + width * math.cos(angle), point:y() + width * math.sin(angle), point:z())
 
         local hit_list = utility.get_units_inside_rectangle_list(point, destination, width)
-
-        local total_score = 0
-        for _, obj in ipairs(hit_list) do
-            total_score = total_score + my_target_selector.get_unit_weight(obj)
-        end
-
-        table.insert(hit_table, { point = point, hits = #hit_list, score = total_score, victim_list = hit_list })
+        table.insert(hit_table, { point = point, hits = #hit_list, victim_list = hit_list })
     end
 
-    table.sort(hit_table, function(a, b) return a.score > b.score end)
+    table.sort(hit_table, function(a, b) return a.hits > b.hits end)
 
     local current_hit_list_amount = #current_hit_list
-    local current_score = 0
-    for _, obj in ipairs(current_hit_list) do
-        current_score = current_score + my_target_selector.get_unit_weight(obj)
-    end
-
-    if hit_table[1].score > current_score then
+    if hit_table[1].hits > current_hit_list_amount then
         return hit_table[1] -- returning the point with the most hits
     end
 
-    return {
-        point = target_position,
-        hits = current_hit_list_amount,
-        score = current_score,
-        victim_list =
-            current_hit_list
-    }
+    return { point = target_position, hits = current_hit_list_amount, victim_list = current_hit_list }
 end
 
 local function enemy_count_in_range(evaluation_range, source_position)
@@ -310,18 +281,23 @@ local function enemy_count_in_range(evaluation_range, source_position)
     local boss_units_count = 0;
 
     for _, obj in ipairs(enemies) do
-        if not (not obj:is_enemy() or obj:is_untargetable() or obj:is_immune()) then
-            if obj:is_boss() then
-                boss_units_count = boss_units_count + 1;
-            elseif obj:is_champion() then
-                champion_units_count = champion_units_count + 1;
-            elseif obj:is_elite() then
-                elite_units_count = elite_units_count + 1;
-            else
-                normal_units_count = normal_units_count + 1;
-            end
-            all_units_count = all_units_count + 1;
+        if not obj:is_enemy() or obj:is_untargetable() or obj:is_immune() then
+            -- Skip this object and continue with the next one
+            goto continue
+        end;
+
+        if obj:is_boss() then
+            boss_units_count = boss_units_count + 1;
+        elseif obj:is_champion() then
+            champion_units_count = champion_units_count + 1;
+        elseif obj:is_elite() then
+            elite_units_count = elite_units_count + 1;
+        else
+            normal_units_count = normal_units_count + 1;
         end
+        all_units_count = all_units_count + 1;
+
+        ::continue::
     end;
     return all_units_count, normal_units_count, elite_units_count, champion_units_count, boss_units_count
 end
@@ -425,24 +401,6 @@ local targeting_mode_description =
     "       Best Cursor Target: Targets the most valuable enemy around the cursor      \n" ..
     "       Closest Cursor Target: Targets the enemy nearest to the cursor      \n"
 
--- local function is_crowd_controlled(unit)
---     local cc_hashes = {
---         [39809] = true,   -- Generic Crowd Control
---         [290962] = true,  -- Frozen
---         [1285259] = true, -- Trapped
---         [356162] = true   -- Smoke Bomb
---     }
---     local buffs = unit:get_buffs()
---     if buffs then
---         for _, buff in ipairs(buffs) do
---             if cc_hashes[buff.name_hash] then
---                 return true
---             end
---         end
---     end
---     return false
--- end
-
 local spell_cast_history = {}
 
 local function record_spell_cast(spell_name)
@@ -466,13 +424,11 @@ return
     evaluation_range_description = evaluation_range_description,
     plugin_label = plugin_label,
     is_spell_allowed = is_spell_allowed,
-    is_high_priority_target = is_high_priority_target,
     is_action_allowed = is_action_allowed,
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,
     buff_stack_count = buff_stack_count,
-    -- is_crowd_controlled = is_crowd_controlled,
-
+    
     record_spell_cast = record_spell_cast,
     get_last_cast_time = get_last_cast_time,
 

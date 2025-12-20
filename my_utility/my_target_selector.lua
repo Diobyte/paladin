@@ -54,46 +54,30 @@ local function get_unit_weight(unit)
     local max_health = unit:get_max_health()
     local current_health = unit:get_current_health()
     local health_percentage = current_health / max_health
-    local is_fresh = health_percentage >= 0.8
-    local is_low = health_percentage <= 0.2
+    local is_fresh = health_percentage >= 1.0
 
     local is_vulnerable = unit:is_vulnerable()
     if is_vulnerable then
-        score = score + 8000
+        score = score + 10000
     end
 
     if not is_vulnerable and is_fresh then
-        score = score + 2000
-    end
-
-    if is_low then
-        score = score + 5000
-    end
-
-    local is_boss = unit:is_boss()
-    if is_boss then
-        score = score + 50000
+        score = score + 6000
     end
 
     local is_champion = unit:is_champion()
     if is_champion then
         if is_fresh then
-            score = score + 25000
-        else
             score = score + 20000
+        else
+            score = score + 5000
         end
     end
 
-    local is_elite = unit:is_elite()
-    if is_elite then
-        score = score + 15000
+    local is_champion = unit:is_elite()
+    if is_champion then
+        score = score + 400
     end
-
-    local player_pos = get_player_position()
-    local unit_pos = unit:get_position()
-    local distance_sqr = player_pos:squared_dist_to_ignore_z(unit_pos)
-    local distance = math.sqrt(distance_sqr)
-    score = score - (distance * 5)
 
     return score
 end
@@ -315,6 +299,7 @@ local function get_target_selector_data(source, list)
                 highest_max_health_boss_health = max_health;
             end
         end
+        ::continue::
     end
 
     return
@@ -375,7 +360,7 @@ local function subtract2D(v1, v2, field)
     return vec2:new(X1, V1)
 end
 
-local function CheckActorCollision(StartPoint, EndPoint, PositionToCheck, width)
+function CheckActorCollision(StartPoint, EndPoint, PositionToCheck, width)
     -- Vector from A to B
     --local StartPoint = vec2(2,1);
     --StartPoint = vec2:new(StartPoint:x(),StartPoint:y())
@@ -438,66 +423,58 @@ local function get_target_list(source, range, collision_table, floor_table, angl
     local possible_targets_list = target_selector.get_near_target_list(source, range);
 
     for _, unit in ipairs(possible_targets_list) do
-        local is_valid_target = true
-
         -- only targetable units
         if unit:is_untargetable() or unit:is_immune() then
-            is_valid_target = false
+            goto continue
         end
 
-        if is_valid_target then
-            local unit_position = unit:get_position()
+        local unit_position = unit:get_position()
 
-            -- Check floor and angle conditions
-            if floor_table[1] == true then
-                local z_difference = math.abs(source:z() - unit_position:z())
-                local is_other_floor = z_difference > floor_table[2]
-                if is_other_floor then
-                    is_valid_target = false
-                end
+        -- Check floor and angle conditions
+        if floor_table[1] == true then
+            local z_difference = math.abs(source:z() - unit_position:z())
+            local is_other_floor = z_difference > floor_table[2]
+            if is_other_floor then
+                goto continue
+            end
+        end
+
+        if angle_table[1] == true then
+            local cursor_position = get_cursor_position();
+            local angle = unit_position:get_angle(cursor_position, source);
+            local is_outside_angle = angle > angle_table[2]
+            if is_outside_angle then
+                goto continue
+            end
+        end
+
+        -- Add to entity_list regardless of collision
+        table.insert(entity_list, unit)
+
+        -- Check collision
+        if collision_table[1] == true then
+            local is_invalid = prediction.is_wall_collision(source, unit_position, collision_table[2]);
+            if is_invalid then
+                goto continue;
             end
 
-            if is_valid_target and angle_table[1] == true then
-                local cursor_position = get_cursor_position();
-                local angle = unit_position:get_angle(cursor_position, source);
-                local is_outside_angle = angle > angle_table[2]
-                if is_outside_angle then
-                    is_valid_target = false
-                end
-            end
-
-            if is_valid_target then
-                -- Add to entity_list regardless of collision
-                table.insert(entity_list, unit)
-
-                -- Check collision
-                if collision_table[1] == true then
-                    local is_invalid = prediction.is_wall_collision(source, unit_position, collision_table[2]);
-                    if is_invalid then
-                        is_valid_target = false
-                    else
-                        local all_objects = actors_manager.get_all_actors()
-                        for _, obj in ipairs(all_objects) do
-                            if not obj:is_enemy() and obj:is_interactable() then
-                                local skin_name = obj:get_skin_name()
-                                for _, pattern in ipairs(actor_table) do
-                                    if skin_name:match(pattern) and CheckActorCollision(source, unit_position, obj:get_position(), 3) then
-                                        is_valid_target = false
-                                        break
-                                    end
-                                end
-                            end
-                            if not is_valid_target then break end
+            all_objects = actors_manager.get_all_actors()
+            for _, obj in ipairs(all_objects) do
+                if not obj:is_enemy() and obj:is_interactable() then
+                    local skin_name = obj:get_skin_name()
+                    for _, pattern in ipairs(actor_table) do
+                        if skin_name:match(pattern) and CheckActorCollision(source, unit_position, obj:get_position(), 3) then
+                            goto continue;
                         end
                     end
                 end
             end
-
-            if is_valid_target then
-                -- Add to entity_list_visible
-                table.insert(entity_list_visible, unit)
-            end
         end
+
+        -- Add to entity_list_visible
+        table.insert(entity_list_visible, unit)
+
+        ::continue::
     end
 
     return entity_list_visible, entity_list

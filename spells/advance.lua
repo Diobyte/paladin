@@ -5,33 +5,29 @@ local max_spell_range = 10.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_main_bool_base")),
-    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "advance_targeting_mode")),
-    mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
-    min_target_range = slider_float:new(0.0, max_spell_range - 1, 0.0,
-        get_hash(my_utility.plugin_label .. "advance_min_target_range"), 1),
-    max_faith        = slider_float:new(0.1, 1.0, 0.9, get_hash(my_utility.plugin_label .. "advance_max_faith"), 2),
-    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
-    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
+    tree_tab            = tree_node:new(1),
+    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_main_bool_base")),
+    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "advance_targeting_mode")),
+    mobility_only       = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
+    min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
+        get_hash(my_utility.plugin_label .. "advance_min_target_range")),
+    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
+    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "advance_cast_delay")),
 }
 
 local function menu()
     if menu_elements.tree_tab:push("Advance") then
-        menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
-
+        menu_elements.main_boolean:render("Enable Advance", "")
         if menu_elements.main_boolean:get() then
-            -- Targeting
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
-            menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
-
-            -- Logic
-            menu_elements.max_faith:render("Max Faith %", "Don't cast if Faith is above this % (unless Mobility Only)", 1)
-            menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
-            menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
-            menu_elements.force_priority:render("Force Priority",
-                "Always cast on Boss/Elite/Champion regardless of min range")
+            menu_elements.mobility_only:render("Only use for mobility", "")
+            if menu_elements.mobility_only:get() then
+                menu_elements.min_target_range:render("Min Target Distance",
+                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+            end
+            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -50,27 +46,21 @@ local function logics(target)
     if not is_logic_allowed then return false end;
 
     local mobility_only = menu_elements.mobility_only:get();
-
+    
     -- Check if we have a valid target based on targeting mode
     if not target then
         -- No target found with current targeting mode
         if not mobility_only then
-            return false -- Can't cast without a target in combat mode
+            return false  -- Can't cast without a target in combat mode
         end
     end
-
+    
     if target and menu_elements.elites_only:get() and not target:is_elite() then return false end
-
+    
     local cast_position = nil
-    local force_priority = menu_elements.force_priority:get()
-    local is_priority = target and my_utility.is_high_priority_target(target)
-
     if mobility_only then
         if target then
-            if not my_utility.is_in_range(target, max_spell_range) then return false end
-
-            local is_in_min_range = my_utility.is_in_range(target, menu_elements.min_target_range:get())
-            if is_in_min_range and not (force_priority and is_priority) then
+            if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
                 return false
             end
             cast_position = target:get_position()
@@ -79,26 +69,14 @@ local function logics(target)
             local cursor_position = get_cursor_position()
             local player_position = get_player_position()
             if cursor_position:squared_dist_to_ignore_z(player_position) > max_spell_range * max_spell_range then
-                return false -- Cursor too far
+                return false  -- Cursor too far
             end
             cast_position = cursor_position
         end
     else
         -- Combat mode: require target
         if not target then return false end
-
-        if not my_utility.is_in_range(target, max_spell_range) then return false end
-
-        local local_player = get_local_player()
-        local current_faith_pct = local_player:get_primary_resource_current() / local_player:get_primary_resource_max()
-        local max_faith = menu_elements.max_faith:get()
-
-        if current_faith_pct > max_faith and not (force_priority and is_priority) then
-            return false
-        end
-
-        local is_in_min_range = my_utility.is_in_range(target, menu_elements.min_target_range:get())
-        if is_in_min_range and not (force_priority and is_priority) then
+        if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
             return false
         end
         cast_position = target:get_position()
@@ -106,12 +84,11 @@ local function logics(target)
 
     if cast_spell.position(spell_data.advance.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
-        local cast_delay = 0.1;
-        next_time_allowed_cast = current_time + cast_delay;
+        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
         console.print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));
-        return true, cast_delay;
+        return true;
     end;
 
     return false;
