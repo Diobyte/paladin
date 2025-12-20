@@ -1,18 +1,19 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
+local my_target_selector = require("my_utility/my_target_selector")
 
 local max_spell_range = 5.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_main_bool_base")),
-    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "blessed_shield_targeting_mode")),
-    min_target_range = slider_float:new(0, max_spell_range - 1, 0,
+    tree_tab            = tree_node:new(1),
+    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_main_bool_base")),
+    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "blessed_shield_targeting_mode")),
+    min_target_range    = slider_float:new(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "blessed_shield_min_target_range")),
-    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_force_priority")),
-    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "blessed_shield_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "blessed_shield_cast_delay")),
+    prioritize_clusters = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_prioritize_clusters")),
+    force_priority      = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_force_priority")),
+    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "blessed_shield_elites_only")),
 }
 
 local function menu()
@@ -24,14 +25,13 @@ local function menu()
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
+            menu_elements.prioritize_clusters:render("Prioritize Clusters",
+                "Target enemies with neighbors to maximize ricochets")
 
             -- Logic
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
             menu_elements.force_priority:render("Force Priority",
                 "Always cast on Boss/Elite/Champion regardless of min range")
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -63,9 +63,43 @@ local function logics(target)
         return false
     end
 
+    if menu_elements.prioritize_clusters:get() and not (force_priority and is_priority) then
+        local enemies = actors_manager.get_enemy_npcs()
+        local best_target = target
+        local max_neighbors = 0
+        local ricochet_range = 4.0
+
+        -- Check if current target has neighbors
+        local current_neighbors = 0
+        for _, enemy in ipairs(enemies) do
+            if enemy:get_position():squared_dist_to_ignore_z(target:get_position()) <= ricochet_range * ricochet_range then
+                current_neighbors = current_neighbors + 1
+            end
+        end
+        max_neighbors = current_neighbors
+
+        -- Try to find a better target in range
+        for _, potential_target in ipairs(enemies) do
+            if my_utility.is_in_range(potential_target, max_spell_range) then
+                local neighbors = 0
+                for _, enemy in ipairs(enemies) do
+                    if enemy:get_position():squared_dist_to_ignore_z(potential_target:get_position()) <= ricochet_range * ricochet_range then
+                        neighbors = neighbors + 1
+                    end
+                end
+
+                if neighbors > max_neighbors then
+                    max_neighbors = neighbors
+                    best_target = potential_target
+                end
+            end
+        end
+        target = best_target
+    end
+
     if cast_spell.target(target, spell_data.blessed_shield.spell_id, 0, false) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.1;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Blessed Shield - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);

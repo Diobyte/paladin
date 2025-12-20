@@ -425,6 +425,24 @@ local targeting_mode_description =
     "       Best Cursor Target: Targets the most valuable enemy around the cursor      \n" ..
     "       Closest Cursor Target: Targets the enemy nearest to the cursor      \n"
 
+local function is_crowd_controlled(unit)
+    local cc_hashes = {
+        [39809] = true,   -- Generic Crowd Control
+        [290962] = true,  -- Frozen
+        [1285259] = true, -- Trapped
+        [356162] = true   -- Smoke Bomb
+    }
+    local buffs = unit:get_buffs()
+    if buffs then
+        for _, buff in ipairs(buffs) do
+            if cc_hashes[buff.name_hash] then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local spell_cast_history = {}
 
 local function record_spell_cast(spell_name)
@@ -453,6 +471,7 @@ return
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,
     buff_stack_count = buff_stack_count,
+    is_crowd_controlled = is_crowd_controlled,
 
     record_spell_cast = record_spell_cast,
     get_last_cast_time = get_last_cast_time,

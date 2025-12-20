@@ -12,8 +12,6 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "zeal_min_target_range")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "zeal_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "zeal_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1,
-        get_hash(my_utility.plugin_label .. "zeal_cast_delay")),
 }
 
 local function menu()
@@ -31,9 +29,6 @@ local function menu()
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.force_priority:render("Force Priority",
                 "Always cast on Boss/Elite/Champion regardless of min range")
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -69,7 +64,7 @@ local function logics(target)
 
     if cast_spell.target(target, spell_data.zeal.spell_id, 0, false) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.1;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Zeal - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);

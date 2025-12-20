@@ -1,5 +1,6 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
+local my_target_selector = require("my_utility/my_target_selector")
 
 local max_spell_range = 15.0
 local targeting_type = "ranged"
@@ -12,9 +13,9 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
     recast_delay     = slider_float:new(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
+    min_hits         = slider_int:new(1, 20, 3, get_hash(my_utility.plugin_label .. "falling_star_min_hits")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "falling_star_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
 }
 
 local function menu()
@@ -26,6 +27,7 @@ local function menu()
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
+            menu_elements.min_hits:render("Min Hits", "Minimum number of enemies to hit to prioritize AOE target", 1)
 
             -- Logic
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
@@ -33,9 +35,6 @@ local function menu()
                 "Always cast on Boss/Elite/Champion regardless of range settings")
             menu_elements.recast_delay:render("Recast Delay (Melee)",
                 "Minimum time between casts when in melee range (prevents spamming on bosses)", 1)
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -46,6 +45,15 @@ local next_time_allowed_cast = 0;
 
 local function logics(target)
     if not target then return false end;
+
+    local min_hits = menu_elements.min_hits:get()
+    local player_pos = get_player_position()
+    local aoe_data = my_target_selector.get_most_hits_circular(player_pos, max_spell_range, 4.0)
+
+    if aoe_data.is_valid and aoe_data.hits_amount >= min_hits and aoe_data.main_target then
+        target = aoe_data.main_target
+    end
+
     if menu_elements.elites_only:get() and not target:is_elite() then return false end
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
@@ -79,7 +87,7 @@ local function logics(target)
 
     if cast_spell.position(spell_data.falling_star.spell_id, target:get_position(), 0) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.1;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Falling Star - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);

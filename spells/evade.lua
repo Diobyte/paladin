@@ -11,7 +11,7 @@ local menu_elements =
     min_target_range = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "evade_min_target_range")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "evade_cast_delay")),
+    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_force_priority")),
 }
 
 local function menu()
@@ -27,10 +27,8 @@ local function menu()
             -- Logic
             menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay",
-                "Time to wait after casting before taking another action (minimum 0.5s enforced)", 2)
+            menu_elements.force_priority:render("Force Priority",
+                "Always cast on Boss/Elite/Champion regardless of min range")
         end
 
         menu_elements.tree_tab:pop()
@@ -97,9 +95,8 @@ local function logics(target)
     if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
         -- Enforce minimum delay to prevent spamming, especially with evade charge boots
-        local user_delay = menu_elements.cast_delay:get();
         local min_delay = 0.5; -- Minimum 0.5 seconds between casts to prevent spam
-        local actual_delay = math.max(user_delay, min_delay);
+        local actual_delay = min_delay;
         next_time_allowed_cast = current_time + actual_delay;
         console.print("Cast Evade (ID: " .. spell_data.evade.spell_id .. ") - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..

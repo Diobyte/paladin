@@ -10,7 +10,7 @@ local menu_elements =
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
     min_target_range = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
+    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_force_priority")),
 }
 
 local function menu()
@@ -22,9 +22,7 @@ local function menu()
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
+            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()

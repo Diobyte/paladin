@@ -7,8 +7,7 @@ local menu_elements =
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "fanaticism_aura_main_bool_base")),
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "fanaticism_aura_cast_on_cooldown")),
-    cast_delay       = slider_float:new(0.01, 10.0, 0.1,
-        get_hash(my_utility.plugin_label .. "fanaticism_aura_cast_delay")),
+    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "fanaticism_aura_force_priority")),
 }
 
 local function menu()
@@ -19,9 +18,7 @@ local function menu()
             -- Logic
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
+            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()

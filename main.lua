@@ -439,6 +439,12 @@ local function use_ability(spell_name, delay_after_cast)
 end
 
 -- on_update callback
+local utility_spells_list = {
+    "paladin_evade", "evade", "fanaticism_aura", "defiance_aura",
+    "holy_light_aura", "rally", "aegis", "fortress", "purify", "consecration"
+}
+local last_rotation_index = 1
+
 on_update(function()
     -- Update spell priority dynamically every frame for real-time adjustments
     current_spell_priority = get_spell_priority(menu_elements.build_selector:get())
@@ -528,12 +534,43 @@ on_update(function()
         next_target_update_time = current_time + targeting_refresh_interval
     end
 
-    -- Ability usage - uses spell_priority to determine the order of spells
-    for _, spell_name in ipairs(current_spell_priority) do
+    -- 1. Utility Loop (Priority - Always checked first)
+    -- These spells are cast "on their own time" (whenever ready/needed) and take precedence
+    for _, spell_name in ipairs(utility_spells_list) do
         local spell = spells[spell_name]
         if spell then
             if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
                 return
+            end
+        end
+    end
+
+    -- 2. Rotation Loop (Sequence - Resumes where left off)
+    -- These spells are cast in a rotational order
+    local list_size = #current_spell_priority
+    local start_index = last_rotation_index
+
+    for i = 0, list_size - 1 do
+        local index = (start_index + i - 1) % list_size + 1
+        local spell_name = current_spell_priority[index]
+
+        -- Skip utility spells in rotation loop to avoid double checking
+        local is_utility = false
+        for _, u_name in ipairs(utility_spells_list) do
+            if u_name == spell_name then
+                is_utility = true
+                break
+            end
+        end
+
+        if not is_utility then
+            local spell = spells[spell_name]
+            if spell then
+                if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+                    last_rotation_index = index + 1
+                    if last_rotation_index > list_size then last_rotation_index = 1 end
+                    return
+                end
             end
         end
     end

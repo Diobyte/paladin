@@ -9,8 +9,7 @@ local menu_elements =
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "holy_light_aura_cast_on_cooldown")),
     max_cast_range   = slider_float:new(1.0, 15.0, 5.0,
         get_hash(my_utility.plugin_label .. "holy_light_aura_max_cast_range")),
-    cast_delay       = slider_float:new(0.01, 10.0, 0.1,
-        get_hash(my_utility.plugin_label .. "holy_light_aura_cast_delay")),
+    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_light_aura_force_priority")),
 }
 
 local function menu()
@@ -22,9 +21,7 @@ local function menu()
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
             menu_elements.max_cast_range:render("Max Cast Range", "Only cast when enemies are within this range", 1)
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
+            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()

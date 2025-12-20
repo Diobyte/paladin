@@ -13,7 +13,6 @@ local menu_elements =
     min_enemy_count  = slider_int:new(1, 10, 1, get_hash(my_utility.plugin_label .. "blessed_hammer_min_enemy_count")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_hammer_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "blessed_hammer_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "blessed_hammer_cast_delay")),
 }
 
 local function menu()
@@ -31,9 +30,6 @@ local function menu()
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
             menu_elements.force_priority:render("Force Priority",
                 "Always cast on Boss/Elite/Champion regardless of min range")
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -67,9 +63,27 @@ local function logics(target)
         return false;
     end
 
+    local min_enemy_count = menu_elements.min_enemy_count:get()
+    if min_enemy_count > 1 then
+        local enemies = actors_manager.get_enemy_npcs()
+        local count = 0
+        local range = 5.0 -- Blessed Hammer spiral radius
+        local player_pos = get_player_position()
+
+        for _, enemy in ipairs(enemies) do
+            if enemy:get_position():squared_dist_to_ignore_z(player_pos) <= range * range then
+                count = count + 1
+            end
+        end
+
+        if count < min_enemy_count and not (force_priority and is_priority) then
+            return false
+        end
+    end
+
     if cast_spell.self(spell_data.blessed_hammer.spell_id, 0) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.1;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Blessed Hammer");
         return true, cast_delay;

@@ -11,9 +11,9 @@ local menu_elements =
     mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
     min_target_range = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "advance_min_target_range")),
+    max_faith        = slider_float:new(0.1, 1.0, 0.9, get_hash(my_utility.plugin_label .. "advance_max_faith")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "advance_cast_delay")),
 }
 
 local function menu()
@@ -25,15 +25,13 @@ local function menu()
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
+            menu_elements.max_faith:render("Max Faith %", "Don't cast if Faith is above this % (unless Mobility Only)", 1)
 
             -- Logic
             menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
             menu_elements.force_priority:render("Force Priority",
                 "Always cast on Boss/Elite/Champion regardless of min range")
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
         end
 
         menu_elements.tree_tab:pop()
@@ -91,6 +89,14 @@ local function logics(target)
 
         if not my_utility.is_in_range(target, max_spell_range) then return false end
 
+        local local_player = get_local_player()
+        local current_faith_pct = local_player:get_primary_resource_current() / local_player:get_primary_resource_max()
+        local max_faith = menu_elements.max_faith:get()
+
+        if current_faith_pct > max_faith and not (force_priority and is_priority) then
+            return false
+        end
+
         local is_in_min_range = my_utility.is_in_range(target, menu_elements.min_target_range:get())
         if is_in_min_range and not (force_priority and is_priority) then
             return false
@@ -100,7 +106,7 @@ local function logics(target)
 
     if cast_spell.position(spell_data.advance.spell_id, cast_position, 0) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.1;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..

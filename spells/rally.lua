@@ -6,9 +6,10 @@ local menu_elements =
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
     hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_hp_threshold")),
+    min_faith        = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_min_faith")),
+    move_speed_mode  = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_move_speed_mode")),
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
-    cast_delay       = slider_float:new(0.01, 10.0, 0.1,
-        get_hash(my_utility.plugin_label .. "rally_cast_delay")),
+    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_force_priority")),
 }
 
 local function menu()
@@ -17,14 +18,13 @@ local function menu()
 
         if menu_elements.main_boolean:get() then
             menu_elements.hp_threshold:render("HP Threshold", "Cast when HP is below this percent (0.0 - 1.0)", 2)
+            menu_elements.min_faith:render("Min Faith %", "Cast when Faith is below this % to generate Faith", 2)
+            menu_elements.move_speed_mode:render("Move Speed Mode", "Cast when moving to gain speed boost")
 
             -- Logic
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
-
-            -- Cast Settings
-            menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action",
-                2)
+            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()
@@ -63,12 +63,27 @@ local function logics()
         return false
     end
 
-    if cast_spell.self(spell_data.rally.spell_id, 0) then
-        local cast_delay = menu_elements.cast_delay:get();
-        next_time_allowed_cast = current_time + cast_delay;
-        console.print("Cast Rally");
-        return true, cast_delay;
-    end;
+    local local_player = get_local_player()
+    local current_faith_pct = local_player:get_primary_resource_current() / local_player:get_primary_resource_max()
+    local min_faith = menu_elements.min_faith:get()
+
+    if current_faith_pct <= min_faith then
+        if cast_spell.self(spell_data.rally.spell_id, 0) then
+            local cast_delay = 0.1;
+            next_time_allowed_cast = current_time + cast_delay;
+            console.print("Cast Rally (Faith Gen)");
+            return true, cast_delay;
+        end
+    end
+
+    if menu_elements.move_speed_mode:get() and local_player:is_moving() then
+        if cast_spell.self(spell_data.rally.spell_id, 0) then
+            local cast_delay = 0.1;
+            next_time_allowed_cast = current_time + cast_delay;
+            console.print("Cast Rally (Speed)");
+            return true, cast_delay;
+        end
+    end
 
     return false;
 end
