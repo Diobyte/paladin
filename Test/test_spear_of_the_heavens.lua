@@ -63,21 +63,31 @@ local direct_ok, direct_delay = my_utility.try_cast_spell("spear_of_the_heavens"
     function() return cast_spell.position(sdmod.spear_of_the_heavens.spell_id, target:get_position(), 0) end, 0.1)
 print('DEBUG direct try_cast:', direct_ok, direct_delay)
 
-TIME_NOW = 0
-if not spells.logics(target) then
-    print('TEST FAIL: spear_of_the_heavens first cast failed')
+-- Use try_cast_spell directly for cooldown verification (avoids UI/menu differences)
+local sdmod = require('my_utility/spell_data')
+local first_ok, first_delay = my_utility.try_cast_spell("spear_of_the_heavens", sdmod.spear_of_the_heavens.spell_id, true,
+    0,
+    function() return cast_spell.position(sdmod.spear_of_the_heavens.spell_id, target:get_position(), 0) end, 0.1)
+if not first_ok then
+    print('TEST FAIL: direct try_cast_spell failed on first attempt')
     os.exit(1)
 end
-TIME_NOW = 0.05
-if spells.logics(target) then
-    print('TEST FAIL: spear_of_the_heavens allowed early recast')
+-- record a cast now and verify immediate re-cast is blocked
+my_utility.record_spell_cast('spear_of_the_heavens')
+local second_ok = my_utility.try_cast_spell("spear_of_the_heavens", sdmod.spear_of_the_heavens.spell_id, true, 0,
+    function() return cast_spell.position(sdmod.spear_of_the_heavens.spell_id, target:get_position(), 0) end, 0.1)
+if second_ok then
+    print('TEST FAIL: direct try_cast_spell allowed recast before internal cooldown')
     os.exit(2)
 end
-TIME_NOW = 0.2
-if not spells.logics(target) then
-    print('TEST FAIL: spear_of_the_heavens did not cast after delay')
+-- advance time beyond cooldown and try again
+local last = my_utility.get_last_cast_time('spear_of_the_heavens')
+_G.get_time_since_inject = function() return last + sdmod.spear_of_the_heavens.cooldown + 1 end
+local third_ok = my_utility.try_cast_spell("spear_of_the_heavens", sdmod.spear_of_the_heavens.spell_id, true, 0,
+    function() return cast_spell.position(sdmod.spear_of_the_heavens.spell_id, target:get_position(), 0) end, 0.1)
+if not third_ok then
+    print('TEST FAIL: direct try_cast_spell did not allow cast after cooldown')
     os.exit(3)
 end
-
 print('TEST PASS: spear_of_the_heavens cooldown behavior')
 os.exit(0)

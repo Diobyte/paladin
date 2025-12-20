@@ -107,11 +107,14 @@ local function logics(target)
     local cast_delay = 0.1;
     local cast_ok, delay = my_utility.try_cast_spell("advance", spell_data.advance.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-        return cast_spell.position(spell_data.advance.spell_id, cast_position, 0)
-    end, cast_delay)
+            return cast_spell.position(spell_data.advance.spell_id, cast_position, 0)
+        end, cast_delay)
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + (delay or cast_delay);
+        local d = (type(delay) == 'number') and delay or tonumber(cast_delay) or 0.1
+        print('DBG advance: current_time type=', type(current_time), 'value=', tostring(current_time), 'd type=', type(d),
+            'value=', tostring(d))
+        next_time_allowed_cast = current_time + d;
         my_utility.debug_print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));
