@@ -9,7 +9,7 @@ local menu_elements =
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "evade_targeting_mode")),
     mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
     min_target_range = slider_float:new(3, max_spell_range - 1, 5,
-        get_hash(my_utility.plugin_label .. "evade_min_target_range")),
+        get_hash(my_utility.plugin_label .. "evade_min_target_range"), 1),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_force_priority")),
 }
@@ -39,9 +39,8 @@ local next_time_allowed_cast = 0;
 
 local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get();
-    -- Evade is always enabled regardless of checkbox state for universal availability
     local is_logic_allowed = my_utility.is_spell_allowed(
-        true, -- Always treat as enabled for paladin universal evade
+        menu_boolean,
         next_time_allowed_cast,
         spell_data.evade.spell_id);
 

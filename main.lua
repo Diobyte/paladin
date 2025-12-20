@@ -37,11 +37,11 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "enemy_count_threshold")),
     max_targeting_range            = slider_int:new(1, 30, 12, get_hash(my_utility.plugin_label .. "max_targeting_range")),
     cursor_targeting_radius        = slider_float:new(0.1, 6, 3,
-        get_hash(my_utility.plugin_label .. "cursor_targeting_radius")),
+        get_hash(my_utility.plugin_label .. "cursor_targeting_radius"), 1),
     cursor_targeting_angle         = slider_int:new(20, 50, 30,
         get_hash(my_utility.plugin_label .. "cursor_targeting_angle")),
     best_target_evaluation_radius  = slider_float:new(0.1, 6, 3,
-        get_hash(my_utility.plugin_label .. "best_target_evaluation_radius")),
+        get_hash(my_utility.plugin_label .. "best_target_evaluation_radius"), 1),
 
     build_selector                 = combo_box:new(0, get_hash(my_utility.plugin_label .. "build_selector")),
 
@@ -53,7 +53,7 @@ local menu_elements =
     draw_enemy_circles             = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_enemy_circles")),
     draw_cursor_target             = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_cursor_target")),
     targeting_refresh_interval     = slider_float:new(0.1, 1, 0.2,
-        get_hash(my_utility.plugin_label .. "targeting_refresh_interval")),
+        get_hash(my_utility.plugin_label .. "targeting_refresh_interval"), 2),
 
     custom_enemy_weights_tree      = tree_node:new(2),
     custom_enemy_weights           = checkbox:new(false, get_hash(my_utility.plugin_label .. "custom_enemy_weights")),

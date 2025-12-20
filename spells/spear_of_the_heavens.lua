@@ -10,7 +10,7 @@ local menu_elements =
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_main_bool_base")),
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_targeting_mode")),
     min_target_range = slider_float:new(1, max_spell_range - 1, 3,
-        get_hash(my_utility.plugin_label .. "spear_of_the_heavens_min_target_range")),
+        get_hash(my_utility.plugin_label .. "spear_of_the_heavens_min_target_range"), 1),
     min_hits         = slider_int:new(1, 20, 3, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_min_hits")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_elites_only")),

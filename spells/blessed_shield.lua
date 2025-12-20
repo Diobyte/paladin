@@ -10,7 +10,7 @@ local menu_elements =
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_main_bool_base")),
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "blessed_shield_targeting_mode")),
     min_target_range    = slider_float:new(0, max_spell_range - 1, 0,
-        get_hash(my_utility.plugin_label .. "blessed_shield_min_target_range")),
+        get_hash(my_utility.plugin_label .. "blessed_shield_min_target_range"), 1),
     prioritize_clusters = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_prioritize_clusters")),
     force_priority      = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_force_priority")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "blessed_shield_elites_only")),
@@ -71,26 +71,30 @@ local function logics(target)
 
         -- Check if current target has neighbors
         local current_neighbors = 0
-        for _, enemy in ipairs(enemies) do
-            if enemy:get_position():squared_dist_to_ignore_z(target:get_position()) <= ricochet_range * ricochet_range then
-                current_neighbors = current_neighbors + 1
+        if enemies then
+            for _, enemy in ipairs(enemies) do
+                if enemy:get_position():squared_dist_to_ignore_z(target:get_position()) <= ricochet_range * ricochet_range then
+                    current_neighbors = current_neighbors + 1
+                end
             end
         end
         max_neighbors = current_neighbors
 
         -- Try to find a better target in range
-        for _, potential_target in ipairs(enemies) do
-            if my_utility.is_in_range(potential_target, max_spell_range) then
-                local neighbors = 0
-                for _, enemy in ipairs(enemies) do
-                    if enemy:get_position():squared_dist_to_ignore_z(potential_target:get_position()) <= ricochet_range * ricochet_range then
-                        neighbors = neighbors + 1
+        if enemies then
+            for _, potential_target in ipairs(enemies) do
+                if my_utility.is_in_range(potential_target, max_spell_range) then
+                    local neighbors = 0
+                    for _, enemy in ipairs(enemies) do
+                        if enemy:get_position():squared_dist_to_ignore_z(potential_target:get_position()) <= ricochet_range * ricochet_range then
+                            neighbors = neighbors + 1
+                        end
                     end
-                end
 
-                if neighbors > max_neighbors then
-                    max_neighbors = neighbors
-                    best_target = potential_target
+                    if neighbors > max_neighbors then
+                        max_neighbors = neighbors
+                        best_target = potential_target
+                    end
                 end
             end
         end

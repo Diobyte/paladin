@@ -9,8 +9,7 @@ local menu_elements =
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
     min_target_range = slider_float:new(3, max_spell_range - 1, 5,
-        get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
-    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_force_priority")),
+        get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range"), 1),
 }
 
 local function menu()
@@ -22,7 +21,6 @@ local function menu()
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
-            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()
@@ -47,7 +45,7 @@ local function logics(target)
 
     if cast_spell.position(spell_data.paladin_evade.spell_id, target:get_position(), 0) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.5;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Paladin Evade");
         return true, cast_delay;

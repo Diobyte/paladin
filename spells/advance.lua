@@ -10,8 +10,8 @@ local menu_elements =
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "advance_targeting_mode")),
     mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
     min_target_range = slider_float:new(1, max_spell_range - 1, 3,
-        get_hash(my_utility.plugin_label .. "advance_min_target_range")),
-    max_faith        = slider_float:new(0.1, 1.0, 0.9, get_hash(my_utility.plugin_label .. "advance_max_faith")),
+        get_hash(my_utility.plugin_label .. "advance_min_target_range"), 1),
+    max_faith        = slider_float:new(0.1, 1.0, 0.9, get_hash(my_utility.plugin_label .. "advance_max_faith"), 2),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
 }
@@ -25,9 +25,9 @@ local function menu()
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
-            menu_elements.max_faith:render("Max Faith %", "Don't cast if Faith is above this % (unless Mobility Only)", 1)
 
             -- Logic
+            menu_elements.max_faith:render("Max Faith %", "Don't cast if Faith is above this % (unless Mobility Only)", 1)
             menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
             menu_elements.force_priority:render("Force Priority",

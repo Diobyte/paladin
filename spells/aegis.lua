@@ -4,10 +4,9 @@ local spell_data = require("my_utility/spell_data")
 local max_spell_range = 0.0 -- Self-cast
 local menu_elements =
 {
-    tree_tab       = tree_node:new(1),
-    main_boolean   = checkbox:new(true, get_hash(my_utility.plugin_label .. "aegis_main_bool_base")),
-    hp_threshold   = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "aegis_hp_threshold")),
-    force_priority = checkbox:new(true, get_hash(my_utility.plugin_label .. "aegis_force_priority")),
+    tree_tab     = tree_node:new(1),
+    main_boolean = checkbox:new(true, get_hash(my_utility.plugin_label .. "aegis_main_bool_base")),
+    hp_threshold = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "aegis_hp_threshold"), 2),
 }
 
 local function menu()
@@ -16,7 +15,6 @@ local function menu()
 
         if menu_elements.main_boolean:get() then
             menu_elements.hp_threshold:render("HP Threshold", "Cast when HP is below this percent (0.0 - 1.0)", 2)
-            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()
@@ -30,6 +28,14 @@ local function logics()
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast, spell_data.aegis.spell_id);
     if not is_logic_allowed then return false end;
+
+    local local_player = get_local_player();
+    local current_hp_pct = local_player:get_current_health() / local_player:get_max_health();
+    local hp_threshold = menu_elements.hp_threshold:get();
+
+    if current_hp_pct > hp_threshold then
+        return false;
+    end
 
     if cast_spell.self(spell_data.aegis.spell_id, 0) then
         local current_time = get_time_since_inject();

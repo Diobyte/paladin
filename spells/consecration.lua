@@ -6,7 +6,8 @@ local menu_elements =
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "consecration_main_bool_base")),
     min_enemy_count  = slider_int:new(1, 10, 1, get_hash(my_utility.plugin_label .. "consecration_min_enemy_count")),
-    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "consecration_hp_threshold")),
+    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "consecration_hp_threshold"),
+        2),
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "consecration_cast_on_cooldown")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "consecration_force_priority")),
 }
@@ -16,6 +17,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
 
         if menu_elements.main_boolean:get() then
+            -- Conditions
             menu_elements.min_enemy_count:render("Min Enemy Count", "Minimum number of enemies in range to cast", 1)
             menu_elements.hp_threshold:render("HP Threshold",
                 "Cast when HP is below this percent (0.0 - 1.0) for healing", 2)
@@ -75,16 +77,18 @@ local function logics()
     local count = 0
     local range = 5.0 -- Consecration radius
 
-    for _, enemy in ipairs(enemies) do
-        local dist_sq = enemy:get_position():squared_dist_to_ignore_z(player_pos)
-        if dist_sq <= range * range then
-            count = count + 1
-            if force_priority and (enemy:is_boss() or enemy:is_elite() or enemy:is_champion()) then
-                if cast_spell.self(spell_data.consecration.spell_id, 0) then
-                    local current_time = get_time_since_inject();
-                    next_time_allowed_cast = current_time + 0.1;
-                    console.print("Cast Consecration (Priority)");
-                    return true, 0.1;
+    if enemies then
+        for _, enemy in ipairs(enemies) do
+            local dist_sq = enemy:get_position():squared_dist_to_ignore_z(player_pos)
+            if dist_sq <= range * range then
+                count = count + 1
+                if force_priority and (enemy:is_boss() or enemy:is_elite() or enemy:is_champion()) then
+                    if cast_spell.self(spell_data.consecration.spell_id, 0) then
+                        local current_time = get_time_since_inject();
+                        next_time_allowed_cast = current_time + 0.1;
+                        console.print("Cast Consecration (Priority)");
+                        return true, 0.1;
+                    end
                 end
             end
         end

@@ -4,23 +4,13 @@ local spell_data = require("my_utility/spell_data")
 local max_spell_range = 0.0
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "fanaticism_aura_main_bool_base")),
-    cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "fanaticism_aura_cast_on_cooldown")),
-    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "fanaticism_aura_force_priority")),
+    tree_tab     = tree_node:new(1),
+    main_boolean = checkbox:new(true, get_hash(my_utility.plugin_label .. "fanaticism_aura_main_bool_base")),
 }
 
 local function menu()
     if menu_elements.tree_tab:push("Fanaticism Aura") then
-        menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
-
-        if menu_elements.main_boolean:get() then
-            -- Logic
-            menu_elements.cast_on_cooldown:render("Cast on Cooldown",
-                "Always cast when ready (maintains buff constantly)")
-            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
-        end
-
+        menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell (Always maintains buff)")
         menu_elements.tree_tab:pop()
     end
 end
@@ -36,21 +26,9 @@ local function logics()
 
     if not is_logic_allowed then return false end;
 
-    -- Check cast on cooldown option
-    if menu_elements.cast_on_cooldown:get() then
-        -- Cast immediately when ready with minimal delay to maintain buff
-        if cast_spell.self(spell_data.fanaticism_aura.spell_id, 0) then
-            local current_time = get_time_since_inject();
-            next_time_allowed_cast = current_time + 0.1; -- Small delay to prevent spam
-            console.print("Cast Fanaticism Aura (On Cooldown)");
-            return true, 0.1;
-        end;
-        return false;
-    end
-
     if cast_spell.self(spell_data.fanaticism_aura.spell_id, 0) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.5;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Fanaticism Aura");
         return true, cast_delay;

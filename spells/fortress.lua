@@ -4,11 +4,9 @@ local spell_data = require("my_utility/spell_data")
 local max_spell_range = 0.0 -- Self-cast
 local menu_elements =
 {
-    tree_tab       = tree_node:new(1),
-    main_boolean   = checkbox:new(true, get_hash(my_utility.plugin_label .. "fortress_main_bool_base")),
-    hp_threshold   = slider_float:new(0.0, 1.0, 0.4, get_hash(my_utility.plugin_label .. "fortress_hp_threshold")),
-    use_on_cc      = checkbox:new(true, get_hash(my_utility.plugin_label .. "fortress_use_on_cc")),
-    force_priority = checkbox:new(true, get_hash(my_utility.plugin_label .. "fortress_force_priority")),
+    tree_tab     = tree_node:new(1),
+    main_boolean = checkbox:new(true, get_hash(my_utility.plugin_label .. "fortress_main_bool_base")),
+    hp_threshold = slider_float:new(0.0, 1.0, 0.4, get_hash(my_utility.plugin_label .. "fortress_hp_threshold"), 2),
 }
 
 local function menu()
@@ -17,8 +15,6 @@ local function menu()
 
         if menu_elements.main_boolean:get() then
             menu_elements.hp_threshold:render("HP Threshold", "Cast when HP is below this percent (0.0 - 1.0)", 2)
-            menu_elements.use_on_cc:render("Use on CC", "Cast when Crowd Controlled (Stunned, Frozen, etc.)")
-            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()
@@ -37,10 +33,8 @@ local function logics()
     local local_player = get_local_player()
     local current_hp_pct = local_player:get_current_health() / local_player:get_max_health()
     local hp_threshold = menu_elements.hp_threshold:get()
-    local use_on_cc = menu_elements.use_on_cc:get()
-    -- local is_cc = my_utility.is_crowd_controlled(local_player)
 
-    if current_hp_pct > hp_threshold then -- and not (use_on_cc and is_cc) then
+    if current_hp_pct > hp_threshold then
         return false
     end
 

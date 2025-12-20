@@ -14,7 +14,10 @@ local function menu()
         menu_elements.main_boolean:render("Enable Spell", "")
 
         if menu_elements.main_boolean:get() then
+            -- Conditions
             menu_elements.min_enemy_count:render("Min Enemy Count", "Minimum number of enemies in range to cast", 1)
+
+            -- Logic
             menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
@@ -43,11 +46,13 @@ local function logics()
         local player_pos = get_player_position()
         local is_priority = false
 
-        for _, enemy in ipairs(enemies) do
-            if enemy:get_position():squared_dist_to_ignore_z(player_pos) <= range * range then
-                count = count + 1
-                if force_priority and (enemy:is_boss() or enemy:is_elite() or enemy:is_champion()) then
-                    is_priority = true
+        if enemies then
+            for _, enemy in ipairs(enemies) do
+                if enemy:get_position():squared_dist_to_ignore_z(player_pos) <= range * range then
+                    count = count + 1
+                    if force_priority and (enemy:is_boss() or enemy:is_elite() or enemy:is_champion()) then
+                        is_priority = true
+                    end
                 end
             end
         end

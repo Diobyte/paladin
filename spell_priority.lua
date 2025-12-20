@@ -7,7 +7,7 @@ local spell_data = require("my_utility/spell_data");
 
 -- Function to get base spell priority (without item adjustments)
 local function get_base_spell_priority(build_index)
-    if build_index == 1 then  -- Judgement Nuke
+    if build_index == 1 then -- Judgement Nuke
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -49,7 +49,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 2 then  -- Hammerkuna
+    elseif build_index == 2 then -- Hammerkuna
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -90,7 +90,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 3 then  -- Arbiter
+    elseif build_index == 3 then -- Arbiter
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -132,7 +132,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 4 then  -- Captain America
+    elseif build_index == 4 then -- Captain America
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -176,7 +176,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 5 then  -- Shield Bash
+    elseif build_index == 5 then -- Shield Bash
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -216,7 +216,7 @@ local function get_base_spell_priority(build_index)
             "holy_bolt",
             "consecration",
         }
-    elseif build_index == 6 then  -- Wing Strikes
+    elseif build_index == 6 then -- Wing Strikes
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -258,7 +258,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 7 then  -- Evade Hammer
+    elseif build_index == 7 then -- Evade Hammer
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and damage
             "paladin_evade",
@@ -298,7 +298,7 @@ local function get_base_spell_priority(build_index)
             "holy_bolt",
             "clash",
         }
-    elseif build_index == 8 then  -- Arbiter Evade
+    elseif build_index == 8 then -- Arbiter Evade
         return {
             -- Arbiter with evade for high mobility and ultimate spam - META BUILD
             "paladin_evade",
@@ -340,7 +340,7 @@ local function get_base_spell_priority(build_index)
             "advance",
             "consecration",
         }
-    elseif build_index == 9 then  -- Heaven's Fury
+    elseif build_index == 9 then -- Heaven's Fury
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -382,7 +382,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 10 then  -- Spear
+    elseif build_index == 10 then -- Spear
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -427,7 +427,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 11 then  -- Zenith Tank
+    elseif build_index == 11 then -- Zenith Tank
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -467,7 +467,7 @@ local function get_base_spell_priority(build_index)
             "clash",
             "consecration",
         }
-    elseif build_index == 12 then  -- Auradin
+    elseif build_index == 12 then -- Auradin
         return {
             -- HIGHEST PRIORITY - Enhanced Evade for mobility and safety
             "paladin_evade",
@@ -524,7 +524,7 @@ local function get_base_spell_priority(build_index)
             "holy_bolt",
             "clash",
         }
-    else  -- Default build (build_index == 0 or any other value)
+    else -- Default build (build_index == 0 or any other value)
         return {
             -- Core mobility and safety
             "paladin_evade",
@@ -582,28 +582,32 @@ local function adjust_priorities_for_items(base_priorities)
     local resource_gen_total = 0
 
     -- Analyze each equipped item for relevant stats
-    for _, item in ipairs(equipped_items) do
-        if item then
-            local affixes = item:get_affixes()
-            for _, affix in ipairs(affixes) do
-                if affix then
-                    local name = affix:get_name()
-                    local value = affix:get_roll()
-                    -- Check for attack speed (reduces aura priority)
-                    if name:find("Attack Speed") or name:find("attacks_per_second") then
-                        attack_speed_total = attack_speed_total + value
-                    end
-                    -- Check for cooldown reduction (increases ultimate priority)
-                    if name:find("Cooldown Reduction") or name:find("cooldown_reduction") then
-                        cdr_total = cdr_total + value
-                    end
-                    -- Check for critical hit damage
-                    if name:find("Critical Strike Damage") or name:find("crit_damage") then
-                        crit_damage_total = crit_damage_total + value
-                    end
-                    -- Check for resource generation
-                    if name:find("Resource Generation") or name:find("resource_generation") then
-                        resource_gen_total = resource_gen_total + value
+    if equipped_items then
+        for _, item in ipairs(equipped_items) do
+            if item then
+                local affixes = item:get_affixes()
+                if affixes then
+                    for _, affix in ipairs(affixes) do
+                        if affix then
+                            local name = affix:get_name()
+                            local value = affix:get_roll()
+                            -- Check for attack speed (reduces aura priority)
+                            if name:find("Attack Speed") or name:find("attacks_per_second") then
+                                attack_speed_total = attack_speed_total + value
+                            end
+                            -- Check for cooldown reduction (increases ultimate priority)
+                            if name:find("Cooldown Reduction") or name:find("cooldown_reduction") then
+                                cdr_total = cdr_total + value
+                            end
+                            -- Check for critical hit damage
+                            if name:find("Critical Strike Damage") or name:find("crit_damage") then
+                                crit_damage_total = crit_damage_total + value
+                            end
+                            -- Check for resource generation
+                            if name:find("Resource Generation") or name:find("resource_generation") then
+                                resource_gen_total = resource_gen_total + value
+                            end
+                        end
                     end
                 end
             end
@@ -615,8 +619,8 @@ local function adjust_priorities_for_items(base_priorities)
 
     -- If high attack speed from items, reduce aura priority
     local aura_priority_reduction = 0
-    if attack_speed_total > 50 then  -- High attack speed from gear
-        aura_priority_reduction = 2  -- Move auras down in priority
+    if attack_speed_total > 50 then -- High attack speed from gear
+        aura_priority_reduction = 2 -- Move auras down in priority
     elseif attack_speed_total > 30 then
         aura_priority_reduction = 1
     end
@@ -640,8 +644,8 @@ local function adjust_priorities_for_items(base_priorities)
 
         -- Adjust ultimate positions
         if (spell_name == "arbiter_of_justice" or spell_name == "heavens_fury" or
-            spell_name == "spear_of_the_heavens" or spell_name == "zenith" or
-            spell_name == "aegis") and ultimate_priority_boost > 0 then
+                spell_name == "spear_of_the_heavens" or spell_name == "zenith" or
+                spell_name == "aegis") and ultimate_priority_boost > 0 then
             new_position = math.max(1, i - ultimate_priority_boost)
         end
 
@@ -680,11 +684,11 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
     end
 
     local adjusted_priorities = {}
-    local faith_current = local_player:get_primary_resource_current()  -- Faith resource
+    local faith_current = local_player:get_primary_resource_current() -- Faith resource
     local faith_max = local_player:get_primary_resource_max()
 
     -- Intelligent Faith-based adjustments
-    local faith_emergency = faith_current < (faith_max * 0.2)  -- Critical: prioritize restoration
+    local faith_emergency = faith_current < (faith_max * 0.2) -- Critical: prioritize restoration
     local faith_low = faith_current < (faith_max * 0.4)       -- Low: prioritize generation
     local faith_moderate = faith_current < (faith_max * 0.6)  -- Moderate: slight boost
 
@@ -694,8 +698,8 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
     local consumer_penalty = 0
 
     if faith_emergency then
-        rally_boost = 5  -- Emergency Rally
-        consumer_penalty = 3  -- Deprioritize consumers
+        rally_boost = 5      -- Emergency Rally
+        consumer_penalty = 3 -- Deprioritize consumers
     elseif faith_low then
         generator_boost = 3  -- Boost generators
         consumer_penalty = 1
@@ -706,11 +710,11 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
     -- Health-based defensive adjustments
     local health_percent = (local_player:get_current_health() / local_player:get_max_health()) * 100
     local defensive_boost = 0
-    if health_percent < 30 then  -- Critical health
+    if health_percent < 30 then     -- Critical health
         defensive_boost = 3
-    elseif health_percent < 50 then  -- Low health
+    elseif health_percent < 50 then -- Low health
         defensive_boost = 2
-    elseif health_percent < 70 then  -- Moderate health
+    elseif health_percent < 70 then -- Moderate health
         defensive_boost = 1
     end
 
@@ -728,15 +732,15 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         end
 
         -- Build-specific Faith optimizations
-        if build_index == 2 then  -- Hammerkuna: Always prioritize Blessed Hammer for Faith gen
+        if build_index == 2 then -- Hammerkuna: Always prioritize Blessed Hammer for Faith gen
             if spell_name == "blessed_hammer" then
                 new_position = math.max(1, i - 1)
             end
-        elseif build_index == 3 then  -- Arbiter: Prioritize Wrath generators (proxy via Faith generators since Wrath not directly accessible)
+        elseif build_index == 3 then -- Arbiter: Prioritize Wrath generators (proxy via Faith generators since Wrath not directly accessible)
             if spell_name == "zeal" or spell_name == "divine_lance" then
                 new_position = math.max(1, i - 2)
             end
-        elseif build_index == 10 then  -- Spear: Prioritize Wrath generators (proxy via Faith generators since Wrath not directly accessible)
+        elseif build_index == 10 then -- Spear: Prioritize Wrath generators (proxy via Faith generators since Wrath not directly accessible)
             if spell_name == "zeal" or spell_name == "divine_lance" then
                 new_position = math.max(1, i - 2)
             end
@@ -749,11 +753,12 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
 
         -- High Faith: Boost one ultimate consumer (mutual exclusion)
         if faith_current > (faith_max * 0.8) then
-            local ultimates = {"arbiter_of_justice", "heavens_fury", "spear_of_the_heavens", "zenith", "aegis", "fortress"}
+            local ultimates = { "arbiter_of_justice", "heavens_fury", "spear_of_the_heavens", "zenith", "aegis",
+                "fortress" }
             for _, ult_name in ipairs(ultimates) do
                 if spell_name == ult_name and spell_data[ult_name] and utility.is_spell_ready(spell_data[ult_name].spell_id) then
                     new_position = math.max(1, i - 1)
-                    break  -- Only boost the first ready ultimate
+                    break -- Only boost the first ready ultimate
                 end
             end
         end
@@ -762,21 +767,23 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         if build_index == 12 then
             -- Emergency: If health critical, prioritize Aegis immediately
             if health_percent < 25 and spell_name == "aegis" then
-                new_position = 2  -- Right after evade
+                new_position = 2 -- Right after evade
             end
 
             -- Boost Condemn if enemies are far (need to pull into aura range)
             if spell_name == "condemn" then
                 local enemies = actors_manager.get_enemy_actors()
                 local far_enemies = 0
-                for _, enemy in ipairs(enemies) do
-                    local dist = enemy:get_position():dist_to(local_player:get_position())
-                    if dist > 8 then  -- Beyond typical aura range
-                        far_enemies = far_enemies + 1
+                if enemies then
+                    for _, enemy in ipairs(enemies) do
+                        local dist = enemy:get_position():dist_to(local_player:get_position())
+                        if dist > 8 then -- Beyond typical aura range
+                            far_enemies = far_enemies + 1
+                        end
                     end
                 end
                 if far_enemies > 0 then
-                    new_position = math.max(1, i - 2)  -- Boost condemn
+                    new_position = math.max(1, i - 2) -- Boost condemn
                 end
             end
         end
@@ -794,7 +801,11 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         end
 
         -- Enemy count: Boost AOE spells if many enemies
-        local enemy_count = #actors_manager.get_enemy_actors()
+        local enemies = actors_manager.get_enemy_actors()
+        local enemy_count = 0
+        if enemies then
+            enemy_count = #enemies
+        end
         local aoe_boost = 0
         if enemy_count >= 5 then
             aoe_boost = 2

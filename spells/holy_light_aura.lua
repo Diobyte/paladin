@@ -4,12 +4,10 @@ local spell_data = require("my_utility/spell_data")
 local max_spell_range = 15.0
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_light_aura_main_bool_base")),
-    cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "holy_light_aura_cast_on_cooldown")),
-    max_cast_range   = slider_float:new(1.0, 15.0, 5.0,
-        get_hash(my_utility.plugin_label .. "holy_light_aura_max_cast_range")),
-    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_light_aura_force_priority")),
+    tree_tab       = tree_node:new(1),
+    main_boolean   = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_light_aura_main_bool_base")),
+    max_cast_range = slider_float:new(1.0, 15.0, 5.0,
+        get_hash(my_utility.plugin_label .. "holy_light_aura_max_cast_range"), 1),
 }
 
 local function menu()
@@ -17,11 +15,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
 
         if menu_elements.main_boolean:get() then
-            -- Logic
-            menu_elements.cast_on_cooldown:render("Cast on Cooldown",
-                "Always cast when ready (maintains buff constantly)")
             menu_elements.max_cast_range:render("Max Cast Range", "Only cast when enemies are within this range", 1)
-            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()
@@ -43,21 +37,9 @@ local function logics()
     local enemy_count = my_utility.enemy_count_simple(menu_elements.max_cast_range:get());
     if enemy_count == 0 then return false end;
 
-    -- Check cast on cooldown option
-    if menu_elements.cast_on_cooldown:get() then
-        -- Cast immediately when ready with minimal delay to maintain buff
-        if cast_spell.self(spell_data.holy_light_aura.spell_id, 0) then
-            local current_time = get_time_since_inject();
-            next_time_allowed_cast = current_time + 0.1; -- Small delay to prevent spam
-            console.print("Cast Holy Light Aura (On Cooldown)");
-            return true, 0.1;
-        end;
-        return false;
-    end
-
     if cast_spell.self(spell_data.holy_light_aura.spell_id, 0) then
         local current_time = get_time_since_inject();
-        local cast_delay = menu_elements.cast_delay:get();
+        local cast_delay = 0.5;
         next_time_allowed_cast = current_time + cast_delay;
         console.print("Cast Holy Light Aura");
         return true, cast_delay;

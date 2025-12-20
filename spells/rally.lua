@@ -5,11 +5,10 @@ local menu_elements =
 {
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
-    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_hp_threshold")),
-    min_faith        = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_min_faith")),
+    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_hp_threshold"), 2),
+    min_faith        = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_min_faith"), 2),
     move_speed_mode  = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_move_speed_mode")),
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
-    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_force_priority")),
 }
 
 local function menu()
@@ -17,6 +16,7 @@ local function menu()
         menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
 
         if menu_elements.main_boolean:get() then
+            -- Conditions
             menu_elements.hp_threshold:render("HP Threshold", "Cast when HP is below this percent (0.0 - 1.0)", 2)
             menu_elements.min_faith:render("Min Faith %", "Cast when Faith is below this % to generate Faith", 2)
             menu_elements.move_speed_mode:render("Move Speed Mode", "Cast when moving to gain speed boost")
@@ -24,7 +24,6 @@ local function menu()
             -- Logic
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
-            menu_elements.force_priority:render("Force Priority", "Always cast on Boss/Elite/Champion (if applicable)")
         end
 
         menu_elements.tree_tab:pop()
@@ -64,6 +63,18 @@ local function logics()
     end
 
     local local_player = get_local_player()
+    local current_hp_pct = local_player:get_current_health() / local_player:get_max_health()
+    local hp_threshold = menu_elements.hp_threshold:get()
+
+    if current_hp_pct <= hp_threshold then
+        if cast_spell.self(spell_data.rally.spell_id, 0) then
+            local cast_delay = 0.1;
+            next_time_allowed_cast = current_time + cast_delay;
+            console.print("Cast Rally (Heal)");
+            return true, cast_delay;
+        end
+    end
+
     local current_faith_pct = local_player:get_primary_resource_current() / local_player:get_primary_resource_max()
     local min_faith = menu_elements.min_faith:get()
 
