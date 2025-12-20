@@ -8,7 +8,7 @@ local menu_elements =
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "clash_main_bool_base")),
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "clash_targeting_mode")),
-    min_target_range = slider_float:new(0, max_spell_range - 1, 0,
+    min_target_range = slider_float:new(0.0, max_spell_range - 1, 0.0,
         get_hash(my_utility.plugin_label .. "clash_min_target_range"), 1),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "clash_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "clash_elites_only")),
