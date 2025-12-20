@@ -7,7 +7,7 @@ local menu_elements =
     tree_tab       = tree_node:new(1),
     main_boolean   = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_light_aura_main_bool_base")),
     max_cast_range = slider_float:new(1.0, 15.0, 5.0,
-        get_hash(my_utility.plugin_label .. "holy_light_aura_max_cast_range"), 1),
+        get_hash(my_utility.plugin_label .. "holy_light_aura_max_cast_range")),
 }
 
 local function menu()
@@ -32,6 +32,10 @@ local function logics()
         spell_data.holy_light_aura.spell_id);
 
     if not is_logic_allowed then return false end;
+
+    if my_utility.is_buff_active(spell_data.holy_light_aura.spell_id, spell_data.holy_light_aura.buff_id) then
+        return false
+    end
 
     -- Check if there are enemies within the specified range
     local enemy_count = my_utility.enemy_count_simple(menu_elements.max_cast_range:get());

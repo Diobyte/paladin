@@ -26,6 +26,10 @@ local function logics()
 
     if not is_logic_allowed then return false end;
 
+    if my_utility.is_buff_active(spell_data.fanaticism_aura.spell_id, spell_data.fanaticism_aura.buff_id) then
+        return false
+    end
+
     if cast_spell.self(spell_data.fanaticism_aura.spell_id, 0) then
         local current_time = get_time_since_inject();
         local cast_delay = 0.5;

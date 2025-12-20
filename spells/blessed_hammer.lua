@@ -51,6 +51,10 @@ local function logics(target)
 
     if not is_logic_allowed then return false end;
 
+    if not utility.has_enough_resources_for_spell(spell_data.blessed_hammer.spell_id) then
+        return false
+    end
+
     if not my_utility.is_in_range(target, max_spell_range) then
         return false;
     end

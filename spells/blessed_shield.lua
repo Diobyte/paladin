@@ -10,7 +10,7 @@ local menu_elements =
     main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_main_bool_base")),
     targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "blessed_shield_targeting_mode")),
     min_target_range    = slider_float:new(0.0, max_spell_range - 1, 0.0,
-        get_hash(my_utility.plugin_label .. "blessed_shield_min_target_range"), 1),
+        get_hash(my_utility.plugin_label .. "blessed_shield_min_target_range")),
     prioritize_clusters = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_prioritize_clusters")),
     force_priority      = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_shield_force_priority")),
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "blessed_shield_elites_only")),
@@ -50,6 +50,10 @@ local function logics(target)
         spell_data.blessed_shield.spell_id);
 
     if not is_logic_allowed then return false end;
+
+    if not utility.has_enough_resources_for_spell(spell_data.blessed_shield.spell_id) then
+        return false
+    end
 
     if not my_utility.is_in_range(target, max_spell_range) then
         return false

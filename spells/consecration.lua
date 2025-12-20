@@ -6,8 +6,7 @@ local menu_elements =
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "consecration_main_bool_base")),
     min_enemy_count  = slider_int:new(1, 10, 1, get_hash(my_utility.plugin_label .. "consecration_min_enemy_count")),
-    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "consecration_hp_threshold"),
-        2),
+    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "consecration_hp_threshold")),
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "consecration_cast_on_cooldown")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "consecration_force_priority")),
 }

@@ -9,7 +9,7 @@ local menu_elements =
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "evade_targeting_mode")),
     mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
     min_target_range = slider_float:new(0.0, max_spell_range - 1, 0.0,
-        get_hash(my_utility.plugin_label .. "evade_min_target_range"), 1),
+        get_hash(my_utility.plugin_label .. "evade_min_target_range")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_force_priority")),
 }

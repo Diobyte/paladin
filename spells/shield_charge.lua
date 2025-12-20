@@ -10,7 +10,7 @@ local menu_elements =
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "shield_charge_main_bool_base")),
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "shield_charge_targeting_mode")),
     min_target_range = slider_float:new(0.0, max_spell_range - 1, 0.0,
-        get_hash(my_utility.plugin_label .. "shield_charge_min_target_range"), 1),
+        get_hash(my_utility.plugin_label .. "shield_charge_min_target_range")),
     min_hits         = slider_int:new(1, 20, 3, get_hash(my_utility.plugin_label .. "shield_charge_min_hits")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "shield_charge_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "shield_charge_elites_only")),

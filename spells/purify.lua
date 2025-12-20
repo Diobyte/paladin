@@ -6,7 +6,7 @@ local menu_elements =
 {
     tree_tab     = tree_node:new(1),
     main_boolean = checkbox:new(true, get_hash(my_utility.plugin_label .. "purify_main_bool_base")),
-    hp_threshold = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "purify_hp_threshold"), 2),
+    hp_threshold = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "purify_hp_threshold")),
 }
 
 local function menu()

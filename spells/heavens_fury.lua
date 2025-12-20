@@ -9,7 +9,7 @@ local menu_elements =
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "heavens_fury_main_bool_base")),
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "heavens_fury_targeting_mode")),
     min_target_range = slider_float:new(0.0, max_spell_range - 1, 0.0,
-        get_hash(my_utility.plugin_label .. "heavens_fury_min_target_range"), 1),
+        get_hash(my_utility.plugin_label .. "heavens_fury_min_target_range")),
     min_enemy_count  = slider_int:new(1, 10, 1, get_hash(my_utility.plugin_label .. "heavens_fury_min_enemy_count")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "heavens_fury_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "heavens_fury_elites_only")),

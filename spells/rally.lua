@@ -5,8 +5,8 @@ local menu_elements =
 {
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
-    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_hp_threshold"), 2),
-    min_faith        = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_min_faith"), 2),
+    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_hp_threshold")),
+    min_faith        = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_min_faith")),
     move_speed_mode  = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_move_speed_mode")),
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
 }

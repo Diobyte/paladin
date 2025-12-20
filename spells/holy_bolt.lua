@@ -9,8 +9,8 @@ local menu_elements =
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_bolt_main_bool_base")),
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "holy_bolt_targeting_mode")),
     min_target_range = slider_float:new(0.0, max_spell_range - 1, 0.0,
-        get_hash(my_utility.plugin_label .. "holy_bolt_min_target_range"), 1),
-    max_faith        = slider_float:new(0.1, 1.0, 0.9, get_hash(my_utility.plugin_label .. "holy_bolt_max_faith"), 2),
+        get_hash(my_utility.plugin_label .. "holy_bolt_min_target_range")),
+    max_faith        = slider_float:new(0.1, 1.0, 0.9, get_hash(my_utility.plugin_label .. "holy_bolt_max_faith")),
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "holy_bolt_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "holy_bolt_elites_only")),
 }
