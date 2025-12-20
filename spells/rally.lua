@@ -3,17 +3,11 @@ local spell_data = require("my_utility/spell_data")
 
 local menu_elements =
 {
-<<<<<<< Updated upstream
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
-    cast_on_cooldown    = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
-    cast_delay          = slider_float:new(0.01, 10.0, 0.1,
-=======
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
+    hp_threshold     = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "rally_hp_threshold")),
     cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
     cast_delay       = slider_float:new(0.01, 10.0, 0.1,
->>>>>>> Stashed changes
         get_hash(my_utility.plugin_label .. "rally_cast_delay")),
 }
 
@@ -22,16 +16,8 @@ local function menu()
         menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
 
         if menu_elements.main_boolean:get() then
-<<<<<<< Updated upstream
-            menu_elements.cast_on_cooldown:render("Cast on Cooldown", "Always cast when ready (maintains buff constantly)")
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-=======
-<<<<<<< Updated upstream
             menu_elements.hp_threshold:render("HP Threshold", "Cast when HP is below this percent (0.0 - 1.0)", 2)
-            menu_elements.cast_on_cooldown:render("Cast on Cooldown", "Always cast when ready (maintains buff constantly)")
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
-=======
+
             -- Logic
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
@@ -39,8 +25,6 @@ local function menu()
             -- Cast Settings
             menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action",
                 2)
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         end
 
         menu_elements.tree_tab:pop()

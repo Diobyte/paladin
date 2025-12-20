@@ -11,18 +11,9 @@ local menu_elements =
     mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
     min_target_range = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "advance_min_target_range")),
-<<<<<<< Updated upstream
-    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "advance_cast_delay")),
-<<<<<<< Updated upstream
-=======
-    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_is_independent")),
-=======
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
     cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "advance_cast_delay")),
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 }
 
 local function menu()
@@ -33,18 +24,6 @@ local function menu()
             -- Targeting
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
-<<<<<<< Updated upstream
-            menu_elements.mobility_only:render("Only use for mobility", "")
-            if menu_elements.mobility_only:get() then
-                menu_elements.min_target_range:render("Min Target Distance",
-                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
-            end
-            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-<<<<<<< Updated upstream
-=======
-            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
-=======
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
 
             -- Logic
@@ -55,8 +34,6 @@ local function menu()
 
             -- Cast Settings
             menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         end
 
         menu_elements.tree_tab:pop()
@@ -111,41 +88,11 @@ local function logics(target)
     else
         -- Combat mode: require target
         if not target then return false end
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-        
-        -- Defensive Logic: Dash AWAY if low HP
-        local local_player = get_local_player()
-        if local_player then
-            local current_hp_pct = local_player:get_current_health() / local_player:get_max_health()
-            if current_hp_pct < 0.3 then
-                local player_pos = local_player:get_position()
-                local target_pos = target:get_position()
-                -- Calculate vector away from target
-                local away_vector = (player_pos - target_pos):normalize()
-                local safe_spot = player_pos + (away_vector * 5.0) -- Dash 5 yards away
-                
-                if not evade.is_dangerous_position(safe_spot) then
-                    cast_position = safe_spot
-                    console.print("Cast Advance - Defensive Dash Away")
-                    if cast_spell.position(spell_data.advance.spell_id, cast_position, 0) then
-                        local current_time = get_time_since_inject();
-                        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
-                        return true;
-                    end
-                end
-            end
-        end
 
->>>>>>> Stashed changes
-        if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
-=======
         if not my_utility.is_in_range(target, max_spell_range) then return false end
 
         local is_in_min_range = my_utility.is_in_range(target, menu_elements.min_target_range:get())
         if is_in_min_range and not (force_priority and is_priority) then
->>>>>>> Stashed changes
             return false
         end
         cast_position = target:get_position()

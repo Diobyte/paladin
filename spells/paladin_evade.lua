@@ -5,25 +5,12 @@ local max_spell_range = 10.0
 local targeting_type = "both"
 local menu_elements =
 {
-<<<<<<< Updated upstream
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
-    min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
-        get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
-<<<<<<< Updated upstream
-=======
-    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "paladin_evade_is_independent")),
-=======
     tree_tab         = tree_node:new(1),
     main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
     targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
     min_target_range = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
     cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 }
 
 local function menu()
@@ -34,20 +21,10 @@ local function menu()
             -- Targeting
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
-<<<<<<< Updated upstream
-            menu_elements.min_target_range:render("Min Target Distance",
-                "\n     Must be lower than Max Targeting Range     \n\n", 1)
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-<<<<<<< Updated upstream
-=======
-            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
-=======
             menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
 
             -- Cast Settings
             menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         end
 
         menu_elements.tree_tab:pop()

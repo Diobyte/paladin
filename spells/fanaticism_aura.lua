@@ -16,21 +16,12 @@ local function menu()
         menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
 
         if menu_elements.main_boolean:get() then
-<<<<<<< Updated upstream
-            menu_elements.cast_on_cooldown:render("Cast on Cooldown", "Always cast when ready (maintains buff constantly)")
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-<<<<<<< Updated upstream
-=======
-            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
-=======
             -- Logic
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
 
             -- Cast Settings
             menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         end
 
         menu_elements.tree_tab:pop()

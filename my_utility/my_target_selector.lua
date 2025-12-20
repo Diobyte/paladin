@@ -84,32 +84,9 @@ local function get_unit_weight(unit)
         end
     end
 
-<<<<<<< Updated upstream
-    local is_champion = unit:is_elite()
-    if is_champion then
-        score = score + 400
-=======
     local is_elite = unit:is_elite()
     if is_elite then
-<<<<<<< Updated upstream
-        score = score + 2000 -- Increased from 400 to prioritize elites over fresh trash
-    end
-
-    -- Density Priority: Prioritize enemies with neighbors (for AoE/Ricochet)
-    if all_units then
-        local unit_pos = unit:get_position()
-        local density_radius_sqr = 16.0 -- 4.0 yards squared
-        for _, other in ipairs(all_units) do
-            if unit ~= other then
-                if unit_pos:squared_dist_to_ignore_z(other:get_position()) < density_radius_sqr then
-                    score = score + 150 -- Add weight for each neighbor
-                end
-            end
-        end
-=======
         score = score + 15000
->>>>>>> Stashed changes
->>>>>>> Stashed changes
     end
 
     local player_pos = get_player_position()

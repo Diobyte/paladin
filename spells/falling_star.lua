@@ -12,21 +12,9 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
     recast_delay     = slider_float:new(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
-<<<<<<< Updated upstream
-    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
-=======
-<<<<<<< Updated upstream
-    min_enemy_count     = slider_int:new(1, 10, 3, get_hash(my_utility.plugin_label .. "falling_star_min_enemy_count")),
-    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
-    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_is_independent")),
-=======
     force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "falling_star_force_priority")),
     elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
     cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 }
 
 local function menu()
@@ -44,20 +32,10 @@ local function menu()
             menu_elements.force_priority:render("Force Priority",
                 "Always cast on Boss/Elite/Champion regardless of range settings")
             menu_elements.recast_delay:render("Recast Delay (Melee)",
-<<<<<<< Updated upstream
-                "\n     Minimum time between casts when in melee range (prevents spamming on bosses)     \n\n", 1)
-            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-<<<<<<< Updated upstream
-=======
-            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
-=======
                 "Minimum time between casts when in melee range (prevents spamming on bosses)", 1)
 
             -- Cast Settings
             menu_elements.cast_delay:render("Cast Delay", "Time to wait after casting before taking another action", 2)
->>>>>>> Stashed changes
->>>>>>> Stashed changes
         end
 
         menu_elements.tree_tab:pop()
