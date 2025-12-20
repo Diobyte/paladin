@@ -5,7 +5,7 @@
 -- Damage Types: Holy, Physical
 -- Skill Groups: Basic, Core, Aura, Valor, Justice, Ultimate
 -- Unique Mechanic: Oaths (Disciple, Judicator, Juggernaut, Zealot)
--- 
+--
 -- Spell IDs verified from Wowhead Diablo 4 database (December 2025)
 -- https://www.wowhead.com/diablo-4/skills/paladin
 -- All skills are active abilities that can be cast, not passive effects or build concepts
@@ -19,27 +19,27 @@ local spell_data = {
     -- Generate Faith on hit
     -- =====================================================
     holy_bolt = {
-        spell_id = 2174078,  -- Verified: wowhead.com/diablo-4/skill/holy-bolt-2174078
+        spell_id = 2174078,   -- Verified: wowhead.com/diablo-4/skill/holy-bolt-2174078
         category = "basic",
-        cast_type = "target",    -- Ranged projectile at target
+        cast_type = "target", -- Ranged projectile at target
         damage_type = "holy",
         faith_gen = 16,
         description = "Throw a Holy hammer dealing 90% damage. Generates 16 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - projectile homes to target
     },
     zeal = {
-        spell_id = 2132824,  -- Verified: wowhead.com/diablo-4/skill/zeal-2132824
-        category = "core",       -- CORE SKILL (Spender)
-        cast_type = "target",    -- Melee multi-strike at target
+        spell_id = 2132824,   -- Verified: wowhead.com/diablo-4/skill/zeal-2132824
+        category = "core",    -- CORE SKILL (Spender)
+        cast_type = "target", -- Melee multi-strike at target
         damage_type = "physical",
         faith_cost = 20,
         description = "Strike enemies with blinding speed, 80% + 3x20% damage. Costs 20 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
     advance = {
-        spell_id = 2329865,  -- Verified: wowhead.com/diablo-4/skill/advance-2329865
+        spell_id = 2329865,     -- Verified: wowhead.com/diablo-4/skill/advance-2329865
         category = "basic",
-        cast_type = "position",  -- Lunge forward to position
+        cast_type = "position", -- Lunge forward to position
         damage_type = "physical",
         faith_gen = 18,
         description = "Advance forward with your weapon dealing 105% damage. Generates 18 Faith.",
@@ -47,44 +47,45 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, target_pos) - dashes to location
     },
     clash = {
-        spell_id = 2097465,  -- Verified: wowhead.com/diablo-4/skill/clash-2097465
+        spell_id = 2097465,   -- Verified: wowhead.com/diablo-4/skill/clash-2097465
         category = "basic",
-        cast_type = "target",    -- Melee shield bash at target
+        cast_type = "target", -- Melee shield bash at target
         damage_type = "physical",
         faith_gen = 20,
         description = "Strike with weapon and shield dealing 115% damage. Generates 20 Faith. Requires shield.",
         requires_shield = true,
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
-    
+
     -- =====================================================
     -- CORE SKILLS (Main Damage Spenders)
     -- Cost Faith to deal damage
     -- =====================================================
     blessed_hammer = {
-        spell_id = 2107555,  -- Verified: wowhead.com/diablo-4/skill/blessed-hammer-2107555
+        spell_id = 2107555, -- Verified: wowhead.com/diablo-4/skill/blessed-hammer-2107555
         category = "core",
-        cast_type = "self",      -- Spirals outward FROM player
+        cast_type = "self", -- Spirals outward FROM player
         damage_type = "holy",
         faith_cost = 10,
         description = "Throw a Blessed Hammer that spirals out, 115% damage",
         -- Targeting: cast_spell.self(spell_id) - hammers spiral from player position
     },
     blessed_shield = {
-        spell_id = 2082021,  -- Verified: wowhead.com/diablo-4/skill/blessed-shield-2082021
+        spell_id = 2082021,   -- Verified: wowhead.com/diablo-4/skill/blessed-shield-2082021
         category = "core",
-        cast_type = "target",    -- Extended melee skill (5.5-6.0 range)
+        cast_type = "target", -- Extended melee skill (5.5-6.0 range)
         damage_type = "holy",
         faith_cost = 28,
         cast_range = 6.0,
-        description = "Hurl your shield with Holy energy dealing 216% damage, ricochets up to 3 times. Extended melee range. Requires shield.",
+        description =
+        "Hurl your shield with Holy energy dealing 216% damage, ricochets up to 3 times. Extended melee range. Requires shield.",
         requires_shield = true,
         -- Targeting: cast_spell.target(target, spell_id) - extended melee, ricochets to nearby enemies
     },
     divine_lance = {
-        spell_id = 2120228,  -- Verified: wowhead.com/diablo-4/skill/divine-lance-2120228
+        spell_id = 2120228,   -- Verified: wowhead.com/diablo-4/skill/divine-lance-2120228
         category = "core",
-        cast_type = "target",    -- Impale target with lance
+        cast_type = "target", -- Impale target with lance
         damage_type = "holy",
         faith_cost = 25,
         is_mobility = true,
@@ -92,58 +93,58 @@ local spell_data = {
         -- Targeting: cast_spell.target(target, spell_id) - melee/short range skillshot
     },
     brandish = {
-        spell_id = 2265693,  -- Verified: wowhead.com/diablo-4/skill/brandish-2265693
-        category = "basic",      -- Basic skill (generator)
-        cast_type = "target",    -- Melee swing at target
+        spell_id = 2265693,   -- Verified: wowhead.com/diablo-4/skill/brandish-2265693
+        category = "basic",   -- Basic skill (generator)
+        cast_type = "target", -- Melee swing at target
         damage_type = "holy",
         faith_gen = 14,
         description = "Brandish the Light, unleashing an arc dealing 75% damage. Generates 14 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
-    
+
     -- =====================================================
     -- AURA SKILLS (Maintained Buffs)
     -- Toggle on for persistent effects, duration-based
     -- buff_id may differ from spell_id - buff hash is used for buff detection
     -- =====================================================
     defiance_aura = {
-        spell_id = 2187578,  -- Verified: wowhead.com/diablo-4/skill/defiance-aura-2187578
-        buff_id = 2187578,   -- Buff hash for detection (same as spell_id, verify in-game)
-        buff_name_patterns = {"defiance", "resolve"},  -- Fallback name patterns
+        spell_id = 2187578,                           -- Verified: wowhead.com/diablo-4/skill/defiance-aura-2187578
+        buff_id = 2187578,                            -- Buff hash for detection (same as spell_id, verify in-game)
+        buff_name_patterns = { "defiance", "resolve" }, -- Fallback name patterns
         category = "aura",
-        cast_type = "self",      -- Self-cast buff
+        cast_type = "self",                           -- Self-cast buff
         duration = 12.0,
         description = "Defensive aura granting damage reduction",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
     fanaticism_aura = {
-        spell_id = 2187741,  -- Verified: wowhead.com/diablo-4/skill/fanaticism-aura-2187741
-        buff_id = 2187741,   -- Buff hash for detection (same as spell_id, verify in-game)
-        buff_name_patterns = {"fanatic", "fanaticism"},  -- Fallback name patterns
+        spell_id = 2187741,                             -- Verified: wowhead.com/diablo-4/skill/fanaticism-aura-2187741
+        buff_id = 2187741,                              -- Buff hash for detection (same as spell_id, verify in-game)
+        buff_name_patterns = { "fanatic", "fanaticism" }, -- Fallback name patterns
         category = "aura",
-        cast_type = "self",      -- Self-cast buff
+        cast_type = "self",                             -- Self-cast buff
         duration = 12.0,
         description = "Offensive aura granting attack speed",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
     holy_light_aura = {
-        spell_id = 2297097,  -- Verified: wowhead.com/diablo-4/skill/holy-light-aura-2297097
-        buff_id = 2297097,   -- Buff hash for detection (same as spell_id, verify in-game)
-        buff_name_patterns = {"holy_light", "holylight", "light_aura"},  -- Fallback name patterns
+        spell_id = 2297097,                                             -- Verified: wowhead.com/diablo-4/skill/holy-light-aura-2297097
+        buff_id = 2297097,                                              -- Buff hash for detection (same as spell_id, verify in-game)
+        buff_name_patterns = { "holy_light", "holylight", "light_aura" }, -- Fallback name patterns
         category = "aura",
-        cast_type = "self",      -- Self-cast buff
+        cast_type = "self",                                             -- Self-cast buff
         duration = 12.0,
         description = "Healing aura granting life regeneration",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
-    
+
     -- =====================================================
     -- VALOR SKILLS (Utility/Mobility/Defensive)
     -- =====================================================
     shield_charge = {
-        spell_id = 2466077,  -- Verified: wowhead.com/diablo-4/skill/shield-charge-2466077
+        spell_id = 2466077,     -- Verified: wowhead.com/diablo-4/skill/shield-charge-2466077
         category = "valor",
-        cast_type = "position",  -- Charge toward position
+        cast_type = "position", -- Charge toward position
         damage_type = "physical",
         cooldown = 10.0,
         is_channeled = true,
@@ -152,33 +153,35 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, target_pos) - charge in direction
     },
     rally = {
-        spell_id = 2303677,  -- Verified: wowhead.com/diablo-4/skill/rally-2303677
+        spell_id = 2303677, -- Verified: wowhead.com/diablo-4/skill/rally-2303677
         category = "valor",
-        cast_type = "self",      -- Self-cast buff
+        cast_type = "self", -- Self-cast buff
         charges = 3,
         cooldown = 16.0,
         faith_gen = 22,
         description = "Rally forth gaining 20% Move Speed for 8s and generate 22 Faith. 3 charges.",
         -- Targeting: cast_spell.self(spell_id) - instant self-buff
     },
-    
+
     -- =====================================================
     -- JUSTICE SKILLS (Damage/Control)
     -- Heavy hitters with crowd control
     -- =====================================================
     spear_of_the_heavens = {
-        spell_id = 2100457,  -- Verified: wowhead.com/diablo-4/skill/spear-of-the-heavens-2100457
+        spell_id = 2100457,     -- Verified: wowhead.com/diablo-4/skill/spear-of-the-heavens-2100457
         category = "justice",
-        cast_type = "position",  -- Ground-targeted AoE
+        cast_type = "position", -- Ground-targeted AoE
         damage_type = "holy",
         cooldown = 14.0,
+        cast_delay = 0.4,
         description = "Rain down 4 heavenly spears, 160% + 120% burst damage, Knockdown 1.5s",
         -- Targeting: cast_spell.position(spell_id, target_pos) - AoE at location
     },
+
     falling_star = {
-        spell_id = 2106904,  -- Verified: wowhead.com/diablo-4/skill/falling-star-2106904
-        category = "valor",      -- Changed from justice - it's a Valor mobility skill
-        cast_type = "position",  -- Leap to position
+        spell_id = 2106904,     -- Verified: wowhead.com/diablo-4/skill/falling-star-2106904
+        category = "valor",     -- Changed from justice - it's a Valor mobility skill
+        cast_type = "position", -- Leap to position
         damage_type = "holy",
         cooldown = 12.0,
         is_mobility = true,
@@ -186,18 +189,18 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, target_pos) - leap to location
     },
     condemn = {
-        spell_id = 2226109,  -- Verified: wowhead.com/diablo-4/skill/condemn-2226109
+        spell_id = 2226109, -- Verified: wowhead.com/diablo-4/skill/condemn-2226109
         category = "justice",
-        cast_type = "self",      -- AoE pulls to player after delay
+        cast_type = "self", -- AoE pulls to player after delay
         damage_type = "holy",
         cooldown = 15.0,
         description = "Harness Light, Pull enemies in after 1.5s, Stun, 240% damage",
         -- Targeting: cast_spell.self(spell_id) - centered on player
     },
     consecration = {
-        spell_id = 2283781,  -- Verified: wowhead.com/diablo-4/skill/consecration-2283781
+        spell_id = 2283781, -- Verified: wowhead.com/diablo-4/skill/consecration-2283781
         category = "justice",
-        cast_type = "self",      -- Ground AoE at player location
+        cast_type = "self", -- Ground AoE at player location
         damage_type = "holy",
         cooldown = 18.0,
         duration = 6.0,
@@ -205,33 +208,36 @@ local spell_data = {
         description = "Bathe in Light for 6s, Heal 4% Max Life/s, damage 75%/s",
         -- Targeting: cast_spell.self(spell_id) - ground effect at player
     },
-    
+
     -- =====================================================
     -- ULTIMATE SKILLS
     -- High impact, long cooldowns
     -- =====================================================
     arbiter_of_justice = {
-        spell_id = 2297125,  -- Verified: wowhead.com/diablo-4/skill/arbiter-of-justice-2297125
+        spell_id = 2297125,     -- Verified: wowhead.com/diablo-4/skill/arbiter-of-justice-2297125
         category = "ultimate",
-        cast_type = "position",  -- Land at target position
+        cast_type = "position", -- Land at target position
         damage_type = "holy",
         cooldown = 120.0,
+        cast_delay = 1.0,
         description = "Ascend and crash as Arbiter for 20s, 600% landing damage.",
         -- Targeting: cast_spell.position(spell_id, target_pos) - leap to location
     },
     heavens_fury = {
-        spell_id = 2273081,  -- Verified: wowhead.com/diablo-4/skill/heavens-fury-2273081
+        spell_id = 2273081, -- Verified: wowhead.com/diablo-4/skill/heavens-fury-2273081
         category = "ultimate",
-        cast_type = "self",      -- AoE around player then seeking beams
+        cast_type = "self", -- AoE around player then seeking beams
         damage_type = "holy",
         cooldown = 30.0,
+        cast_delay = 0.5,
         description = "Grasp Light, 200%/s around you, releases seeking beams 60%/hit for 7s",
         -- Targeting: cast_spell.self(spell_id) - centered on player
     },
+
     zenith = {
-        spell_id = 2302974,  -- Verified: wowhead.com/diablo-4/skill/zenith-2302974
+        spell_id = 2302974, -- Verified: wowhead.com/diablo-4/skill/zenith-2302974
         category = "ultimate",
-        cast_type = "self",      -- Cleave around player
+        cast_type = "self", -- Cleave around player
         damage_type = "physical",
         cooldown = 25.0,
         description = "Divine sword cleave 450%, recast for 400% + Knockdown 2s",
@@ -242,25 +248,25 @@ local spell_data = {
     -- ADDITIONAL ULTIMATES (Added from context)
     -- =====================================================
     aegis = {
-        spell_id = 2292204,  -- Verified: wowhead.com/diablo-4/skill/aegis-2292204
+        spell_id = 2292204, -- Verified: wowhead.com/diablo-4/skill/aegis-2292204
         category = "ultimate",
-        cast_type = "self",      -- Self-cast defensive barrier
+        cast_type = "self", -- Self-cast defensive barrier
         description = "Grants a protective barrier that absorbs damage for you and nearby allies.",
         -- Targeting: cast_spell.self(spell_id) - defensive barrier around player
     },
 
     fortress = {
-        spell_id = 2301078,  -- Verified: wowhead.com/diablo-4/skill/fortress-2301078
+        spell_id = 2301078, -- Verified: wowhead.com/diablo-4/skill/fortress-2301078
         category = "ultimate",
-        cast_type = "self",      -- Self-cast fortification
+        cast_type = "self", -- Self-cast fortification
         description = "Create a defensive area around you, becoming Immune and granting Resolve stacks.",
         -- Targeting: cast_spell.self(spell_id) - fortification effect around player
     },
 
     shield_bash = {
-        spell_id = 2087548,  -- Verified: wowhead.com/diablo-4/skill/shield-bash-2087548
+        spell_id = 2087548,   -- Verified: wowhead.com/diablo-4/skill/shield-bash-2087548
         category = "core",
-        cast_type = "target",    -- Charge at enemy and bash
+        cast_type = "target", -- Charge at enemy and bash
         damage_type = "physical",
         faith_cost = 32,
         description = "Charge at an enemy and bash in front of you, dealing 205% damage. Costs 32 Faith.",
@@ -269,20 +275,21 @@ local spell_data = {
     },
 
     purify = {
-        spell_id = 2261380,  -- Verified: wowhead.com/diablo-4/skill/purify-2261380
+        spell_id = 2261380, -- Verified: wowhead.com/diablo-4/skill/purify-2261380
         category = "justice",
-        cast_type = "self",      -- Self-cast cleansing
+        cast_type = "self", -- Self-cast cleansing
         description = "Remove negative effects from yourself and nearby allies while restoring health.",
         -- Targeting: cast_spell.self(spell_id) - cleansing and healing around player
     },
-    
+
     -- =====================================================
     -- COMMON SKILLS
     -- =====================================================
     evade = {
-        spell_id = 337031,  -- Primary evade spell ID (publicly documented)
+        spell_id = 337031,      -- Primary evade spell ID (publicly documented)
         category = "common",
-        cast_type = "position",  -- Evade to position
+        cast_type = "position", -- Evade to position
+        cast_delay = 0.5,
         is_mobility = true,
         description = "Dodge roll to avoid damage",
         -- Targeting: cast_spell.position(spell_id, safe_pos) - dash to safety
@@ -303,9 +310,9 @@ local spell_data = {
 
     -- =====================================================
     paladin_evade = {
-        spell_id = 2256888,  -- Enhanced evade spell ID (internal reads)
+        spell_id = 2256888,     -- Enhanced evade spell ID (internal reads)
         category = "common",
-        cast_type = "position",  -- Evade to position
+        cast_type = "position", -- Evade to position
         is_mobility = true,
         description = "Enhanced paladin evade spell",
         -- Targeting: cast_spell.position(spell_id, safe_pos) - enhanced dash to safety

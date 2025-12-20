@@ -18,7 +18,7 @@ local my_utility = require("my_utility/my_utility");
 local spell_data = require("my_utility/spell_data");
 local get_spell_priority = require("spell_priority");
 
-local current_spell_priority = get_spell_priority(0);  -- 0 for default build
+local current_spell_priority = get_spell_priority(0); -- 0 for default build
 
 local menu_elements =
 {
@@ -43,7 +43,7 @@ local menu_elements =
     best_target_evaluation_radius  = slider_float:new(0.1, 6, 3,
         get_hash(my_utility.plugin_label .. "best_target_evaluation_radius")),
 
-    build_selector                = combo_box:new(0, get_hash(my_utility.plugin_label .. "build_selector")),
+    build_selector                 = combo_box:new(0, get_hash(my_utility.plugin_label .. "build_selector")),
 
     enable_debug                   = checkbox:new(false, get_hash(my_utility.plugin_label .. "enable_debug")),
     debug_tree                     = tree_node:new(2),
@@ -147,7 +147,10 @@ on_render_menu(function()
             "       If you use huge aoe spells, you should increase this value       \n" ..
             "       Size is displayed with debug/display targets with faded white circles       ", 1)
 
-        menu_elements.build_selector:render("Build Selector", {"Default", "Judgement Nuke", "Hammerkuna", "Arbiter", "Captain America", "Shield Bash", "Wing Strikes", "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin"}, "Select a build to optimize spell priorities and timings for max DPS")
+        menu_elements.build_selector:render("Build Selector",
+            { "Default", "Judgement Nuke", "Hammerkuna", "Arbiter", "Captain America", "Shield Bash", "Wing Strikes",
+                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin" },
+            "Select a build to optimize spell priorities and timings for max DPS")
 
         -- Spell priority is now updated in on_update for real-time adjustments
 
@@ -264,141 +267,73 @@ local damage_resistance_value = 25
 
 local target_selector_data_all = nil
 
+local target_scoring = require('my_utility/target_scoring')
+
 local function evaluate_targets(target_list, melee_range)
-    local best_ranged_target = nil
-    local best_melee_target = nil
-    local best_cursor_target = nil
-    local closest_cursor_target = nil
-    local closest_cursor_target_angle = 0
-
-    local ranged_max_score = 0
-    local melee_max_score = 0
-    local cursor_max_score = 0
-
-    local melee_range_sqr = melee_range * melee_range
-    local player_position = get_player_position()
-    local cursor_position = get_cursor_position()
-    local cursor_targeting_radius = menu_elements.cursor_targeting_radius:get()
-    local cursor_targeting_radius_sqr = cursor_targeting_radius * cursor_targeting_radius
-    local best_target_evaluation_radius = menu_elements.best_target_evaluation_radius:get()
-    local cursor_targeting_angle = menu_elements.cursor_targeting_angle:get()
-    local enemy_count_threshold = menu_elements.enemy_count_threshold:get()
-    local closest_cursor_distance_sqr = math.huge
-
-    for _, unit in ipairs(target_list) do
-        local unit_health = unit:get_current_health()
-        local unit_name = unit:get_skin_name()
-        local unit_position = unit:get_position()
-        local distance_sqr = unit_position:squared_dist_to_ignore_z(player_position)
-        local cursor_distance_sqr = unit_position:squared_dist_to_ignore_z(cursor_position)
-        local buffs = unit:get_buffs()
-
-        -- get enemy count in range of enemy unit
-        local all_units_count, normal_units_count, elite_units_count, champion_units_count, boss_units_count = my_utility
-            .enemy_count_in_range(best_target_evaluation_radius, unit_position)
-
-        -- if enemy count is less than enemy count threshold and unit is not elite, champion or boss, skip this unit
-        if all_units_count < enemy_count_threshold and not (unit:is_elite() or unit:is_champion() or unit:is_boss()) then
-            goto continue
-        end
-
-        local total_score = normal_units_count * normal_monster_value
-        total_score = total_score + (boss_value * boss_units_count)
-        total_score = total_score + (champion_value * champion_units_count)
-        total_score = total_score + (elite_value * elite_units_count)
-
-        -- Check if unit has damage resistance buff
-        for _, buff in ipairs(buffs) do
-            if buff.name_hash == spell_data.enemies.damage_resistance.spell_id then
-                -- if the enemy is the provider of the damage resistance aura
-                if buff.type == spell_data.enemies.damage_resistance.buff_ids.provider then
-                    total_score = total_score + damage_resistance_value
-                    break
-                else -- otherwise the enemy is the receiver of the damage resistance aura
-                    total_score = total_score - damage_resistance_value
-                    break
-                end
-            end
-        end
-
-        -- Check if unit is an infernal horde objective
-        for _, objective_name in ipairs(my_utility.horde_objectives) do
-            if unit_name:match(objective_name) and unit_health > 1 then
-                total_score = total_score + 1000
-                break
-            end
-        end
-
-        -- in max range
-        if total_score > ranged_max_score then
-            ranged_max_score = total_score
-            best_ranged_target = unit
-        end
-
-        -- in melee range
-        if distance_sqr < melee_range_sqr and total_score > melee_max_score then
-            melee_max_score = total_score
-            best_melee_target = unit
-        end
-
-        -- in cursor angle
-        if cursor_distance_sqr <= cursor_targeting_radius_sqr then
-            local angle_to_cursor = unit_position:get_angle(cursor_position, player_position)
-            if angle_to_cursor <= cursor_targeting_angle then
-                -- in cursor radius
-                if cursor_distance_sqr <= cursor_targeting_radius_sqr then
-                    if total_score > cursor_max_score then
-                        cursor_max_score = total_score
-                        best_cursor_target = unit
-                    end
-
-                    if cursor_distance_sqr < closest_cursor_distance_sqr then
-                        closest_cursor_distance_sqr = cursor_distance_sqr
-                        closest_cursor_target = unit
-                        closest_cursor_target_angle = angle_to_cursor
-                    end
-                end
-            end
-        end
-
-        ::continue::
-    end
-
-    return best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score,
-        melee_max_score, cursor_max_score, closest_cursor_target_angle
+    local cfg = {
+        player_position = get_player_position(),
+        cursor_position = get_cursor_position(),
+        cursor_targeting_radius = menu_elements.cursor_targeting_radius:get(),
+        best_target_evaluation_radius = menu_elements.best_target_evaluation_radius:get(),
+        cursor_targeting_angle = menu_elements.cursor_targeting_angle:get(),
+        enemy_count_threshold = menu_elements.enemy_count_threshold:get(),
+        normal_monster_value = normal_monster_value,
+        elite_value = elite_value,
+        champion_value = champion_value,
+        boss_value = boss_value,
+        damage_resistance_value = damage_resistance_value
+    }
+    return target_scoring.evaluate_targets(target_list, melee_range, cfg)
 end
 
-local function use_ability(spell_name, delay_after_cast)
+local function use_ability(spell_name, delay_override)
     local spell = spells[spell_name]
-    if not (spell and spell.menu_elements.main_boolean:get()) then
+    if not (spell and spell.menu_elements and spell.menu_elements.main_boolean and spell.menu_elements.main_boolean:get()) then
         return false
+    end
+
+    -- compute delay: preference order -> explicit override argument, spell menu cast_delay, spell_data cast_type mapping
+    local delay = delay_override
+    if not delay then
+        if spell.menu_elements and spell.menu_elements.cast_delay and type(spell.menu_elements.cast_delay.get) == "function" then
+            delay = spell.menu_elements.cast_delay:get()
+        else
+            local sd = spell_data[spell_name]
+            if sd and sd.cast_delay then
+                delay = sd.cast_delay
+            elseif sd and sd.cast_type == "self" then
+                delay = my_utility.spell_delays.instant_cast
+            else
+                delay = my_utility.spell_delays.regular_cast
+            end
+        end
     end
 
     local target_unit = nil
     if spell.menu_elements.targeting_mode then
         local targeting_mode = spell.menu_elements.targeting_mode:get()
-        
+
         -- Check for specific targeting maps in the spell module
         if spell.targeting_type == "melee" then
             -- Map melee modes to global indices
             local map = {
-                [0] = 2, -- Melee Target
-                [1] = 3, -- Melee Target (in sight)
-                [2] = 4, -- Closest Target
-                [3] = 5, -- Closest Target (in sight)
-                [4] = 6, -- Best Cursor Target
-                [5] = 7  -- Closest Cursor Target
+                [0] = 2,                              -- Melee Target
+                [1] = 3,                              -- Melee Target (in sight)
+                [2] = 4,                              -- Closest Target
+                [3] = 5,                              -- Closest Target (in sight)
+                [4] = 6,                              -- Best Cursor Target
+                [5] = 7                               -- Closest Cursor Target
             }
             targeting_mode = map[targeting_mode] or 2 -- Default to Melee Target
         elseif spell.targeting_type == "ranged" then
             -- Map ranged modes to global indices
             local map = {
-                [0] = 0, -- Ranged Target
-                [1] = 1, -- Ranged Target (in sight)
-                [2] = 4, -- Closest Target
-                [3] = 5, -- Closest Target (in sight)
-                [4] = 6, -- Best Cursor Target
-                [5] = 7  -- Closest Cursor Target
+                [0] = 0,                              -- Ranged Target
+                [1] = 1,                              -- Ranged Target (in sight)
+                [2] = 4,                              -- Closest Target
+                [3] = 5,                              -- Closest Target (in sight)
+                [4] = 6,                              -- Best Cursor Target
+                [5] = 7                               -- Closest Cursor Target
             }
             targeting_mode = map[targeting_mode] or 0 -- Default to Ranged Target
         end
@@ -417,7 +352,7 @@ local function use_ability(spell_name, delay_after_cast)
 
     --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
     if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
-        next_cast_time = get_time_since_inject() + delay_after_cast
+        next_cast_time = get_time_since_inject() + delay
         my_utility.record_spell_cast(spell_name)
         return true
     end
@@ -429,6 +364,9 @@ end
 on_update(function()
     -- Update spell priority dynamically every frame for real-time adjustments
     current_spell_priority = get_spell_priority(menu_elements.build_selector:get())
+
+    -- Sync debug flag from menu to the utility module
+    my_utility.set_debug_enabled(menu_elements.enable_debug:get())
 
     local current_time = get_time_since_inject()
     local local_player = get_local_player()
@@ -519,7 +457,7 @@ on_update(function()
     for _, spell_name in ipairs(current_spell_priority) do
         local spell = spells[spell_name]
         if spell then
-            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+            if use_ability(spell_name) then
                 return
             end
         end
@@ -693,4 +631,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - DirtyDio - Version 2.2.0")
+my_utility.debug_print("Lua Plugin - DirtyDio - Version 2.2.0")

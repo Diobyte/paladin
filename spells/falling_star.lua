@@ -5,15 +5,15 @@ local max_spell_range = 15.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "falling_star_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "falling_star_targeting_mode")),
-    min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
+    tree_tab         = tree_node:new(1),
+    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "falling_star_main_bool_base")),
+    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "falling_star_targeting_mode")),
+    min_target_range = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
-    recast_delay        = slider_float:new(0.0, 10.0, 0.5,
+    recast_delay     = slider_float:new(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
-    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
+    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
+    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
 }
 
 local function menu()
@@ -55,11 +55,11 @@ local function logics(target)
     -- 1. If outside min_range (Gap Close): Cast immediately.
     -- 2. If inside min_range (Boss DPS): Cast only if recast_delay has passed.
     local is_in_min_range = my_utility.is_in_range(target, menu_elements.min_target_range:get())
-    
+
     if is_in_min_range then
         -- We are in melee range (Boss logic)
         if not target:is_boss() then return false end
-        
+
         local current_time = get_time_since_inject()
         local last_cast = my_utility.get_last_cast_time("falling_star")
         if current_time < last_cast + menu_elements.recast_delay:get() then
@@ -67,10 +67,15 @@ local function logics(target)
         end
     end
 
-    if cast_spell.position(spell_data.falling_star.spell_id, target:get_position(), 0) then
+    local cast_ok, delay = my_utility.try_cast_spell("falling_star", spell_data.falling_star.spell_id, menu_boolean,
+        next_time_allowed_cast, function()
+        return cast_spell.position(spell_data.falling_star.spell_id, target:get_position(), 0)
+    end, menu_elements.cast_delay:get())
+
+    if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
-        console.print("Cast Falling Star - Target: " ..
+        next_time_allowed_cast = current_time + (delay or menu_elements.cast_delay:get());
+        my_utility.debug_print("Cast Falling Star - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
         return true;
     end;

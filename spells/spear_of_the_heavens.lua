@@ -5,13 +5,14 @@ local max_spell_range = 15.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_targeting_mode")),
-    min_target_range    = slider_float:new(1, max_spell_range - 1, 3,
+    tree_tab         = tree_node:new(1),
+    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_main_bool_base")),
+    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_targeting_mode")),
+    min_target_range = slider_float:new(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "spear_of_the_heavens_min_target_range")),
-    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_elites_only")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_cast_delay")),
+    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "spear_of_the_heavens_elites_only")),
+    cast_delay       = slider_float:new(0.01, 1.0, 0.1,
+        get_hash(my_utility.plugin_label .. "spear_of_the_heavens_cast_delay")),
 }
 
 local function menu()
@@ -47,13 +48,21 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.position(spell_data.spear_of_the_heavens.spell_id, target:get_position(), 0) then
+    local cast_ok, delay = my_utility.try_cast_spell("spear_of_the_heavens", spell_data.spear_of_the_heavens.spell_id,
+        menu_boolean, next_time_allowed_cast, function()
+            return cast_spell.position(spell_data.spear_of_the_heavens.spell_id, target:get_position(), 0)
+        end, menu_elements.cast_delay:get())
+    if cast_ok then
+        print("DBG spear: delay type=", type(delay), "value=", tostring(delay))
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
-        console.print("Cast Spear of the Heavens - Target: " ..
+        print("DBG spear: current_time type=", type(current_time), "value=", tostring(current_time))
+        local d = (type(delay) == 'number') and delay or tonumber(menu_elements.cast_delay:get()) or 0.1
+        print('DBG spear: d type=', type(d), 'd=', tostring(d))
+        next_time_allowed_cast = current_time + d;
+        my_utility.debug_print("Cast Spear of the Heavens - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        return true;
-    end;
+        return true
+    end
 
     return false;
 end

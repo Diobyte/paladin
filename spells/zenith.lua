@@ -3,9 +3,9 @@ local spell_data = require("my_utility/spell_data")
 
 local menu_elements =
 {
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "zenith_main_bool_base")),
-    cast_delay          = slider_float:new(0.01, 10.0, 0.1,
+    tree_tab     = tree_node:new(1),
+    main_boolean = checkbox:new(true, get_hash(my_utility.plugin_label .. "zenith_main_bool_base")),
+    cast_delay   = slider_float:new(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "zenith_cast_delay")),
 }
 
@@ -29,10 +29,16 @@ local function logics()
 
     if not is_logic_allowed then return false end;
 
-    if cast_spell.self(spell_data.zenith.spell_id, 0) then
+    -- Use helper to perform the cast and record
+    local cast_ok, delay = my_utility.try_cast_spell("zenith", spell_data.zenith.spell_id, menu_boolean,
+        next_time_allowed_cast, function()
+        return cast_spell.self(spell_data.zenith.spell_id, 0)
+    end, menu_elements.cast_delay:get())
+
+    if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
-        console.print("Cast Zenith");
+        next_time_allowed_cast = current_time + delay;
+        my_utility.debug_print("Cast Zenith");
         return true;
     end;
 

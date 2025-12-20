@@ -5,13 +5,13 @@ local max_spell_range = 15.0
 local targeting_type = "melee"
 local menu_elements =
 {
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "condemn_main_bool_base")),
-    targeting_mode      = combo_box:new(2, get_hash(my_utility.plugin_label .. "condemn_targeting_mode")),
-    min_target_range    = slider_float:new(0, max_spell_range - 1, 0,
+    tree_tab         = tree_node:new(1),
+    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "condemn_main_bool_base")),
+    targeting_mode   = combo_box:new(2, get_hash(my_utility.plugin_label .. "condemn_targeting_mode")),
+    min_target_range = slider_float:new(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "condemn_min_target_range")),
-    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "condemn_elites_only")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "condemn_cast_delay")),
+    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "condemn_elites_only")),
+    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "condemn_cast_delay")),
 }
 
 local function menu()
@@ -47,10 +47,15 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.self(spell_data.condemn.spell_id, 0) then
+    local cast_ok, delay = my_utility.try_cast_spell("condemn", spell_data.condemn.spell_id, menu_boolean,
+        next_time_allowed_cast, function()
+        return cast_spell.self(spell_data.condemn.spell_id, 0)
+    end, menu_elements.cast_delay:get())
+
+    if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
-        console.print("Cast Condemn");
+        next_time_allowed_cast = current_time + (delay or menu_elements.cast_delay:get());
+        my_utility.debug_print("Cast Condemn");
         return true;
     end;
 

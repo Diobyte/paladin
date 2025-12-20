@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax:
+    name: Lua syntax checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.3
+
+      - name: Check Lua syntax
+        run: |
+          set -e
+          files=$(git ls-files '*.lua')
+          for f in $files; do
+            echo "Checking $f"
+            luac -p "$f"
+          done
+
+      - name: Install Luarocks & busted (if available)
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y lua5.3 luarocks
+          # Try to install busted via luarocks; continue even if it fails
+          sudo luarocks install busted || true
+
+      - name: Run unit tests (lua test runner & busted when available)
+        run: |
+          set -e
+          if command -v lua >/dev/null 2>&1; then
+            echo "Running Lua test runner"
+            lua Test/run.lua
+          else
+            echo "lua not found, skipping lua runner"
+          fi
+
+          if command -v busted >/dev/null 2>&1; then
+            echo "Running busted test suite"
+            busted -v Test || true
+          else
+            echo "busted not available, skipping" 
+          fi

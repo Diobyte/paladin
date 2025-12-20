@@ -5,12 +5,12 @@ local max_spell_range = 10.0
 local targeting_type = "both"
 local menu_elements =
 {
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
-    min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
+    tree_tab         = tree_node:new(1),
+    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
+    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
+    min_target_range = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
+    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
 }
 
 local function menu()
@@ -44,10 +44,14 @@ local function logics(target)
         return false
     end
 
-    if cast_spell.position(spell_data.paladin_evade.spell_id, target:get_position(), 0) then
+    local cast_ok, delay = my_utility.try_cast_spell("paladin_evade", spell_data.paladin_evade.spell_id, menu_boolean,
+        next_time_allowed_cast,
+        function() return cast_spell.position(spell_data.paladin_evade.spell_id, target:get_position(), 0) end,
+        menu_elements.cast_delay:get())
+    if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + menu_elements.cast_delay:get();
-        console.print("Cast Paladin Evade");
+        next_time_allowed_cast = current_time + (delay or menu_elements.cast_delay:get());
+        my_utility.debug_print("Cast Paladin Evade");
         return true;
     end;
 

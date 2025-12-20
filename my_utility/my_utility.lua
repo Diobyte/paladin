@@ -1,6 +1,101 @@
 -- local target_selector = require("my_utility/my_target_selector")
 local spell_data = require("my_utility/spell_data")
 
+-- Debugging control for console output across modules
+local debug_enabled = false
+
+local function set_debug_enabled(val)
+    debug_enabled = not not val
+end
+
+local function debug_print(...)
+    if debug_enabled then
+        console.print(...)
+    end
+end
+
+-- Spell cast history and helpers (moved up so internal helpers are available during other functions)
+local spell_cast_history = {}
+
+local function record_spell_cast(spell_name)
+    spell_cast_history[spell_name] = (type(get_time_since_inject) == 'function') and get_time_since_inject() or 0
+end
+
+local function get_last_cast_time(spell_name)
+    return spell_cast_history[spell_name] or 0
+end
+
+-- Try to maintain a buff by casting it on cooldown when the menu option is enabled.
+-- Returns:
+--   true, delay  -> buff was cast and caller should set next_time_allowed_cast = now + delay
+--   false, 0     -> menu enabled but cast attempt failed (not ready/affordable)
+--   nil          -> menu option not enabled; caller should continue normal logic
+local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
+    if not menu_elements or not menu_elements.cast_on_cooldown then
+        return nil
+    end
+
+    if not menu_elements.cast_on_cooldown:get() then
+        return nil
+    end
+
+    -- If utility exists, check readiness; otherwise be permissive and attempt cast
+    if type(utility) == "table" and not utility.is_spell_ready(spell_id) then
+        return false, 0
+    end
+
+    -- Guard against environment without cast_spell
+    if type(cast_spell) ~= "table" or type(cast_spell.self) ~= "function" then
+        return false, 0
+    end
+
+    if cast_spell.self(spell_id, 0) then
+        -- record and return a small delay to avoid spam
+        my_utility = my_utility or {}
+        if my_utility and type(my_utility.record_spell_cast) == "function" then
+            my_utility.record_spell_cast(spell_name)
+        end
+        local delay = min_delay or 0.1
+        return true, delay
+    end
+
+    return false, 0
+end
+
+-- Generic simple helper to attempt a cast and centralize recording/logging.
+-- cast_fn is a function that actually performs the cast (should return true on success).
+-- Returns: true, delay on success, false on failure.
+local function try_cast_spell(spell_name, spell_id, menu_boolean, next_time_allowed, cast_fn, delay)
+    if not menu_boolean then return false end
+    -- internal cooldown enforcement using spell_data cooldown metadata
+    local sd = spell_data[spell_name]
+    if sd and sd.cooldown and sd.cooldown > 0 then
+        local last = get_last_cast_time(spell_name)
+        if last ~= nil then
+            local current_time = (type(get_time_since_inject) == 'function') and get_time_since_inject() or 0
+            if current_time < (last + sd.cooldown) then
+                -- still on cooldown
+                return false
+            end
+        end
+    end
+
+    local util = utility or package.loaded['utility']
+    if type(util) == "table" and type(util.is_spell_ready) == "function" and not util.is_spell_ready(spell_id) then
+        return false
+    end
+    if type(cast_fn) ~= "function" then return false end
+
+    if cast_fn() then
+        if type(my_utility) == "table" and type(my_utility.record_spell_cast) == "function" then
+            my_utility.record_spell_cast(spell_name)
+        end
+        return true, delay or 0.1
+    end
+
+    return false
+end
+
 local function is_auto_play_enabled()
     -- auto play fire spells without orbwalker
     local is_auto_play_active = auto_play.is_active();
@@ -270,6 +365,41 @@ local function get_best_point_rec(target_position, rectangle_radius, width, curr
     return { point = target_position, hits = current_hit_list_amount, victim_list = current_hit_list }
 end
 
+-- Check whether player has a shield equipped (used for spells that require a shield)
+local function has_shield()
+    local local_player = get_local_player()
+    if not local_player then return false end
+    local items = nil
+    if type(local_player.get_equipped_items) == 'function' then
+        items = local_player:get_equipped_items()
+    end
+    if not items then return false end
+
+    for _, item in ipairs(items) do
+        if item then
+            -- Check name heuristics
+            if type(item.get_name) == 'function' then
+                local name = item:get_name()
+                if type(name) == 'string' and name:lower():match('shield') then
+                    return true
+                end
+            end
+
+            -- Check item type heuristics
+            if type(item.get_item_type) == 'function' then
+                local itype = item:get_item_type()
+                if type(itype) == 'string' and itype:lower():match('shield') then
+                    return true
+                end
+            elseif type(item.item_type) == 'string' and item.item_type:lower():match('shield') then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 local function enemy_count_in_range(evaluation_range, source_position)
     -- set default source position to player position
     local source_position = source_position or get_player_position();
@@ -281,23 +411,19 @@ local function enemy_count_in_range(evaluation_range, source_position)
     local boss_units_count = 0;
 
     for _, obj in ipairs(enemies) do
-        if not obj:is_enemy() or obj:is_untargetable() or obj:is_immune() then
-            -- Skip this object and continue with the next one
-            goto continue
-        end;
-
-        if obj:is_boss() then
-            boss_units_count = boss_units_count + 1;
-        elseif obj:is_champion() then
-            champion_units_count = champion_units_count + 1;
-        elseif obj:is_elite() then
-            elite_units_count = elite_units_count + 1;
-        else
-            normal_units_count = normal_units_count + 1;
+        -- Only count valid targetable enemies
+        if obj and obj:is_enemy() and not obj:is_untargetable() and not obj:is_immune() then
+            if obj:is_boss() then
+                boss_units_count = boss_units_count + 1;
+            elseif obj:is_champion() then
+                champion_units_count = champion_units_count + 1;
+            elseif obj:is_elite() then
+                elite_units_count = elite_units_count + 1;
+            else
+                normal_units_count = normal_units_count + 1;
+            end
+            all_units_count = all_units_count + 1;
         end
-        all_units_count = all_units_count + 1;
-
-        ::continue::
     end;
     return all_units_count, normal_units_count, elite_units_count, champion_units_count, boss_units_count
 end
@@ -401,15 +527,7 @@ local targeting_mode_description =
     "       Best Cursor Target: Targets the most valuable enemy around the cursor      \n" ..
     "       Closest Cursor Target: Targets the enemy nearest to the cursor      \n"
 
-local spell_cast_history = {}
 
-local function record_spell_cast(spell_name)
-    spell_cast_history[spell_name] = get_time_since_inject()
-end
-
-local function get_last_cast_time(spell_name)
-    return spell_cast_history[spell_name] or 0
-end
 
 local plugin_label = "DIRTYDIO_PLUGIN_"
 
@@ -428,11 +546,16 @@ return
     is_spell_active = is_spell_active,
     is_buff_active = is_buff_active,
     buff_stack_count = buff_stack_count,
-    
+
     record_spell_cast = record_spell_cast,
     get_last_cast_time = get_last_cast_time,
 
     is_auto_play_enabled = is_auto_play_enabled,
+    set_debug_enabled = set_debug_enabled,
+    debug_print = debug_print,
+    try_maintain_buff = try_maintain_buff,
+    try_cast_spell = try_cast_spell,
+    has_shield = has_shield,
 
     get_best_point = get_best_point,
     generate_points_around_target = generate_points_around_target,
