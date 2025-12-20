@@ -4,22 +4,37 @@ local spell_data = require("my_utility/spell_data")
 local max_spell_range = 10.0
 local menu_elements =
 {
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "evade_targeting_mode")),
-    mobility_only       = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
-    min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
+    tree_tab         = tree_node:new(1),
+    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_main_bool_base")),
+    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "evade_targeting_mode")),
+    mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
+    min_target_range = slider_float:new(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "evade_min_target_range")),
+<<<<<<< Updated upstream
     elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
     cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "evade_cast_delay")),
+<<<<<<< Updated upstream
+=======
+    is_independent      = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_is_independent")),
+    hp_threshold        = slider_float:new(0.0, 1.0, 0.35, get_hash(my_utility.plugin_label .. "evade_hp_threshold")),
+    gap_close_only      = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_gap_close_only")),
+    engage_distance     = slider_float:new(1.0, 10.0, 3.0, get_hash(my_utility.plugin_label .. "evade_engage_distance")),
+=======
+    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
+    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "evade_cast_delay")),
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 }
 
 local function menu()
     if menu_elements.tree_tab:push("Evade") then
-        menu_elements.main_boolean:render("Enable Evade - In combat", "")
+        menu_elements.main_boolean:render("Enable Spell", "Enable Evade - In combat")
+
         if menu_elements.main_boolean:get() then
+            -- Targeting
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
+<<<<<<< Updated upstream
             menu_elements.mobility_only:render("Only use for mobility", "")
             if menu_elements.mobility_only:get() then
                 menu_elements.min_target_range:render("Min Target Distance",
@@ -27,6 +42,27 @@ local function menu()
             end
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds (minimum 0.5s enforced)", 2)
+<<<<<<< Updated upstream
+=======
+            menu_elements.is_independent:render("Independent Cast", "Cast independently of the rotation priority")
+            
+            menu_elements.hp_threshold:render("Defensive HP Threshold", "Evade away from enemies if HP is below this %", 2)
+            menu_elements.gap_close_only:render("Gap Close Only", "Only evade towards enemies if they are far away")
+            if menu_elements.gap_close_only:get() then
+                menu_elements.engage_distance:render("Engage Distance", "Minimum distance to enemy to trigger evade", 2)
+            end
+=======
+            menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
+
+            -- Logic
+            menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
+            menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
+
+            -- Cast Settings
+            menu_elements.cast_delay:render("Cast Delay",
+                "Time to wait after casting before taking another action (minimum 0.5s enforced)", 2)
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
         end
 
         menu_elements.tree_tab:pop()
@@ -39,24 +75,24 @@ local function logics(target)
     local menu_boolean = menu_elements.main_boolean:get();
     -- Evade is always enabled regardless of checkbox state for universal availability
     local is_logic_allowed = my_utility.is_spell_allowed(
-        true,  -- Always treat as enabled for paladin universal evade
+        true, -- Always treat as enabled for paladin universal evade
         next_time_allowed_cast,
         spell_data.evade.spell_id);
 
     if not is_logic_allowed then return false end;
 
     local mobility_only = menu_elements.mobility_only:get();
-    
+
     -- Check if we have a valid target based on targeting mode
     if not target then
         -- No target found with current targeting mode
         if not mobility_only then
-            return false  -- Can't cast without a target in combat mode
+            return false -- Can't cast without a target in combat mode
         end
     end
-    
+
     if target and menu_elements.elites_only:get() and not target:is_elite() then return false end
-    
+
     local cast_position = nil
     if mobility_only then
         if target then
@@ -69,18 +105,35 @@ local function logics(target)
             local cursor_position = get_cursor_position()
             local player_position = get_player_position()
             if cursor_position:squared_dist_to_ignore_z(player_position) > max_spell_range * max_spell_range then
-                return false  -- Cursor too far
+                return false -- Cursor too far
             end
             cast_position = cursor_position
         end
     else
         -- Check for enemy clustering for optimal positioning
         if target then
+<<<<<<< Updated upstream
             local enemy_count = my_utility.enemy_count_simple(5) -- 5 yard range for clustering
             -- Always cast against elites/bosses or when we have good clustering
             if not (target:is_elite() or target:is_champion() or target:is_boss()) then
                 if enemy_count < 1 then  -- Minimum 1 enemies for non-elite (relaxed for general use)
                     return false
+=======
+<<<<<<< Updated upstream
+            local dist_sq = target:get_position():squared_dist_to_ignore_z(local_player:get_position());
+            local engage_dist = menu_elements.engage_distance:get();
+            
+            if menu_elements.gap_close_only:get() then
+                if dist_sq < engage_dist * engage_dist then
+                    return false; -- Too close, don't waste evade
+=======
+            local enemy_count = my_utility.enemy_count_simple(5) -- 5 yard range for clustering
+            -- Always cast against elites/bosses or when we have good clustering
+            if not (target:is_elite() or target:is_champion() or target:is_boss()) then
+                if enemy_count < 1 then -- Minimum 1 enemies for non-elite (relaxed for general use)
+                    return false
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
                 end
             end
             cast_position = target:get_position()
