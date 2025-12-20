@@ -38,9 +38,9 @@ local function logics()
     local current_hp_pct = local_player:get_current_health() / local_player:get_max_health()
     local hp_threshold = menu_elements.hp_threshold:get()
     local use_on_cc = menu_elements.use_on_cc:get()
-    local is_cc = my_utility.is_crowd_controlled(local_player)
+    -- local is_cc = my_utility.is_crowd_controlled(local_player)
 
-    if current_hp_pct > hp_threshold and not (use_on_cc and is_cc) then
+    if current_hp_pct > hp_threshold then -- and not (use_on_cc and is_cc) then
         return false
     end
 

@@ -315,15 +315,17 @@ local function evaluate_targets(target_list, melee_range)
             total_score = total_score + my_target_selector.get_unit_weight(unit)
 
             -- Check if unit has damage resistance buff
-            for _, buff in ipairs(buffs) do
-                if buff.name_hash == spell_data.enemies.damage_resistance.spell_id then
-                    -- if the enemy is the provider of the damage resistance aura
-                    if buff.type == spell_data.enemies.damage_resistance.buff_ids.provider then
-                        total_score = total_score + damage_resistance_value
-                        break
-                    else -- otherwise the enemy is the receiver of the damage resistance aura
-                        total_score = total_score - damage_resistance_value
-                        break
+            if buffs then
+                for _, buff in ipairs(buffs) do
+                    if buff.name_hash == spell_data.enemies.damage_resistance.spell_id then
+                        -- if the enemy is the provider of the damage resistance aura
+                        if buff.type == spell_data.enemies.damage_resistance.buff_ids.provider then
+                            total_score = total_score + damage_resistance_value
+                            break
+                        else -- otherwise the enemy is the receiver of the damage resistance aura
+                            total_score = total_score - damage_resistance_value
+                            break
+                        end
                     end
                 end
             end
