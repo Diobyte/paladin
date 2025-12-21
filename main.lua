@@ -4,7 +4,7 @@ if local_player == nil then
 end
 
 local character_id = local_player:get_character_class_id();
-local is_paladin = character_id == 4;
+local is_paladin = character_id == 7;
 if not is_paladin then
     return
 end;
@@ -199,14 +199,14 @@ on_render_menu(function()
         menu.menu_elements.file_logging_enabled:render("File Logging", "Enable logging to file for debugging")
         if menu.menu_elements.enable_debug:get() then
             if menu.menu_elements.debug_tree:push("Debug") then
-                menu.menu_elements.draw_targets:render("Display Targets", draw_targets_description)
+                menu.menu_elements.draw_targets:render("Display Targets", menu.draw_targets_description)
                 menu.menu_elements.draw_max_range:render("Display Max Range",
                     "Draw max range circle")
                 menu.menu_elements.draw_melee_range:render("Display Melee Range",
                     "Draw melee range circle")
                 menu.menu_elements.draw_enemy_circles:render("Display Enemy Circles",
                     "Draw enemy circles")
-                menu.menu_elements.draw_cursor_target:render("Display Cursor Target", cursor_target_description)
+                menu.menu_elements.draw_cursor_target:render("Display Cursor Target", menu.cursor_target_description)
                 menu.menu_elements.debug_tree:pop()
             end
         end
@@ -694,4 +694,4 @@ on_render(function()
     end
 end);
 
-my_utility.debug_print("Lua Plugin - DirtyDio - Version 2.2.0")
+console.print("Lua Plugin - DirtyDio Paladin - Version 2.2.0")

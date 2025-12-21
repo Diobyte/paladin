@@ -1,20 +1,22 @@
+-- luacheck: globals cast_spell console prediction target_selector actors_manager
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
+local my_target_selector = require("my_utility/my_target_selector")
 
 local max_spell_range = 15.0 -- Charge range
 local menu_elements =
 {
-    tree_tab              = my_utility.safe_tree_tab(1),
-    main_boolean          = my_utility.safe_checkbox(true,
+    tree_tab              = tree_node:new(1),
+    main_boolean          = checkbox:new(true,
         get_hash(my_utility.plugin_label .. "shield_bash_main_bool_base")),
-    targeting_mode        = my_utility.safe_combo_box(3,
+    targeting_mode        = combo_box:new(3,
         get_hash(my_utility.plugin_label .. "shield_bash_targeting_mode")),
-    priority_target       = my_utility.safe_checkbox(false,
+    priority_target       = checkbox:new(false,
         get_hash(my_utility.plugin_label .. "shield_bash_priority_target")),
-    min_target_range      = my_utility.safe_slider_float(0.0, max_spell_range - 1, 0.0,
+    min_target_range      = slider_float:new(0.0, max_spell_range - 1, 0.0,
         get_hash(my_utility.plugin_label .. "shield_bash_min_target_range")),
-    check_buff            = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "shield_bash_check_buff")),
-    spam_with_intricacy   = my_utility.safe_checkbox(false,
+    check_buff            = checkbox:new(false, get_hash(my_utility.plugin_label .. "shield_bash_check_buff")),
+    spam_with_intricacy   = checkbox:new(false,
         get_hash(my_utility.plugin_label .. "shield_bash_spam_with_intricacy")),
     use_offensively       = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "shield_bash_use_offensively")),
@@ -60,7 +62,7 @@ local CAST_DELAY = 0.1
 
 local shield_bash_data = spell_data.shield_bash.data
 
-local function logics(target_selector_data)
+local function logics(best_target, target_selector_data)
     -- Shield Bash requires a target to charge at
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(menu_boolean, next_time_allowed_cast,
@@ -80,28 +82,11 @@ local function logics(target_selector_data)
         return false
     end;
 
-    -- Find target - use priority targeting if enabled
-    local target
-    if menu_elements.priority_target:get() and target_selector_data then
-        target = target_selector_data.get_priority_target()
-        if target then
-            if menu_elements.debug_mode:get() then
-                my_utility.debug_print("[SHIELD BASH DEBUG] Priority targeting enabled - using priority target: " ..
-                    (target:get_skin_name() or "Unknown"))
-            end
-        else
-            if menu_elements.debug_mode:get() then
-                my_utility.debug_print("[SHIELD BASH DEBUG] Priority targeting enabled but no priority target found")
-            end
-            return false
-        end
-    else
-        target = target_selector.get_target_enemy(max_spell_range)
-    end
-
+    -- Find target
+    local target = best_target
     if not target then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[SHIELD BASH DEBUG] No target found")
+            my_utility.debug_print("[SHIELD BASH DEBUG] No target provided")
         end
         return false
     end

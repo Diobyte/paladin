@@ -135,6 +135,16 @@ local spell_data = {
         cast_delay = 0.2, -- Medium cast time for mobility skill
         is_mobility = true,
         description = "Impale enemies with a heavenly lance, stabbing 2x90% damage",
+        data = spell_data_module.create_spell_data(
+            0.7,                        -- radius
+            8.0,                        -- range (extended melee)
+            0.2,                        -- cast_delay
+            0.0,                        -- projectile_speed
+            false,                      -- has_wall_collision
+            2120228,                    -- spell_id
+            spell_geometry.rectangular, -- geometry_type
+            targeting_type.skillshot    -- targeting_type
+        ),
         -- Targeting: cast_spell.target(target, spell_id) - melee/short range skillshot
     },
     brandish = {

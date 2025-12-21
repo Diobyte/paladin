@@ -1,9 +1,6 @@
+-- luacheck: globals cast_spell console
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
-
--- Declare globals for linter
-local cast_spell = cast_spell
-local console = console
 
 local max_spell_range = 15.0
 local targeting_type = "ranged"
@@ -103,6 +100,17 @@ local function logics(target, target_selector_data)
         end
         return false
     end;
+
+    -- Check Faith cost
+    local local_player = get_local_player();
+    local current_faith = local_player:get_primary_resource_current();
+    if current_faith < spell_data.divine_lance.faith_cost then
+        if menu_elements.debug_mode:get() then
+            console.print("[DIVINE LANCE DEBUG] Not enough Faith - required: " ..
+                spell_data.divine_lance.faith_cost .. ", current: " .. current_faith)
+        end
+        return false
+    end
 
     if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         if menu_elements.debug_mode:get() then

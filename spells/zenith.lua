@@ -1,13 +1,11 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
--- luacheck: globals cast_spell
-
 local menu_elements =
 {
-    tree_tab     = my_utility.safe_tree_tab(1),
-    main_boolean = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "zenith_main_bool_base")),
-    cast_delay   = my_utility.safe_slider_float(0.01, 10.0, 0.1,
+    tree_tab     = tree_node:new(1),
+    main_boolean = checkbox:new(true, get_hash(my_utility.plugin_label .. "zenith_main_bool_base")),
+    cast_delay   = slider_float:new(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "zenith_cast_delay")),
     debug_mode   = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "zenith_debug_mode")),
 }
@@ -37,6 +35,17 @@ local function logics()
         end
         return false
     end;
+
+    -- Check Faith cost
+    local local_player = get_local_player();
+    local current_faith = local_player:get_primary_resource_current();
+    if current_faith < spell_data.zenith.faith_cost then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[ZENITH DEBUG] Not enough Faith - required: " ..
+            spell_data.zenith.faith_cost .. ", current: " .. current_faith)
+        end
+        return false
+    end
 
     -- Use helper to perform the cast and record
     local cast_ok, delay = my_utility.try_cast_spell("zenith", spell_data.zenith.spell_id, menu_boolean,
