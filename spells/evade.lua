@@ -11,17 +11,18 @@ local menu_elements =
 {
     tree_tab            = my_utility.safe_tree_tab(1),
     main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "evade_main_bool_base")),
+    evade_mode          = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "evade_mode_selector")),
     targeting_mode      = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "evade_targeting_mode")),
+    auto_dodge          = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "evade_auto_dodge")),
+
+    -- Advanced Settings Tree
+    advanced_tree       = my_utility.safe_tree_tab(2),
     mobility_only       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
     min_target_range    = my_utility.safe_slider_float(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "evade_min_target_range")),
     elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
-    allow_out_of_combat = my_utility.safe_checkbox(false,
-        get_hash(my_utility.plugin_label .. "evade_allow_out_of_combat")),
-    use_out_of_combat   = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_use_out_of_combat")),
-    auto_dodge          = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "evade_auto_dodge")),
-    min_ooc_evade_range = my_utility.safe_slider_float(2.5, 5, 3,
-        get_hash(my_utility.plugin_label .. "min_ooc_evade_range")),
+    min_travel_range    = my_utility.safe_slider_float(2.5, 5, 3,
+        get_hash(my_utility.plugin_label .. "evade_min_travel_range")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "evade_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.5,
@@ -31,38 +32,44 @@ local menu_elements =
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_debug_mode")),
 }
 
+local evade_modes = { "Combat Only", "Combat & Travel" }
+
 local function menu()
     if menu_elements.tree_tab:push("Evade") then
-        menu_elements.main_boolean:render("Enable Evade - In combat", "")
+        menu_elements.main_boolean:render("Enable Evade", "")
         if menu_elements.main_boolean:get() then
+            menu_elements.evade_mode:render("Evade Mode", evade_modes,
+                "Combat Only: Dodge/Gap Close\nCombat & Travel: Also spam evade for movement out of combat")
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
-            menu_elements.mobility_only:render("Only use for mobility", "")
-            if menu_elements.mobility_only:get() then
-                menu_elements.min_target_range:render("Min Target Distance",
-                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
-            end
-            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.auto_dodge:render("Auto-Dodge", "Automatically evade out of dangerous ground effects")
-            menu_elements.allow_out_of_combat:render("Allow Out of Combat",
-                "Allow casting evade when no target is present")
-            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
-                "Override the base delay with a fixed value")
-            if menu_elements.use_custom_cooldown:get() then
-                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Set the custom cooldown in seconds",
-                    2)
+
+            if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.mobility_only:render("Only use for mobility", "")
+                if menu_elements.mobility_only:get() then
+                    menu_elements.min_target_range:render("Min Target Distance",
+                        "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                end
+                menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+
+                if menu_elements.evade_mode:get() == 1 then
+                    menu_elements.min_travel_range:render("Min Travel Distance",
+                        "\n     Minimum travel distance to use evade out of combat     \n\n", 1)
+                end
+
+                menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                    "Override the base delay with a fixed value")
+                if menu_elements.use_custom_cooldown:get() then
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                        "Set the custom cooldown in seconds",
+                        2)
+                end
+                menu_elements.cast_delay:render("Cast Delay",
+                    "Time between casts in seconds (min: 0.1s manual, 0.5s auto-play)", 2)
+                menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
+                menu_elements.advanced_tree:pop()
             end
-            menu_elements.cast_delay:render("Cast Delay",
-                "Time between casts in seconds (min: 0.1s manual, 0.5s auto-play)", 2)
-            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
-
-        menu_elements.use_out_of_combat:render("Enable Evade - Out of combat", "")
-        if menu_elements.use_out_of_combat:get() then
-            menu_elements.min_ooc_evade_range:render("Min Distance Out of Combat",
-                "\n     Minimum travel distance to use evade out of combat     \n\n", 1)
-        end
-
         menu_elements.tree_tab:pop()
     end
 end
@@ -238,8 +245,9 @@ local function logics(target)
 end
 
 local function out_of_combat()
-    local use_out_of_combat = menu_elements.use_out_of_combat:get();
-    if not use_out_of_combat then
+    -- Mode 1 is "Combat & Travel"
+    local is_travel_mode = menu_elements.evade_mode:get() == 1;
+    if not is_travel_mode then
         return false
     end
 
@@ -253,7 +261,7 @@ local function out_of_combat()
     local player_position = get_player_position()
     local cursor_position = get_cursor_position()
     local distance_sqr = cursor_position:squared_dist_to_ignore_z(player_position)
-    local min_range = menu_elements.min_ooc_evade_range:get()
+    local min_range = menu_elements.min_travel_range:get()
     if distance_sqr < min_range * min_range then
         return false
     end

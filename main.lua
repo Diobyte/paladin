@@ -58,13 +58,13 @@ local function refresh_equipped_lookup()
                 if type(is_equipped) == "function" then
                     is_equipped = s:is_equipped()
                 end
-                
+
                 if s and s.spell_id and is_equipped then
                     table.insert(equipped_ids, s.spell_id)
                 end
             end
 
-            -- Fallback: If no spells found with is_equipped (other than evade which is handled separately), 
+            -- Fallback: If no spells found with is_equipped (other than evade which is handled separately),
             -- assume is_equipped check failed and include all learned spells.
             if #equipped_ids == 0 then
                 for _, s in ipairs(player_spells) do
@@ -96,7 +96,7 @@ local function refresh_equipped_lookup()
     if rawget(_G, 'DEBUG_EQUIPPED_SPELLS') or (menu and menu.menu_elements.enable_debug:get()) then
         local count = 0
         for _ in pairs(equipped_lookup) do count = count + 1 end
-        -- Only print if count changes or periodically to avoid spam? 
+        -- Only print if count changes or periodically to avoid spam?
         -- For now, relying on user to enable debug only when needed.
         -- console.print("DEBUG: refresh_equipped_lookup found " .. count .. " equipped spells")
     end
@@ -422,11 +422,15 @@ local function use_ability(spell_name, delay_after_cast)
 
         -- CRITICAL FIX: Validate target is alive before passing to spell
         if target_unit and target_unit.is_enemy and target_unit:is_enemy() then
-            if not target_unit:is_alive() then
-                if menu.menu_elements.enable_debug:get() then
-                    my_utility.debug_print("[USE_ABILITY] Target is dead, skipping: " .. tostring(spell_name))
+            -- Check if is_alive method exists before calling
+            local is_alive_func = target_unit.is_alive
+            if is_alive_func and type(is_alive_func) == "function" then
+                if not target_unit:is_alive() then
+                    if menu.menu_elements.enable_debug:get() then
+                        my_utility.debug_print("[USE_ABILITY] Target is dead, skipping: " .. tostring(spell_name))
+                    end
+                    return false
                 end
-                return false
             end
         end
     end
@@ -561,8 +565,8 @@ on_update(function()
         return;
     end
 
-    -- Out of combat evade (unchanged)
-    if spells.evade and spells.evade.menu_elements.use_out_of_combat:get() then
+    -- Out of combat evade
+    if spells.evade then
         spells.evade.out_of_combat()
     end
 
@@ -849,7 +853,7 @@ on_render(function()
             local best_cursor_target_position_2d = graphics.w2s(best_cursor_target_position);
             graphics.circle_3d(best_cursor_target_position, 0.60, color_orange_red(255));
             graphics.l_text_2d("BEST_CURSOR_TARGET - Score:" .. cursor_max_score, best_cursor_target_position_2d,
-            font_size,
+                font_size,
                 color_orange_red(255))
         end
 
