@@ -48,7 +48,10 @@ local function refresh_equipped_lookup()
     end
 
     local local_player = get_local_player()
-    if local_player and local_player.get_spells then
+    local spells_found = false
+
+    -- Check if get_spells exists before calling it
+    if local_player and type(local_player.get_spells) == "function" then
         local player_spells = local_player:get_spells()
         if player_spells and #player_spells > 0 then
             local equipped_ids = {}
@@ -82,9 +85,20 @@ local function refresh_equipped_lookup()
                 for spell_name, data in pairs(spell_data) do
                     if type(data) == "table" and data.spell_id == spell_id then
                         new_lookup[spell_name] = true
+                        spells_found = true
                         break
                     end
                 end
+            end
+        end
+    end
+
+    if not spells_found then
+        -- Fallback: If get_spells is missing or returned nothing, enable all spells
+        -- This ensures the GUI shows all spells when the API is not available
+        for spell_name, data in pairs(spell_data) do
+            if type(data) == "table" and data.spell_id then
+                new_lookup[spell_name] = true
             end
         end
     end
@@ -465,11 +479,16 @@ local function get_equipped_spell_ids()
     local equipped_spells = {}
     -- Get player spells
     local local_player = get_local_player()
-    if local_player then
+    if local_player and type(local_player.get_spells) == "function" then
         local player_spells = local_player:get_spells()
         if player_spells then
             for _, spell in ipairs(player_spells) do
-                if spell.is_equipped then
+                local is_equipped = spell.is_equipped
+                if type(is_equipped) == "function" then
+                    is_equipped = spell:is_equipped()
+                end
+                
+                if is_equipped then
                     table.insert(equipped_spells, spell.spell_id)
                 end
             end

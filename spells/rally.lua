@@ -6,6 +6,8 @@ local menu_elements =
 {
     tree_tab            = my_utility.safe_tree_tab(1),
     main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
+
+    advanced_tree       = my_utility.safe_tree_tab(2),
     cast_on_cooldown    = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "rally_use_custom_cooldown")),
@@ -20,16 +22,19 @@ local function menu()
     if menu_elements.tree_tab:push("Rally") then
         menu_elements.main_boolean:render("Enable Rally", "")
         if menu_elements.main_boolean:get() then
-            menu_elements.cast_on_cooldown:render("Cast on Cooldown",
-                "Always cast when ready (maintains buff constantly)")
-            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
-                "Override the default cooldown with a custom value")
-            if menu_elements.use_custom_cooldown:get() then
-                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
-                    "Set the custom cooldown in seconds", 2)
+            if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.cast_on_cooldown:render("Cast on Cooldown",
+                    "Always cast when ready (maintains buff constantly)")
+                menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                    "Override the default cooldown with a custom value")
+                if menu_elements.use_custom_cooldown:get() then
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                        "Set the custom cooldown in seconds", 2)
+                end
+                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+                menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
+                menu_elements.advanced_tree:pop()
             end
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
 
         menu_elements.tree_tab:pop()

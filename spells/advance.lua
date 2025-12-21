@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global, undefined-field
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
@@ -9,6 +10,8 @@ local menu_elements =
     tree_tab            = my_utility.safe_tree_tab(1),
     main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "advance_main_bool_base")),
     targeting_mode      = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "advance_targeting_mode")),
+
+    advanced_tree       = my_utility.safe_tree_tab(2),
     priority_target     = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "advance_priority_target")),
     mobility_only       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
@@ -35,22 +38,28 @@ local function menu()
             -- Targeting
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
-            menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
-                "Targets Boss > Champion > Elite > Any")
-            menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting", 1)
 
-            -- Logic
-            menu_elements.max_faith:render("Max Faith %", "Don't cast if Faith is above this % (unless Mobility Only)", 1)
-            menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
-            menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
-            menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
-            if menu_elements.use_custom_cooldown:get() then
-                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Override default cast delay")
+            if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
+                    "Targets Boss > Champion > Elite > Any")
+                menu_elements.force_priority:render("Force Priority", "Only cast if priority target is found")
+                menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting",
+                    1)
+
+                -- Logic
+                menu_elements.max_faith:render("Max Faith %",
+                    "Don't cast if Faith is above this % (unless Mobility Only)", 1)
+                menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
+                menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
+                menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
+                if menu_elements.use_custom_cooldown:get() then
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Override default cast delay")
+                end
+                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+                menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
+                menu_elements.advanced_tree:pop()
             end
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
         end
-
-        menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
 
         menu_elements.tree_tab:pop()
     end

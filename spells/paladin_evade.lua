@@ -11,6 +11,8 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "paladin_evade_main_bool_base")),
     targeting_mode      = my_utility.safe_combo_box(0,
         get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
+
+    advanced_tree       = my_utility.safe_tree_tab(2),
     min_target_range    = my_utility.safe_slider_float(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
@@ -28,16 +30,20 @@ local function menu()
         if menu_elements.main_boolean:get() then
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
                 my_utility.targeting_mode_description)
-            menu_elements.min_target_range:render("Min Target Distance",
-                "\n     Must be lower than Max Targeting Range     \n\n", 1)
-            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
-                "Override the default cooldown with a custom value")
-            if menu_elements.use_custom_cooldown:get() then
-                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
-                    "Set the custom cooldown in seconds", 2)
+
+            if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.min_target_range:render("Min Target Distance",
+                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                    "Override the default cooldown with a custom value")
+                if menu_elements.use_custom_cooldown:get() then
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                        "Set the custom cooldown in seconds", 2)
+                end
+                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+                menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
+                menu_elements.advanced_tree:pop()
             end
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
 
         menu_elements.tree_tab:pop()

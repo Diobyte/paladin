@@ -7,6 +7,8 @@ local menu_elements =
 {
     tree_tab            = my_utility.safe_tree_tab(1),
     main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "fortress_main_bool_base")),
+
+    advanced_tree       = my_utility.safe_tree_tab(2),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "fortress_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 10.0, 0.1,
@@ -20,14 +22,20 @@ local function menu()
     if menu_elements.tree_tab:push("Fortress") then
         menu_elements.main_boolean:render("Enable Fortress",
             "Create defensive area that grants immunity and resolve stacks")
-        menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
-            "Override the default cooldown with a custom value")
-        if menu_elements.use_custom_cooldown:get() then
-            menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
-                "Set the custom cooldown in seconds", 2)
+
+        if menu_elements.main_boolean:get() then
+            if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                    "Override the default cooldown with a custom value")
+                if menu_elements.use_custom_cooldown:get() then
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                        "Set the custom cooldown in seconds", 2)
+                end
+                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+                menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
+                menu_elements.advanced_tree:pop()
+            end
         end
-        menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-        menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         menu_elements.tree_tab:pop()
     end
 end

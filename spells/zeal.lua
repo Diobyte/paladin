@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global, undefined-field
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
@@ -9,6 +10,8 @@ local menu_elements =
     tree_tab            = my_utility.safe_tree_tab(1),
     main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "zeal_main_bool_base")),
     targeting_mode      = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "zeal_targeting_mode")),
+
+    advanced_tree       = my_utility.safe_tree_tab(2),
     priority_target     = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "zeal_priority_target")),
     min_target_range    = my_utility.safe_slider_float(0, max_spell_range - 1, 0,
@@ -30,17 +33,21 @@ local function menu()
         if menu_elements.main_boolean:get() then
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_melee,
                 my_utility.targeting_mode_description)
-            menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
-                "Targets Boss > Champion > Elite > Any")
-            menu_elements.min_target_range:render("Min Target Distance",
-                "\n     Must be lower than Max Targeting Range     \n\n", 1)
-            menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
-            menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
-            if menu_elements.use_custom_cooldown:get() then
-                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Override default cast delay")
+
+            if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
+                    "Targets Boss > Champion > Elite > Any")
+                menu_elements.min_target_range:render("Min Target Distance",
+                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+                menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
+                if menu_elements.use_custom_cooldown:get() then
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Override default cast delay")
+                end
+                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+                menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
+                menu_elements.advanced_tree:pop()
             end
-            menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
 
         menu_elements.tree_tab:pop()
