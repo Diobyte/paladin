@@ -5,13 +5,15 @@ local max_spell_range = 8.0
 local targeting_type = "melee"
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "blessed_hammer_main_bool_base")),
-    targeting_mode   = combo_box:new(2, get_hash(my_utility.plugin_label .. "blessed_hammer_targeting_mode")),
-    min_target_range = slider_float:new(0, max_spell_range - 1, 0,
+    tree_tab         = my_utility.safe_tree_tab(1),
+    main_boolean     = my_utility.safe_checkbox(true,
+        get_hash(my_utility.plugin_label .. "blessed_hammer_main_bool_base")),
+    targeting_mode   = my_utility.safe_combo_box(2, get_hash(my_utility.plugin_label .. "blessed_hammer_targeting_mode")),
+    min_target_range = my_utility.safe_slider_float(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "blessed_hammer_min_target_range")),
-    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "blessed_hammer_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "blessed_hammer_cast_delay")),
+    elites_only      = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "blessed_hammer_elites_only")),
+    cast_delay       = my_utility.safe_slider_float(0.01, 1.0, 0.1,
+        get_hash(my_utility.plugin_label .. "blessed_hammer_cast_delay")),
 }
 
 local function menu()

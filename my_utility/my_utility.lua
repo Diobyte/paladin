@@ -14,6 +14,73 @@ local function debug_print(...)
     end
 end
 
+-- Test-friendly shim: ensure get_hash exists in headless/test env
+if rawget(_G, 'get_hash') == nil then
+    function get_hash(_) return 0 end
+end
+
+-- Safe wrapper for creating a tree tab in environments where the UI is not available (eg. unit tests)
+local function safe_tree_tab(index)
+    if rawget(_G, 'tree_node') then
+        return tree_node:new(index)
+    else
+        -- fallback object with minimal interface used by spell modules
+        return { push = function() return false end, pop = function() end }
+    end
+end
+
+-- Minimal UI stub generator for headless/test environment
+local function make_ui_stub(default)
+    local val = default
+    return {
+        get = function() return val end,
+        set = function(_, v) val = v end,
+        render = function(...) end
+    }
+end
+
+local function safe_checkbox(default, hash)
+    if rawget(_G, 'checkbox') then
+        return checkbox:new(default, hash)
+    end
+    return make_ui_stub(default)
+end
+
+local function safe_slider_float(minv, maxv, default, hash)
+    if rawget(_G, 'slider_float') then
+        return slider_float:new(minv, maxv, default, hash)
+    end
+    return make_ui_stub(default)
+end
+
+local function safe_slider_int(minv, maxv, default, hash)
+    if rawget(_G, 'slider_int') then
+        return slider_int:new(minv, maxv, default, hash)
+    end
+    return make_ui_stub(default)
+end
+
+local function safe_combobox(options, default, hash)
+    if rawget(_G, 'combobox') then
+        return combobox:new(options, default, hash)
+    end
+    return make_ui_stub(default)
+end
+
+local function safe_combo_box(default, hash)
+    if rawget(_G, 'combo_box') then
+        return combo_box:new(default, hash)
+    end
+    return make_ui_stub(default)
+end
+
+local function safe_button(label, fn)
+    if rawget(_G, 'button') then
+        return button:new(label, fn)
+    end
+    return { render = function(...) end }
+end
+
 -- Spell cast history and helpers (moved up so internal helpers are available during other functions)
 local spell_cast_history = {}
 
@@ -255,16 +322,19 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return false;
     end;
 
-    if not utility.is_spell_ready(spell_id) then
-        return false;
-    end;
+    local util = utility or package.loaded['utility']
+    if type(util) == 'table' then
+        if type(util.is_spell_ready) == 'function' and not util.is_spell_ready(spell_id) then
+            return false
+        end
 
-    if not utility.is_spell_affordable(spell_id) then
-        return false;
-    end;
+        if type(util.is_spell_affordable) == 'function' and not util.is_spell_affordable(spell_id) then
+            return false;
+        end
 
-    if not utility.can_cast_spell(spell_id) then
-        return false;
+        if type(util.can_cast_spell) == 'function' and not util.can_cast_spell(spell_id) then
+            return false;
+        end
     end;
 
     -- evade abort
@@ -591,6 +661,13 @@ return
     is_auto_play_enabled = is_auto_play_enabled,
     set_debug_enabled = set_debug_enabled,
     debug_print = debug_print,
+    safe_tree_tab = safe_tree_tab,
+    safe_checkbox = safe_checkbox,
+    safe_slider_float = safe_slider_float,
+    safe_slider_int = safe_slider_int,
+    safe_combobox = safe_combobox,
+    safe_combo_box = safe_combo_box,
+    safe_button = safe_button,
     try_maintain_buff = try_maintain_buff,
     try_cast_spell = try_cast_spell,
     get_total_cooldown_reduction_pct = get_total_cooldown_reduction_pct,

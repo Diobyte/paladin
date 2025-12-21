@@ -5,15 +5,16 @@ local max_spell_range = 15.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "falling_star_main_bool_base")),
-    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "falling_star_targeting_mode")),
-    min_target_range = slider_float:new(1, max_spell_range - 1, 3,
+    tree_tab         = my_utility.safe_tree_tab(1),
+    main_boolean     = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "falling_star_main_bool_base")),
+    targeting_mode   = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "falling_star_targeting_mode")),
+    min_target_range = my_utility.safe_slider_float(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
-    recast_delay     = slider_float:new(0.0, 10.0, 0.5,
+    recast_delay     = my_utility.safe_slider_float(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
-    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
-    cast_delay       = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
+    elites_only      = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
+    cast_delay       = my_utility.safe_slider_float(0.01, 1.0, 0.1,
+        get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
 }
 
 local function menu()

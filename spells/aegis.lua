@@ -4,9 +4,9 @@ local spell_data = require("my_utility/spell_data")
 local max_spell_range = 0.0 -- Self-cast
 local menu_elements =
 {
-    tree_tab     = tree_node:new(1),
-    main_boolean = checkbox:new(true, get_hash(my_utility.plugin_label .. "aegis_main_bool_base")),
-    hp_threshold = slider_float:new(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "aegis_hp_threshold")),
+    tree_tab     = my_utility.safe_tree_tab(1),
+    main_boolean = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "aegis_main_bool_base")),
+    hp_threshold = my_utility.safe_slider_float(0.0, 1.0, 0.5, get_hash(my_utility.plugin_label .. "aegis_hp_threshold")),
 }
 
 local function menu()
@@ -39,8 +39,8 @@ local function logics()
 
     local cast_ok, delay = my_utility.try_cast_spell("aegis", spell_data.aegis.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-        return cast_spell.self(spell_data.aegis.spell_id, 0)
-    end, 0.1)
+            return cast_spell.self(spell_data.aegis.spell_id, 0)
+        end, 0.1)
 
     if cast_ok then
         local current_time = get_time_since_inject();

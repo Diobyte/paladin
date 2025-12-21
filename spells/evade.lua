@@ -8,15 +8,17 @@ local max_spell_range = 10.0
 --       minimum delay is enforced to avoid spamming.
 local menu_elements =
 {
-    tree_tab            = tree_node:new(1),
-    main_boolean        = checkbox:new(true, get_hash(my_utility.plugin_label .. "evade_main_bool_base")),
-    targeting_mode      = combo_box:new(0, get_hash(my_utility.plugin_label .. "evade_targeting_mode")),
-    mobility_only       = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
-    min_target_range    = slider_float:new(3, max_spell_range - 1, 5,
+    tree_tab            = my_utility.safe_tree_tab(1),
+    main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "evade_main_bool_base")),
+    targeting_mode      = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "evade_targeting_mode")),
+    mobility_only       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
+    min_target_range    = my_utility.safe_slider_float(3, max_spell_range - 1, 5,
         get_hash(my_utility.plugin_label .. "evade_min_target_range")),
-    elites_only         = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
-    allow_out_of_combat = checkbox:new(false, get_hash(my_utility.plugin_label .. "evade_allow_out_of_combat")),
-    cast_delay          = slider_float:new(0.01, 1.0, 0.1, get_hash(my_utility.plugin_label .. "evade_cast_delay")),
+    elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
+    allow_out_of_combat = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "evade_allow_out_of_combat")),
+    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
+        get_hash(my_utility.plugin_label .. "evade_cast_delay")),
 }
 
 local function menu()

@@ -3,10 +3,10 @@ local spell_data = require("my_utility/spell_data")
 
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
-    cast_on_cooldown = checkbox:new(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
-    cast_delay       = slider_float:new(0.01, 10.0, 0.1,
+    tree_tab         = my_utility.safe_tree_tab(1),
+    main_boolean     = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
+    cast_on_cooldown = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
+    cast_delay       = my_utility.safe_slider_float(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "rally_cast_delay")),
 }
 

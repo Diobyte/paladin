@@ -5,15 +5,16 @@ local max_spell_range = 10.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab         = tree_node:new(1),
-    main_boolean     = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_main_bool_base")),
-    targeting_mode   = combo_box:new(0, get_hash(my_utility.plugin_label .. "advance_targeting_mode")),
-    mobility_only    = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
-    min_target_range = slider_float:new(0.0, max_spell_range - 1, 0.0,
+    tree_tab         = my_utility.safe_tree_tab(1),
+    main_boolean     = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "advance_main_bool_base")),
+    targeting_mode   = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "advance_targeting_mode")),
+    mobility_only    = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "advance_mobility_only")),
+    min_target_range = my_utility.safe_slider_float(0.0, max_spell_range - 1, 0.0,
         get_hash(my_utility.plugin_label .. "advance_min_target_range")),
-    max_faith        = slider_float:new(0.1, 1.0, 0.9, get_hash(my_utility.plugin_label .. "advance_max_faith")),
-    force_priority   = checkbox:new(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
-    elites_only      = checkbox:new(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
+    max_faith        = my_utility.safe_slider_float(0.1, 1.0, 0.9,
+        get_hash(my_utility.plugin_label .. "advance_max_faith")),
+    force_priority   = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
+    elites_only      = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
 }
 
 local function menu()
