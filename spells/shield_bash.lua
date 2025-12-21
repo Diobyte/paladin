@@ -88,12 +88,17 @@ local function logics(best_target, target_selector_data)
     -- Handle priority targeting mode
     if menu_elements.priority_target:get() and target_selector_data then
         local priority_target = my_target_selector.get_priority_target(target_selector_data)
-        if priority_target then
+        if priority_target and my_utility.is_in_range(priority_target, max_spell_range) then
             target = priority_target
             if menu_elements.debug_mode:get() then
                 my_utility.debug_print("[SHIELD BASH DEBUG] Priority targeting enabled - using priority target: " ..
                     (target:get_skin_name() or "Unknown"))
             end
+        else
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[SHIELD BASH DEBUG] No valid priority target in range, using original target")
+            end
+            -- Fall back to original target
         end
     end
 

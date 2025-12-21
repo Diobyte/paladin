@@ -55,10 +55,12 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             "evade",
 
-            -- Blessed Hammer spam with auras and mobility - META AOE BUILD
-            "blessed_hammer",
+            -- CRITICAL FIX: Auras BEFORE Faith spenders to activate buffs first
             "fanaticism_aura",
             "defiance_aura",
+
+            -- Blessed Hammer spam with auras and mobility - META AOE BUILD
+            "blessed_hammer",
             "falling_star",
             "rally",
             "arbiter_of_justice",
@@ -96,12 +98,14 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             "evade",
 
-            -- Arbiter focused with mobility and auras - PURE ULTIMATE BUILD
-            "arbiter_of_justice",
-            "falling_star",
+            -- Auras first to establish buff baseline
             "fanaticism_aura",
             "defiance_aura",
             "holy_light_aura",
+
+            -- Arbiter focused with mobility and auras - PURE ULTIMATE BUILD
+            "arbiter_of_justice",
+            "falling_star",
             "rally",
 
             -- Wrath builders for Arbiter
@@ -138,10 +142,12 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             "evade",
 
-            -- Blessed Shield focused with auras and mobility - SINGLE TARGET BUILD
-            "blessed_shield",
+            -- Auras first
             "fanaticism_aura",
             "defiance_aura",
+
+            -- Blessed Shield focused with auras and mobility - SINGLE TARGET BUILD
+            "blessed_shield",
             "rally",
             "falling_star",
             "arbiter_of_justice",
@@ -182,13 +188,15 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             "evade",
 
+            -- Auras first
+            "fanaticism_aura",
+            "defiance_aura",
+            "holy_light_aura",
+
             -- Shield bash focused with charge and auras - MELEE BUILD
             "shield_bash",
             "clash",
             "shield_charge",
-            "fanaticism_aura",
-            "defiance_aura",
-            "holy_light_aura",
             "rally",
             "falling_star",
 
@@ -222,11 +230,13 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             "evade",
 
+            -- Auras first
+            "fanaticism_aura",
+            "defiance_aura",
+
             -- Mobility and ultimate focused - HIGH MOBILITY BUILD
             "falling_star",
             "arbiter_of_justice",
-            "fanaticism_aura",
-            "defiance_aura",
             "rally",
             "blessed_hammer",
 
@@ -264,9 +274,12 @@ local function get_base_spell_priority(build_index)
             "paladin_evade",
             -- Evade focused with Blessed Hammer spam - META EVADE BUILD
             "evade",
-            "blessed_hammer",
+
+            -- Auras first
             "fanaticism_aura",
             "defiance_aura",
+
+            "blessed_hammer",
             "consecration",
             "rally",
 
@@ -303,11 +316,14 @@ local function get_base_spell_priority(build_index)
             -- Arbiter with evade for high mobility and ultimate spam - META BUILD
             "paladin_evade",
             "evade",
-            "arbiter_of_justice",
-            "falling_star",
+
+            -- Auras first
             "fanaticism_aura",
             "defiance_aura",
             "holy_light_aura",
+
+            "arbiter_of_justice",
+            "falling_star",
 
             -- Wrath builders
             "zeal",
@@ -389,10 +405,12 @@ local function get_base_spell_priority(build_index)
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
-            -- Spear of the Heavens focused - RANGED ULTIMATE BUILD
-            "spear_of_the_heavens",
+            -- Auras first
             "fanaticism_aura",
             "defiance_aura",
+
+            -- Spear of the Heavens focused - RANGED ULTIMATE BUILD
+            "spear_of_the_heavens",
             "rally",
             "falling_star",
             "blessed_hammer",
@@ -434,12 +452,14 @@ local function get_base_spell_priority(build_index)
             -- HIGHEST PRIORITY - Evade for mobility and safety
             "evade",
 
-            -- Zenith and Aegis focused - TANKY ULTIMATE BUILD
-            "zenith",
-            "aegis",
+            -- Auras first
             "fanaticism_aura",
             "defiance_aura",
             "holy_light_aura",
+
+            -- Zenith and Aegis focused - TANKY ULTIMATE BUILD
+            "zenith",
+            "aegis",
             "rally",
 
             -- Other ultimates
@@ -608,7 +628,6 @@ local function adjust_priorities_for_items(base_priorities)
     end
 
     -- Compute cooldown reduction centrally using my_utility helper for consistency
-    local my_utility = require('my_utility/my_utility')
     cdr_total = my_utility.get_total_cooldown_reduction_pct() or 0
 
     -- Create adjusted priorities based on item stats
@@ -820,9 +839,8 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         if faith_current > (faith_max * 0.8) then
             local ultimates = { "arbiter_of_justice", "heavens_fury", "spear_of_the_heavens", "zenith", "aegis",
                 "fortress" }
-            local util = package.loaded and package.loaded['my_utility'] or my_utility
             for _, ult_name in ipairs(ultimates) do
-                if spell_name == ult_name and spell_data[ult_name] and type(util) == "table" and type(util.is_spell_ready) == "function" and util.is_spell_ready(spell_data[ult_name].spell_id) then
+                if spell_name == ult_name and spell_data[ult_name] and type(utility) == "table" and type(utility.is_spell_ready) == "function" and utility.is_spell_ready(spell_data[ult_name].spell_id) then
                     new_position = math.max(1, i - 1)
                     break -- Only boost the first ready ultimate
                 end

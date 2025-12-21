@@ -57,25 +57,25 @@ local function logics(target, target_selector_data)
         local priority_best_target, target_type = my_target_selector.get_priority_target(target_selector_data)
 
         if menu_elements.debug_mode:get() then
-            console.print("[DIVINE LANCE DEBUG] Priority targeting mode - Target type: " .. target_type)
+            my_utility.debug_print("[DIVINE LANCE DEBUG] Priority targeting mode - Target type: " .. target_type)
         end
 
-        if priority_best_target then
+        if priority_best_target and my_utility.is_in_range(priority_best_target, max_spell_range) then
             target = priority_best_target
         else
             if menu_elements.debug_mode:get() then
-                console.print("[DIVINE LANCE DEBUG] No priority target found")
+                my_utility.debug_print("[DIVINE LANCE DEBUG] No valid priority target in range, using original target")
             end
-            return false
+            -- Fall back to original target
         end
         -- Regular target mode (using the target passed from main.lua)
     else
         if menu_elements.debug_mode:get() then
-            console.print("[DIVINE LANCE DEBUG] Regular target mode")
+            my_utility.debug_print("[DIVINE LANCE DEBUG] Regular target mode")
         end
         if not target then
             if menu_elements.debug_mode:get() then
-                console.print("[DIVINE LANCE DEBUG] No target provided")
+                my_utility.debug_print("[DIVINE LANCE DEBUG] No target provided")
             end
             return false
         end
@@ -83,7 +83,7 @@ local function logics(target, target_selector_data)
 
     if menu_elements.elites_only:get() and not target:is_elite() then
         if menu_elements.debug_mode:get() then
-            console.print("[DIVINE LANCE DEBUG] Elites only mode - target is not elite")
+            my_utility.debug_print("[DIVINE LANCE DEBUG] Elites only mode - target is not elite")
         end
         return false
     end
@@ -96,7 +96,7 @@ local function logics(target, target_selector_data)
 
     if not is_logic_allowed then
         if menu_elements.debug_mode:get() then
-            console.print("[DIVINE LANCE DEBUG] Logic not allowed - spell conditions not met")
+            my_utility.debug_print("[DIVINE LANCE DEBUG] Logic not allowed - spell conditions not met")
         end
         return false
     end;
@@ -106,7 +106,7 @@ local function logics(target, target_selector_data)
     local current_faith = local_player:get_primary_resource_current();
     if current_faith < spell_data.divine_lance.faith_cost then
         if menu_elements.debug_mode:get() then
-            console.print("[DIVINE LANCE DEBUG] Not enough Faith - required: " ..
+            my_utility.debug_print("[DIVINE LANCE DEBUG] Not enough Faith - required: " ..
                 spell_data.divine_lance.faith_cost .. ", current: " .. current_faith)
         end
         return false
@@ -114,7 +114,7 @@ local function logics(target, target_selector_data)
 
     if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         if menu_elements.debug_mode:get() then
-            console.print("[DIVINE LANCE DEBUG] Target not in valid range")
+            my_utility.debug_print("[DIVINE LANCE DEBUG] Target not in valid range")
         end
         return false
     end
@@ -127,7 +127,7 @@ local function logics(target, target_selector_data)
         local current_time = get_time_since_inject();
         local cooldown = (delay or menu_elements.cast_delay:get());
         next_time_allowed_cast = current_time + cooldown;
-        console.print("Cast Divine Lance - Target: " ..
+        my_utility.debug_print("Cast Divine Lance - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
         if menu_elements.use_custom_cooldown:get() then
             return true, menu_elements.custom_cooldown_sec:get()
@@ -136,7 +136,7 @@ local function logics(target, target_selector_data)
     end;
 
     if menu_elements.debug_mode:get() then
-        console.print("[DIVINE LANCE DEBUG] Cast failed")
+        my_utility.debug_print("[DIVINE LANCE DEBUG] Cast failed")
     end
     return false;
 end

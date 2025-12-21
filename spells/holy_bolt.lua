@@ -53,7 +53,7 @@ local function logics(target, target_selector_data)
     -- Handle priority targeting mode
     if menu_elements.priority_target:get() and target_selector_data then
         local priority_target = my_target_selector.get_priority_target(target_selector_data)
-        if priority_target then
+        if priority_target and my_utility.is_in_range(priority_target, max_spell_range) then
             target = priority_target
             if menu_elements.debug_mode:get() then
                 my_utility.debug_print("[HOLY BOLT DEBUG] Priority targeting enabled - using priority target: " ..
@@ -61,9 +61,8 @@ local function logics(target, target_selector_data)
             end
         else
             if menu_elements.debug_mode:get() then
-                my_utility.debug_print("[HOLY BOLT DEBUG] Priority targeting enabled but no priority target found")
+                my_utility.debug_print("[HOLY BOLT DEBUG] No valid priority target in range, using original target")
             end
-            return false
         end
     end
 

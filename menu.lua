@@ -22,6 +22,9 @@ local menu_elements =
     best_target_evaluation_radius  = slider_float:new(0.1, 6, 3,
         get_hash(my_utility.plugin_label .. "best_target_evaluation_radius")),
 
+    force_target_boss              = checkbox:new(true, get_hash(my_utility.plugin_label .. "force_target_boss")),
+    force_target_elite             = checkbox:new(false, get_hash(my_utility.plugin_label .. "force_target_elite")),
+
     build_selector                 = combo_box:new(0, get_hash(my_utility.plugin_label .. "build_selector")),
 
     enable_debug                   = checkbox:new(false, get_hash(my_utility.plugin_label .. "enable_debug")),

@@ -158,25 +158,12 @@ end
 -- Generic simple helper to attempt a cast and centralize recording/logging.
 -- cast_fn is a function that actually performs the cast (should return true on success).
 -- Returns: true, delay on success, false on failure.
+-- NOTE: Cooldown enforcement removed to allow spell-specific custom cooldowns to work.
+-- Each spell manages its own next_time_allowed_cast timing with custom/default values.
 local function try_cast_spell(spell_name, spell_id, menu_boolean, next_time_allowed, cast_fn, delay)
     if not menu_boolean then return false end
-    -- internal cooldown enforcement using spell_data cooldown metadata
-    local sd = spell_data[spell_name]
-    if sd and sd.cooldown and sd.cooldown > 0 then
-        local last = get_last_cast_time(spell_name)
-        if last ~= nil then
-            local current_time = (type(get_time_since_inject) == 'function') and get_time_since_inject() or 0
-            -- Apply cooldown reduction from items when enforcing internal cooldowns
-            local cdr_pct = get_total_cooldown_reduction_pct()
-            local effective_cd = sd.cooldown * (1 - (cdr_pct / 100))
-            if effective_cd < 0 then effective_cd = 0 end
-            if current_time < (last + effective_cd) then
-                -- still on cooldown
-                return false
-            end
-        end
-    end
 
+    -- Check game API spell ready state (mana/resources, global cooldown)
     local util = utility or package.loaded['utility']
     if type(util) == "table" and type(util.is_spell_ready) == "function" and not util.is_spell_ready(spell_id) then
         return false
@@ -375,12 +362,6 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
     return true
 end
 
-local spell_delays = {
-    regular_cast = 0.1,
-    instant_cast = 0.0,
-    long_cast = 0.5
-}
-
 local function generate_points_around_target(target_position, radius, num_points)
     local points = {};
     for i = 1, num_points do
@@ -565,6 +546,11 @@ local function is_in_range(target, range)
     return target_distance_sqr < range_sqr
 end
 
+local function is_high_priority_target(target)
+    if not target then return false end
+    return target:is_elite() or target:is_champion() or target:is_boss()
+end
+
 local function enemy_count_simple(range)
     local player_position = get_player_position()
     local enemies = actors_manager.get_enemy_npcs()
@@ -694,5 +680,6 @@ return
     enemy_count_simple = enemy_count_simple,
     get_melee_range = get_melee_range,
     is_in_range = is_in_range,
+    is_high_priority_target = is_high_priority_target,
     horde_objectives = horde_objectives
 }

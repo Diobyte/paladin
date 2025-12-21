@@ -3,6 +3,13 @@
 -- returning here prevents `on_render_menu` from being registered (GUI won't show).
 -- Gate class-specific logic inside callbacks instead.
 
+-- Plugin Configuration
+local PLUGIN_VERSION = "2.3.0"
+local PLUGIN_NAME = "DirtyDio Paladin"
+
+-- Orbwalker initialization
+
+-- Orbwalker initialization
 local orbwalker_initialized = false;
 
 local function try_init_orbwalker()
@@ -34,37 +41,46 @@ local equipped_lookup = {}
 
 local next_equipped_refresh_time = 0.0
 local function refresh_equipped_lookup()
-    equipped_lookup = {}
+    -- CRITICAL FIX: Always rebuild equipped_lookup from scratch to prevent stale cache
+    -- Remove early returns that could cache empty/invalid state
+    local new_lookup = {}
+
+    -- Evade is always available
+    if spell_data.evade and spell_data.evade.spell_id then
+        new_lookup["evade"] = true
+    end
 
     local local_player = get_local_player()
-    if not local_player or not local_player.get_spells then
-        return
-    end
+    if local_player and local_player.get_spells then
+        local player_spells = local_player:get_spells()
+        if player_spells and #player_spells > 0 then
+            local equipped_ids = {}
+            for _, s in ipairs(player_spells) do
+                if s and s.spell_id and s.is_equipped then
+                    table.insert(equipped_ids, s.spell_id)
+                end
+            end
 
-    local player_spells = local_player:get_spells()
-    if not player_spells then
-        return
-    end
-
-    local equipped_ids = {}
-    for _, s in ipairs(player_spells) do
-        if s and s.spell_id and s.is_equipped then
-            table.insert(equipped_ids, s.spell_id)
-        end
-    end
-
-    -- Add evade ID explicitly
-    if spell_data.evade and spell_data.evade.spell_id then
-        table.insert(equipped_ids, spell_data.evade.spell_id)
-    end
-
-    for _, spell_id in ipairs(equipped_ids) do
-        for spell_name, data in pairs(spell_data) do
-            if type(data) == "table" and data.spell_id == spell_id then
-                equipped_lookup[spell_name] = true
-                break
+            -- Map spell IDs to spell names
+            for _, spell_id in ipairs(equipped_ids) do
+                for spell_name, data in pairs(spell_data) do
+                    if type(data) == "table" and data.spell_id == spell_id then
+                        new_lookup[spell_name] = true
+                        break
+                    end
+                end
             end
         end
+    end
+
+    -- Always update the lookup table
+    equipped_lookup = new_lookup
+
+    -- Debug: Log equipped spells count
+    if rawget(_G, 'DEBUG_EQUIPPED_SPELLS') then
+        local count = 0
+        for _ in pairs(equipped_lookup) do count = count + 1 end
+        print("DEBUG: refresh_equipped_lookup found " .. count .. " equipped spells")
     end
 end
 
@@ -73,12 +89,9 @@ local target_selector_data_visible = nil
 local target_selector_data_all = nil
 
 -- OPTIMIZATION: Pre-cache all spell priorities for instant lookup
-local spell_priority_cache = {}
-for build_index = 0, 12 do
-    spell_priority_cache[build_index] = get_spell_priority(build_index)
-end
-
-local current_spell_priority = spell_priority_cache[0]; -- 0 for default build
+-- Initialize with default build (0) to ensure GUI works before on_update runs
+local current_spell_priority = get_spell_priority(0)
+local last_priority_update_time = 0.0
 
 -- Targets
 local best_ranged_target = nil
@@ -107,6 +120,11 @@ local angle_table = { false, 90.0 } -- max angle
 local next_target_update_time = 0.0 -- Time of next target evaluation
 local next_cast_time = 0.0          -- Time of next possible cast
 local targeting_refresh_interval = 0.2
+
+-- Constants for better maintainability
+local EQUIPPED_REFRESH_INTERVAL = 0.5
+local PRIORITY_UPDATE_INTERVAL = 0.2
+local MIN_CASTING_DELAY = 0.01
 
 -- Default enemy weights for different enemy types
 local normal_monster_value = 2
@@ -200,7 +218,15 @@ local target_unit_map = {
 }
 
 on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("DirtyDio Paladin v2.2.0") then
+    -- Refresh equipped lookup at start of menu render to ensure GUI is in sync
+    refresh_equipped_lookup()
+
+    -- Ensure current_spell_priority is initialized
+    if not current_spell_priority or #current_spell_priority == 0 then
+        current_spell_priority = get_spell_priority(0)
+    end
+
+    if not menu.menu_elements.main_tree:push(PLUGIN_NAME .. " v" .. PLUGIN_VERSION) then
         return;
     end
 
@@ -230,10 +256,15 @@ on_render_menu(function()
             "       If you use huge aoe spells, you should increase this value       \n" ..
             "       Size is displayed with debug/display targets with faded white circles       ", 1)
 
+        menu.menu_elements.force_target_boss:render("Force Target Boss",
+            "Always prioritize Bosses regardless of other scores")
+        menu.menu_elements.force_target_elite:render("Force Target Elites",
+            "Always prioritize Elites/Champions regardless of other scores")
+
         menu.menu_elements.build_selector:render("Build Selector",
             { "Default", "Judgement Nuke", "Hammerkuna", "Arbiter", "Captain America", "Shield Bash", "Wing Strikes",
-                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin" },
-            "Select a build to optimize spell priorities and timings for max DPS")
+                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin", "Auto" },
+            "Select a build to optimize spell priorities and timings for max DPS. 'Auto' will detect based on equipped spells.")
 
         -- Spell priority is now updated in on_update for real-time adjustments
 
@@ -274,15 +305,12 @@ on_render_menu(function()
         menu.menu_elements.settings_tree:pop()
     end
 
-    -- Keep menu in sync even if load-order changes; also used by on_update
-    refresh_equipped_lookup()
-
     if menu.menu_elements.spells_tree:push("Equipped Spells") then
         -- Display spells in priority order, but only if they're equipped
         for _, spell_name in ipairs(current_spell_priority) do
             if equipped_lookup[spell_name] then
                 local spell = spells[spell_name]
-                if spell then
+                if spell and type(spell.menu) == "function" then
                     spell.menu()
                 end
             end
@@ -293,7 +321,7 @@ on_render_menu(function()
     if menu.menu_elements.disabled_spells_tree:push("Inactive Spells") then
         for _, spell_name in ipairs(current_spell_priority) do
             local spell = spells[spell_name]
-            if spell and not equipped_lookup[spell_name] then
+            if spell and type(spell.menu) == "function" and not equipped_lookup[spell_name] then
                 spell.menu()
             end
         end
@@ -305,7 +333,14 @@ end)
 
 local function use_ability(spell_name, delay_after_cast)
     local spell = spells[spell_name]
-    if not (spell and spell.menu_elements.main_boolean:get()) then
+    if not spell then
+        if menu.menu_elements.enable_debug:get() then
+            my_utility.debug_print("[USE_ABILITY] Spell not found: " .. tostring(spell_name))
+        end
+        return false
+    end
+
+    if not spell.menu_elements or not spell.menu_elements.main_boolean:get() then
         return false
     end
 
@@ -318,14 +353,40 @@ local function use_ability(spell_name, delay_after_cast)
             targeting_mode = targeting_mode_maps.ranged[targeting_mode] or 0
         end
 
+        -- Safety: Add fallback for invalid targeting modes
         local getter = target_unit_map[targeting_mode]
+        if not getter then
+            if menu.menu_elements.enable_debug:get() then
+                my_utility.debug_print("[USE_ABILITY] Invalid targeting mode " ..
+                tostring(targeting_mode) .. " for " .. spell_name .. ", using closest target")
+            end
+            getter = function() return closest_target end
+        end
+
         if getter then
             target_unit = getter()
+        end
+
+        -- CRITICAL FIX: Validate target is alive before passing to spell
+        if target_unit and target_unit.is_enemy and target_unit:is_enemy() then
+            if not target_unit:is_alive() then
+                if menu.menu_elements.enable_debug:get() then
+                    my_utility.debug_print("[USE_ABILITY] Target is dead, skipping: " .. tostring(spell_name))
+                end
+                return false
+            end
         end
     end
 
     -- Spell logics now return (success, cooldown) like reference repos
     local success, cooldown
+    if not spell.logics then
+        if menu.menu_elements.enable_debug:get() then
+            my_utility.debug_print("[USE_ABILITY] No logics function for: " .. tostring(spell_name))
+        end
+        return false
+    end
+
     if target_unit then
         success, cooldown = spell.logics(target_unit, target_selector_data_all)
     else
@@ -333,9 +394,10 @@ local function use_ability(spell_name, delay_after_cast)
     end
 
     if success then
-        local actual_cooldown = cooldown or delay_after_cast
-        next_cast_time = get_time_since_inject() + actual_cooldown
-        cast_end_time = get_time_since_inject() + actual_cooldown
+        local actual_cooldown = cooldown or delay_after_cast or MIN_CASTING_DELAY
+        local current_time = get_time_since_inject()
+        next_cast_time = current_time + actual_cooldown
+        cast_end_time = current_time + actual_cooldown
         my_utility.record_spell_cast(spell_name)
         return true
     end
@@ -360,10 +422,50 @@ local function get_equipped_spell_ids()
     return equipped_spells
 end
 
+local function detect_build()
+    local equipped_ids = get_equipped_spell_ids()
+    local id_map = {}
+    for _, id in ipairs(equipped_ids) do id_map[id] = true end
+
+    -- Detection logic based on key spells with nil safety
+    if spell_data.brandish and spell_data.blessed_shield and
+        id_map[spell_data.brandish.spell_id] and id_map[spell_data.blessed_shield.spell_id] then
+        return 1  -- Judgement Nuke
+    elseif spell_data.blessed_hammer and id_map[spell_data.blessed_hammer.spell_id] then
+        return 2  -- Hammerkuna
+    elseif spell_data.arbiter_of_justice and id_map[spell_data.arbiter_of_justice.spell_id] then
+        return 3  -- Arbiter
+    elseif spell_data.shield_bash and id_map[spell_data.shield_bash.spell_id] then
+        return 5  -- Shield Bash
+    elseif spell_data.heavens_fury and id_map[spell_data.heavens_fury.spell_id] then
+        return 9  -- Heaven's Fury
+    elseif spell_data.spear_of_the_heavens and id_map[spell_data.spear_of_the_heavens.spell_id] then
+        return 10 -- Spear
+    elseif spell_data.zenith and id_map[spell_data.zenith.spell_id] then
+        return 11 -- Zenith Tank
+    elseif spell_data.fanaticism_aura and spell_data.defiance_aura and
+        id_map[spell_data.fanaticism_aura.spell_id] and id_map[spell_data.defiance_aura.spell_id] then
+        return 12 -- Auradin
+    end
+
+    return 0 -- Default
+end
+
 -- on_update callback
 on_update(function()
-    -- Update spell priority dynamically every frame for real-time adjustments
-    current_spell_priority = spell_priority_cache[menu.menu_elements.build_selector:get()]
+    local current_time = get_time_since_inject()
+    local build_index = menu.menu_elements.build_selector:get()
+
+    -- Auto-build detection
+    if build_index == 13 then
+        build_index = detect_build()
+    end
+
+    -- Update spell priority dynamically for real-time adjustments
+    if not last_priority_update_time or current_time > last_priority_update_time + PRIORITY_UPDATE_INTERVAL then
+        current_spell_priority = get_spell_priority(build_index)
+        last_priority_update_time = current_time
+    end
 
     -- Sync debug flag from menu to the utility module
     my_utility.set_debug_enabled(menu.menu_elements.enable_debug:get())
@@ -379,15 +481,14 @@ on_update(function()
         end
     end
 
-    local current_time = get_time_since_inject()
     local local_player = get_local_player()
     if not local_player then
         return;
     end
 
-    -- Only run logic for Paladin (class_id 7, 8, or 9 - all paladin variants in Season 11)
+    -- Only run logic for Paladin (class_id 9 in Season 11)
     local character_id = local_player:get_character_class_id();
-    local is_paladin = character_id == 7 or character_id == 8 or character_id == 9;
+    local is_paladin = character_id == 9;
     if not is_paladin then
         return;
     end
@@ -397,7 +498,7 @@ on_update(function()
     -- Refresh equipped spell lookup periodically so casting doesn't depend on opening the menu.
     if current_time >= next_equipped_refresh_time then
         refresh_equipped_lookup()
-        next_equipped_refresh_time = current_time + 0.5
+        next_equipped_refresh_time = current_time + EQUIPPED_REFRESH_INTERVAL
     end
 
     if menu.menu_elements.main_boolean:get() == false or current_time < next_cast_time then
@@ -488,6 +589,15 @@ on_update(function()
                 config)
             closest_target = target_selector_data_all.closest_unit
 
+            -- Force Target logic
+            if menu.menu_elements.force_target_boss:get() and target_selector_data_all.has_boss then
+                best_ranged_target = target_selector_data_all.closest_boss
+                best_melee_target = target_selector_data_all.closest_boss
+            elseif menu.menu_elements.force_target_elite:get() and (target_selector_data_all.has_elite or target_selector_data_all.has_champion) then
+                best_ranged_target = target_selector_data_all.closest_elite or target_selector_data_all.closest_champion
+                best_melee_target = target_selector_data_all.closest_elite or target_selector_data_all.closest_champion
+            end
+
             -- Visible/(in sight) targets: use the collision/visibility-filtered list.
             if target_selector_data_visible and target_selector_data_visible.is_valid then
                 best_ranged_target_visible, best_melee_target_visible, _, _, ranged_max_score_visible,
@@ -496,6 +606,17 @@ on_update(function()
                     melee_range,
                     config)
                 closest_target_visible = target_selector_data_visible.closest_unit
+
+                -- Force Target logic for visible targets
+                if menu.menu_elements.force_target_boss:get() and target_selector_data_visible.has_boss then
+                    best_ranged_target_visible = target_selector_data_visible.closest_boss
+                    best_melee_target_visible = target_selector_data_visible.closest_boss
+                elseif menu.menu_elements.force_target_elite:get() and (target_selector_data_visible.has_elite or target_selector_data_visible.has_champion) then
+                    best_ranged_target_visible = target_selector_data_visible.closest_elite or
+                        target_selector_data_visible.closest_champion
+                    best_melee_target_visible = target_selector_data_visible.closest_elite or
+                        target_selector_data_visible.closest_champion
+                end
             else
                 best_ranged_target_visible = nil
                 best_melee_target_visible = nil
@@ -536,8 +657,10 @@ on_render(function()
         return;
     end
 
-    -- Only render Paladin debug for Paladin
-    if local_player:get_character_class_id() ~= 9 then
+    -- Only render Paladin debug for Paladin (class_id 9 in Season 11)
+    local character_id = local_player:get_character_class_id();
+    local is_paladin = character_id == 9;
+    if not is_paladin then
         return;
     end
 
@@ -691,4 +814,4 @@ on_render(function()
     end
 end);
 
-console.print("Lua Plugin - DirtyDio Paladin - Version 2.2.0")
+console.print("Lua Plugin - " .. PLUGIN_NAME .. " - Version " .. PLUGIN_VERSION)

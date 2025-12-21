@@ -18,6 +18,7 @@ local menu_elements =
     allow_out_of_combat = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "evade_allow_out_of_combat")),
     use_out_of_combat   = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_use_out_of_combat")),
+    auto_dodge          = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "evade_auto_dodge")),
     min_ooc_evade_range = my_utility.safe_slider_float(2.5, 5, 3,
         get_hash(my_utility.plugin_label .. "min_ooc_evade_range")),
     cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
@@ -37,6 +38,7 @@ local function menu()
                     "\n     Must be lower than Max Targeting Range     \n\n", 1)
             end
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+            menu_elements.auto_dodge:render("Auto-Dodge", "Automatically evade out of dangerous ground effects")
             menu_elements.allow_out_of_combat:render("Allow Out of Combat",
                 "Allow casting evade when no target is present")
             menu_elements.cast_delay:render("Cast Delay",
@@ -80,6 +82,37 @@ local function logics(target)
         end
         return false
     end;
+
+    -- Auto-dodge logic: Check if current position is dangerous
+    if menu_elements.auto_dodge:get() then
+        local player_pos = get_player_position()
+        if evade.is_dangerous_position(player_pos) then
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[EVADE DEBUG] Player in dangerous position! Finding safety...")
+            end
+
+            -- Try to find a safe position around the player
+            local radius = 6.0 -- Evade distance
+            local num_points = 8
+            for i = 1, num_points do
+                local angle = (i - 1) * (2 * math.pi / num_points)
+                local test_pos = vec3.new(
+                    player_pos:x() + radius * math.cos(angle),
+                    player_pos:y() + radius * math.sin(angle),
+                    player_pos:z()
+                )
+
+                if not evade.is_dangerous_position(test_pos) then
+                    if cast_spell.position(spell_data.evade.spell_id, test_pos, 0) then
+                        local current_time = get_time_since_inject()
+                        next_time_allowed_cast = current_time + 0.5
+                        my_utility.debug_print("[EVADE] Auto-dodged to safety!")
+                        return true, 0.5
+                    end
+                end
+            end
+        end
+    end
 
     local mobility_only = menu_elements.mobility_only:get();
 
@@ -216,11 +249,12 @@ local function out_of_combat()
     -- Cast towards cursor
     if cast_spell.position(spell_data.evade.spell_id, cursor_position, 0) then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + 0.5; -- Fixed delay for out of combat
+        local cooldown = 0.5; -- Fixed delay for out of combat
+        next_time_allowed_cast = current_time + cooldown;
         if menu_elements.debug_mode:get() then
             my_utility.debug_print("[EVADE DEBUG] Cast out of combat evade")
         end
-        return true
+        return true, cooldown
     end
 
     return false
