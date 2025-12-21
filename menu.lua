@@ -26,6 +26,7 @@ local menu_elements =
 
     enable_debug                   = checkbox:new(false, get_hash(my_utility.plugin_label .. "enable_debug")),
     file_logging_enabled           = checkbox:new(false, get_hash(my_utility.plugin_label .. "file_logging_enabled")),
+    main_debug_enabled             = checkbox:new(false, get_hash(my_utility.plugin_label .. "main_debug_enabled")),
     debug_tree                     = tree_node:new(2),
     draw_targets                   = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_targets")),
     draw_max_range                 = checkbox:new(false, get_hash(my_utility.plugin_label .. "draw_max_range")),

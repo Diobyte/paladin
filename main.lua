@@ -4,7 +4,7 @@ if local_player == nil then
 end
 
 local character_id = local_player:get_character_class_id();
-local is_paladin = character_id == 7;
+local is_paladin = character_id == 7 or character_id == 8 or character_id == 9;
 if not is_paladin then
     return
 end;
@@ -20,6 +20,9 @@ local target_scoring = require("my_utility/target_scoring");
 local logger = require("my_utility/logger");
 local get_spell_priority = require("spell_priority");
 local menu = require("menu")
+
+-- Equipped spells lookup
+local equipped_lookup = {}
 
 -- OPTIMIZATION: Pre-cache all spell priorities for instant lookup
 local spell_priority_cache = {}
@@ -142,7 +145,7 @@ local target_unit_map = {
 }
 
 on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("DirtyDio v2.2.0") then
+    if not menu.menu_elements.main_tree:push("DirtyDio Paladin v2.2.0") then
         return;
     end;
 
@@ -153,6 +156,9 @@ on_render_menu(function()
         menu.menu_elements.main_tree:pop();
         return;
     end;
+
+    menu.menu_elements.main_debug_enabled:render("Main Debug Mode",
+        "Enable for high-verbosity console logging from the main loop")
 
     if menu.menu_elements.settings_tree:push("Settings") then
         menu.menu_elements.enemy_count_threshold:render("Minimum Enemy Count",
@@ -217,7 +223,7 @@ on_render_menu(function()
     local equipped_spells = get_equipped_spell_ids()
 
     -- Create a lookup table for equipped spells
-    local equipped_lookup = {}
+    equipped_lookup = {}
     for _, spell_id in ipairs(equipped_spells) do
         -- Check each spell in spell_data to find matching spell_id
         for spell_name, data in pairs(spell_data) do
@@ -294,21 +300,160 @@ local target_selector_data_all = nil
 local target_scoring = require('my_utility/target_scoring')
 
 local function evaluate_targets(target_list, melee_range)
-    local cfg = {
-        player_position = get_player_position(),
-        cursor_position = get_cursor_position(),
-        cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get(),
-        best_target_evaluation_radius = menu.menu_elements.best_target_evaluation_radius:get(),
-        cursor_targeting_angle = menu.menu_elements.cursor_targeting_angle:get(),
-        enemy_count_threshold = menu.menu_elements.enemy_count_threshold:get(),
-        normal_monster_value = normal_monster_value,
-        elite_value = elite_value,
-        champion_value = champion_value,
-        boss_value = boss_value,
-        damage_resistance_value = damage_resistance_value,
-        horde_objective_weight = 1000
-    }
-    return target_scoring.evaluate_targets(target_list, melee_range, cfg)
+    local best_ranged_target = nil
+    local best_melee_target = nil
+    local best_cursor_target = nil
+    local closest_cursor_target = nil
+    local closest_cursor_target_angle = 0
+
+    local ranged_max_score = 0
+    local melee_max_score = 0
+    local cursor_max_score = 0
+
+    local melee_range_sqr = melee_range * melee_range
+    local player_position = get_player_position()
+    local cursor_position = get_cursor_position()
+    local cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get()
+    local cursor_targeting_radius_sqr = cursor_targeting_radius * cursor_targeting_radius
+    local best_target_evaluation_radius = menu.menu_elements.best_target_evaluation_radius:get()
+    local cursor_targeting_angle = menu.menu_elements.cursor_targeting_angle:get()
+    local enemy_count_threshold = menu.menu_elements.enemy_count_threshold:get()
+    local closest_cursor_distance_sqr = math.huge
+
+    for _, unit in ipairs(target_list) do
+        local unit_health = unit:get_current_health()
+        local unit_name = unit:get_skin_name()
+        local unit_position = unit:get_position()
+        local distance_sqr = unit_position:squared_dist_to_ignore_z(player_position)
+        local cursor_distance_sqr = unit_position:squared_dist_to_ignore_z(cursor_position)
+        local buffs = unit:get_buffs()
+
+        -- get enemy count in range of enemy unit
+        local all_units_count, normal_units_count, elite_units_count, champion_units_count, boss_units_count = my_utility
+            .enemy_count_in_range(best_target_evaluation_radius, unit_position)
+
+        -- if enemy count is less than enemy count threshold and unit is not elite, champion or boss, skip this unit
+        if all_units_count >= enemy_count_threshold or unit:is_elite() or unit:is_champion() or unit:is_boss() then
+            local total_score = normal_units_count * normal_monster_value
+            total_score = total_score + (boss_value * boss_units_count)
+            total_score = total_score + (champion_value * champion_units_count)
+            total_score = total_score + (elite_value * elite_units_count)
+
+            -- Check if unit has damage resistance buff
+            for _, buff in ipairs(buffs) do
+                if buff.name_hash == spell_data.enemies.damage_resistance.spell_id then
+                    -- if the enemy is the provider of the damage resistance aura
+                    if buff.type == spell_data.enemies.damage_resistance.buff_ids.provider then
+                        total_score = total_score + damage_resistance_value
+                        break
+                    else -- otherwise the enemy is the receiver of the damage resistance aura
+                        total_score = total_score - damage_resistance_value
+                        break
+                    end
+                end
+            end
+
+            -- Check if unit is an infernal horde objective
+            for _, objective_name in ipairs(my_utility.horde_objectives) do
+                if unit_name:match(objective_name) and unit_health > 1 then
+                    total_score = total_score + 1000
+                    break
+                end
+            end
+
+            -- in max range
+            if total_score > ranged_max_score then
+                ranged_max_score = total_score
+                best_ranged_target = unit
+            end
+
+            -- in melee range
+            if distance_sqr < melee_range_sqr and total_score > melee_max_score then
+                melee_max_score = total_score
+                best_melee_target = unit
+            end
+
+            -- in cursor angle
+            if cursor_distance_sqr <= cursor_targeting_radius_sqr then
+                local angle_to_cursor = unit_position:get_angle(cursor_position, player_position)
+                if angle_to_cursor <= cursor_targeting_angle then
+                    -- in cursor radius
+                    if cursor_distance_sqr <= cursor_targeting_radius_sqr then
+                        if total_score > cursor_max_score then
+                            cursor_max_score = total_score
+                            best_cursor_target = unit
+                        end
+
+                        if cursor_distance_sqr < closest_cursor_distance_sqr then
+                            closest_cursor_distance_sqr = cursor_distance_sqr
+                            closest_cursor_target = unit
+                            closest_cursor_target_angle = angle_to_cursor
+                        end
+                    end
+                end
+            end
+        end -- end of the if
+    end
+
+    return best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score,
+        melee_max_score, cursor_max_score, closest_cursor_target_angle
+end
+
+local function use_ability(spell_name, delay_after_cast)
+    local spell = spells[spell_name]
+    if not (spell and spell.menu_elements.main_boolean:get()) then
+        return false
+    end
+
+    local target_unit = nil
+    if spell.menu_elements.targeting_mode then
+        local targeting_mode = spell.menu_elements.targeting_mode:get()
+
+        -- Check for specific targeting maps in the spell module
+        if spell.targeting_type == "melee" then
+            -- Map melee modes to global indices
+            local map = {
+                [0] = 2,                              -- Melee Target
+                [1] = 3,                              -- Melee Target (in sight)
+                [2] = 4,                              -- Closest Target
+                [3] = 5,                              -- Closest Target (in sight)
+                [4] = 6,                              -- Best Cursor Target
+                [5] = 7                               -- Closest Cursor Target
+            }
+            targeting_mode = map[targeting_mode] or 2 -- Default to Melee Target
+        elseif spell.targeting_type == "ranged" then
+            -- Map ranged modes to global indices
+            local map = {
+                [0] = 0,                              -- Ranged Target
+                [1] = 1,                              -- Ranged Target (in sight)
+                [2] = 4,                              -- Closest Target
+                [3] = 5,                              -- Closest Target (in sight)
+                [4] = 6,                              -- Best Cursor Target
+                [5] = 7                               -- Closest Cursor Target
+            }
+            targeting_mode = map[targeting_mode] or 0 -- Default to Ranged Target
+        end
+
+        target_unit = ({
+            [0] = best_ranged_target,
+            [1] = best_ranged_target_visible,
+            [2] = best_melee_target,
+            [3] = best_melee_target_visible,
+            [4] = closest_target,
+            [5] = closest_target_visible,
+            [6] = best_cursor_target,
+            [7] = closest_cursor_target
+        })[targeting_mode]
+    end
+
+    --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
+    if (target_unit and spell.logics(target_unit, target_selector_data_all)) or (not target_unit and spell.logics()) then
+        next_cast_time = get_time_since_inject() + delay_after_cast
+        my_utility.record_spell_cast(spell_name)
+        return true
+    end
+
+    return false
 end
 
 local function use_ability(spell_name, delay_after_cast)
@@ -352,14 +497,8 @@ end
 
 -- on_update callback
 on_update(function()
-    -- Update spell priority only when build changes (optimization)
-    local current_build = menu.menu_elements.build_selector:get()
-    if current_build ~= last_build_index then
-        current_spell_priority = spell_priority_cache[current_build]
-        last_build_index = current_build
-        -- Reset spell cast tracking when build changes
-        my_utility.reset_spell_cast_tracking()
-    end
+    -- Update spell priority dynamically every frame for real-time adjustments
+    current_spell_priority = get_spell_priority(menu.menu_elements.build_selector:get())
 
     -- Sync debug flag from menu to the utility module
     my_utility.set_debug_enabled(menu.menu_elements.enable_debug:get())
@@ -470,58 +609,11 @@ on_update(function()
         next_target_update_time = current_time + targeting_refresh_interval
     end
 
-    local best_target = best_ranged_target or best_melee_target or closest_target
-    local spell_params = {
-        advance = { args = { best_target, target_selector_data_all } },
-        aegis = { args = {} },
-        arbiter_of_justice = { args = { best_target, target_selector_data_all } },
-        blessed_hammer = { args = { best_target, target_selector_data_all } },
-        blessed_shield = { args = {} },
-        brandish = { args = { best_target, target_selector_data_all } },
-        clash = { args = { best_target, target_selector_data_all } },
-        condemn = { args = { best_target, target_selector_data_all } },
-        consecration = { args = {} },
-        defiance_aura = { args = {} },
-        divine_lance = { args = { best_target, target_selector_data_all } },
-        evade = { args = {} },
-        falling_star = { args = { best_target, target_selector_data_all } },
-        fanaticism_aura = { args = {} },
-        fortress = { args = {} },
-        heavens_fury = { args = { best_target, target_selector_data_all } },
-        holy_bolt = { args = { best_target, target_selector_data_all } },
-        holy_light_aura = { args = {} },
-        paladin_evade = { args = {} },
-        purify = { args = {} },
-        rally = { args = {} },
-        shield_bash = { args = { best_target, target_selector_data_all } },
-        shield_charge = { args = { best_target, target_selector_data_all } },
-        spear_of_the_heavens = { args = { best_target, target_selector_data_all } },
-        zeal = { args = { best_target, target_selector_data_all } },
-        zenith = { args = { best_target, target_selector_data_all } }
-    }
-
-    -- Get equipped spells for spell casting logic
-    local equipped_spells = get_equipped_spell_ids()
-    table.insert(equipped_spells, spell_data.evade.spell_id) -- add evade to the list
-
-    -- Create a lookup table for equipped spells
-    local equipped_lookup = {}
-    for _, spell_id in ipairs(equipped_spells) do
-        equipped_lookup[spell_id] = true
-    end
-
     -- Ability usage - uses spell_priority to determine the order of spells
     for _, spell_name in ipairs(current_spell_priority) do
-        local spell = spells[spell_name]
-        -- Only process spells that are equipped
-        if spell and spell_data[spell_name] and spell_data[spell_name].spell_id and equipped_lookup[spell_data[spell_name].spell_id] then
-            local params = spell_params[spell_name]
-            if params then
-                local cast_successful, cooldown = spell.logics(unpack(params.args))
-                if cast_successful then
-                    next_cast_time = current_time + (cooldown or my_utility.spell_delays.regular_cast)
-                    return
-                end
+        if equipped_lookup[spell_name] then
+            if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+                return
             end
         end
     end
@@ -535,7 +627,7 @@ local visible_alpha = 180
 local alpha = 100
 local target_evaluation_radius_alpha = 50
 on_render(function()
-    if menu.menu_elements.main_boolean:get() == false or not menu.menu_elements.enable_debug:get() then
+    if menu.menu_elements.main_boolean:get() == false or not menu.menu_elements.main_debug_enabled:get() then
         return;
     end;
 

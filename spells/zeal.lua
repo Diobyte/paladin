@@ -95,11 +95,11 @@ local function logics(target, target_selector_data)
 
     -- Check Faith cost
     local local_player = get_local_player();
-    local current_faith = local_player:get_primary_resource_current();
+    local current_faith = get_primary_resource_current();
     if current_faith < spell_data.zeal.faith_cost then
         if menu_elements.debug_mode:get() then
             my_utility.debug_print("[ZEAL DEBUG] Not enough Faith - required: " ..
-            spell_data.zeal.faith_cost .. ", current: " .. current_faith)
+                spell_data.zeal.faith_cost .. ", current: " .. current_faith)
         end
         return false
     end

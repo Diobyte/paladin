@@ -137,7 +137,7 @@ local function logics(target, target_selector_data)
         if not my_utility.is_in_range(target, max_spell_range) then return false end
 
         local local_player = get_local_player()
-        local current_faith_pct = local_player:get_primary_resource_current() / local_player:get_primary_resource_max()
+        local current_faith_pct = get_primary_resource_current() / get_primary_resource_max()
         local max_faith = menu_elements.max_faith:get()
 
         if current_faith_pct > max_faith and not (force_priority and is_priority) then
