@@ -565,6 +565,7 @@ local function get_melee_range()
 end
 
 local function is_in_range(target, range)
+    if not target or not target.get_position then return false end
     local target_position = target:get_position()
     local player_position = get_player_position()
     local target_distance_sqr = player_position:squared_dist_to_ignore_z(target_position)

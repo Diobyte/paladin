@@ -149,67 +149,67 @@ local function get_target_selector_data(source, list)
         }
     end;
 
-    local closest_unit = {};
+    local closest_unit = nil;
     local closest_unit_distance = math.huge;
 
-    local lowest_current_health_unit = {};
+    local lowest_current_health_unit = nil;
     local lowest_current_health_unit_health = math.huge;
 
-    local highest_current_health_unit = {};
+    local highest_current_health_unit = nil;
     local highest_current_health_unit_health = 0.0;
 
-    local lowest_max_health_unit = {};
+    local lowest_max_health_unit = nil;
     local lowest_max_health_unit_health = math.huge;
 
-    local highest_max_health_unit = {};
+    local highest_max_health_unit = nil;
     local highest_max_health_unit_health = 0.0;
 
     local has_elite = false;
-    local closest_elite = {};
+    local closest_elite = nil;
     local closest_elite_distance = math.huge;
 
-    local lowest_current_health_elite = {};
+    local lowest_current_health_elite = nil;
     local lowest_current_health_elite_health = math.huge;
 
-    local highest_current_health_elite = {};
+    local highest_current_health_elite = nil;
     local highest_current_health_elite_health = 0.0;
 
-    local lowest_max_health_elite = {};
+    local lowest_max_health_elite = nil;
     local lowest_max_health_elite_health = math.huge;
 
-    local highest_max_health_elite = {};
+    local highest_max_health_elite = nil;
     local highest_max_health_elite_health = 0.0;
 
     local has_champion = false;
-    local closest_champion = {};
+    local closest_champion = nil;
     local closest_champion_distance = math.huge;
 
-    local lowest_current_health_champion = {};
+    local lowest_current_health_champion = nil;
     local lowest_current_health_champion_health = math.huge;
 
-    local highest_current_health_champion = {};
+    local highest_current_health_champion = nil;
     local highest_current_health_champion_health = 0.0;
 
-    local lowest_max_health_champion = {};
+    local lowest_max_health_champion = nil;
     local lowest_max_health_champion_health = math.huge;
 
-    local highest_max_health_champion = {};
+    local highest_max_health_champion = nil;
     local highest_max_health_champion_health = 0.0;
 
     local has_boss = false;
-    local closest_boss = {};
+    local closest_boss = nil;
     local closest_boss_distance = math.huge;
 
-    local lowest_current_health_boss = {};
+    local lowest_current_health_boss = nil;
     local lowest_current_health_boss_health = math.huge;
 
-    local highest_current_health_boss = {};
+    local highest_current_health_boss = nil;
     local highest_current_health_boss_health = 0.0;
 
-    local lowest_max_health_boss = {};
+    local lowest_max_health_boss = nil;
     local lowest_max_health_boss_health = math.huge;
 
-    local highest_max_health_boss = {};
+    local highest_max_health_boss = nil;
     local highest_max_health_boss_health = 0.0;
 
     for _, unit in ipairs(possible_targets_list) do
