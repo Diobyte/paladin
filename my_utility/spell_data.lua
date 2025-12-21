@@ -6,7 +6,7 @@
 -- Skill Groups: Basic, Core, Aura, Valor, Justice, Ultimate
 -- Unique Mechanic: Oaths (Disciple, Judicator, Juggernaut, Zealot)
 --
--- Spell IDs verified from Wowhead Diablo 4 database (December 2025)
+-- Spell IDs verified from Wowhead Diablo 4 database (December 21, 2025)
 -- https://www.wowhead.com/diablo-4/skills/paladin
 -- All skills are active abilities that can be cast, not passive effects or build concepts
 -- cast_spell.self(spell_id, animation_time)              - Self-cast spells (auras, AoE around player)
@@ -168,8 +168,10 @@ local spell_data = {
         buff_name_patterns = { "defiance", "resolve" }, -- Fallback name patterns
         category = "aura",
         cast_type = "self",                             -- Self-cast buff
+        faith_cost = 25,
+        cooldown = 20.0,
         duration = 12.0,
-        description = "Defensive aura granting damage reduction",
+        description = "Defensive aura granting damage reduction. Costs 25 Faith.",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
     fanaticism_aura = {
@@ -179,7 +181,7 @@ local spell_data = {
         category = "aura",
         cast_type = "self",                               -- Self-cast buff
         duration = 12.0,
-        description = "Offensive aura granting attack speed",
+        description = "Offensive aura granting 5% Attack Speed and 2% Crit Chance to allies.",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
     holy_light_aura = {
@@ -188,8 +190,10 @@ local spell_data = {
         buff_name_patterns = { "holy_light", "holylight", "light_aura" }, -- Fallback name patterns
         category = "aura",
         cast_type = "self",                                               -- Self-cast buff
+        damage_type = "holy",
+        cooldown = 25.0,
         duration = 12.0,
-        description = "Healing aura granting life regeneration",
+        description = "Aura that deals Holy damage to surrounding enemies",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
 
@@ -307,7 +311,7 @@ local spell_data = {
         spell_id = 2292204, -- Verified: wowhead.com/diablo-4/skill/aegis-2292204
         category = "ultimate",
         cast_type = "self", -- Self-cast defensive barrier
-        description = "Grants a protective barrier that absorbs damage for you and nearby allies.",
+        description = "Surround yourself with shields, Taunting enemies and gaining 100% Block Chance.",
         -- Targeting: cast_spell.self(spell_id) - defensive barrier around player
     },
 
@@ -315,6 +319,7 @@ local spell_data = {
         spell_id = 2301078, -- Verified: wowhead.com/diablo-4/skill/fortress-2301078
         category = "ultimate",
         cast_type = "self", -- Self-cast fortification
+        cooldown = 60.0,
         description = "Create a defensive area around you, becoming Immune and granting Resolve stacks.",
         -- Targeting: cast_spell.self(spell_id) - fortification effect around player
     },
@@ -335,6 +340,7 @@ local spell_data = {
         spell_id = 2261380, -- Verified: wowhead.com/diablo-4/skill/purify-2261380
         category = "justice",
         cast_type = "self", -- Self-cast cleansing
+        cooldown = 12.0,
         description = "Remove negative effects from yourself and nearby allies while restoring health.",
         -- Targeting: cast_spell.self(spell_id) - cleansing and healing around player
     },

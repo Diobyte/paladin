@@ -184,8 +184,7 @@ local damage_resistance_value = 25
 local spells =
 {
     advance = require("spells/advance"),
-    evade = require("spells/evade"),
-    paladin_evade = require("spells/paladin_evade"),
+    aegis = require("spells/aegis"),
     arbiter_of_justice = require("spells/arbiter_of_justice"),
     blessed_hammer = require("spells/blessed_hammer"),
     blessed_shield = require("spells/blessed_shield"),
@@ -195,20 +194,21 @@ local spells =
     consecration = require("spells/consecration"),
     defiance_aura = require("spells/defiance_aura"),
     divine_lance = require("spells/divine_lance"),
+    evade = require("spells/evade"),
     falling_star = require("spells/falling_star"),
     fanaticism_aura = require("spells/fanaticism_aura"),
+    fortress = require("spells/fortress"),
     heavens_fury = require("spells/heavens_fury"),
     holy_bolt = require("spells/holy_bolt"),
     holy_light_aura = require("spells/holy_light_aura"),
+    paladin_evade = require("spells/paladin_evade"),
+    purify = require("spells/purify"),
     rally = require("spells/rally"),
-    shield_charge = require("spells/shield_charge"),
     shield_bash = require("spells/shield_bash"),
+    shield_charge = require("spells/shield_charge"),
     spear_of_the_heavens = require("spells/spear_of_the_heavens"),
     zeal = require("spells/zeal"),
     zenith = require("spells/zenith"),
-    aegis = require("spells/aegis"),
-    fortress = require("spells/fortress"),
-    purify = require("spells/purify"),
 }
 
 -- Sorted spell names helper for deterministic GUI ordering when falling back to catch-all rendering

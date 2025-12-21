@@ -527,8 +527,8 @@ end
 -- score(float)
 -- main_target(gameobject)
 -- victim_list(table game_object)
-local function get_most_hits_rectangle(source, lenght, width)
-    local data = target_selector.get_most_hits_target_rectangle_area_heavy(source, lenght, width);
+local function get_most_hits_rectangle(source, length, width)
+    local data = target_selector.get_most_hits_target_rectangle_area_heavy(source, length, width);
 
     local is_valid = false;
     local hits_amount = data.n_hits;
