@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global, undefined-field
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
@@ -6,17 +7,22 @@ local max_spell_range = 15.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab         = my_utility.safe_tree_tab(1),
-    main_boolean     = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "heavens_fury_main_bool_base")),
-    targeting_mode   = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "heavens_fury_targeting_mode")),
-    priority_target  = my_utility.safe_checkbox(false,
+    tree_tab            = my_utility.safe_tree_tab(1),
+    main_boolean        = my_utility.safe_checkbox(true,
+        get_hash(my_utility.plugin_label .. "heavens_fury_main_bool_base")),
+    targeting_mode      = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "heavens_fury_targeting_mode")),
+    priority_target     = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "heavens_fury_priority_target")),
-    min_target_range = my_utility.safe_slider_float(1, max_spell_range - 1, 3,
+    min_target_range    = my_utility.safe_slider_float(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "heavens_fury_min_target_range")),
-    elites_only      = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "heavens_fury_elites_only")),
-    cast_delay       = my_utility.safe_slider_float(0.01, 1.0, 0.1,
+    elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "heavens_fury_elites_only")),
+    use_custom_cooldown = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "heavens_fury_use_custom_cooldown")),
+    custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.1,
+        get_hash(my_utility.plugin_label .. "heavens_fury_custom_cooldown_sec")),
+    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
         get_hash(my_utility.plugin_label .. "heavens_fury_cast_delay")),
-    debug_mode       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "heavens_fury_debug_mode")),
+    debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "heavens_fury_debug_mode")),
 }
 
 local function menu()
@@ -30,6 +36,12 @@ local function menu()
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                "Override the default cooldown with a custom value")
+            if menu_elements.use_custom_cooldown:get() then
+                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                    "Set the custom cooldown in seconds", 2)
+            end
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
@@ -96,7 +108,8 @@ local function logics(target, target_selector_data)
         function() return cast_spell.self(spell_data.heavens_fury.spell_id, 0) end, menu_elements.cast_delay:get())
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = (delay or menu_elements.cast_delay:get());
+        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
+            (delay or menu_elements.cast_delay:get());
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Heavens Fury");
         return true, cooldown;

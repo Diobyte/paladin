@@ -388,6 +388,7 @@ local function get_base_spell_priority(build_index)
             "zeal",
             "divine_lance",
             "brandish",
+            "shield_bash",
 
             -- Mobility
             "advance",

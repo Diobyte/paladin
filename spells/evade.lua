@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global, undefined-field
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
@@ -21,6 +22,10 @@ local menu_elements =
     auto_dodge          = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "evade_auto_dodge")),
     min_ooc_evade_range = my_utility.safe_slider_float(2.5, 5, 3,
         get_hash(my_utility.plugin_label .. "min_ooc_evade_range")),
+    use_custom_cooldown = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "evade_use_custom_cooldown")),
+    custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.5,
+        get_hash(my_utility.plugin_label .. "evade_custom_cooldown_sec")),
     cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
         get_hash(my_utility.plugin_label .. "evade_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_debug_mode")),
@@ -41,6 +46,12 @@ local function menu()
             menu_elements.auto_dodge:render("Auto-Dodge", "Automatically evade out of dangerous ground effects")
             menu_elements.allow_out_of_combat:render("Allow Out of Combat",
                 "Allow casting evade when no target is present")
+            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                "Override the base delay with a fixed value")
+            if menu_elements.use_custom_cooldown:get() then
+                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Set the custom cooldown in seconds",
+                    2)
+            end
             menu_elements.cast_delay:render("Cast Delay",
                 "Time between casts in seconds (min: 0.1s manual, 0.5s auto-play)", 2)
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
@@ -202,7 +213,8 @@ local function logics(target)
         local current_time = get_time_since_inject();
         -- Enforce a minimum delay to prevent spamming. Use a smaller minimum when player-controlled
         -- for more responsive manual evades, and a larger minimum when auto-play is enabled to avoid spam.
-        local user_delay = menu_elements.cast_delay:get();
+        local user_delay = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
+            menu_elements.cast_delay:get();
         local min_delay_auto = 0.5;   -- Minimum when auto-play is active
         local min_delay_manual = 0.1; -- Minimum when player-controlled
         local min_delay = my_utility.is_auto_play_enabled() and min_delay_auto or min_delay_manual

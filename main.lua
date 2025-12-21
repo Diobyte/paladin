@@ -133,9 +133,6 @@ local champion_value = 15
 local boss_value = 50
 local damage_resistance_value = 25
 
--- Declare target_selector_data_all to avoid linter errors
-local target_selector_data_all = nil
-
 local spells =
 {
     advance = require("spells/advance"),
@@ -165,6 +162,16 @@ local spells =
     fortress = require("spells/fortress"),
     purify = require("spells/purify"),
 }
+
+-- Sorted spell names helper for deterministic GUI ordering when falling back to catch-all rendering
+local function get_sorted_spell_names()
+    local names = {}
+    for name in pairs(spells) do
+        names[#names + 1] = name
+    end
+    table.sort(names)
+    return names
+end
 
 -- OPTIMIZATION: Cache spell data for resource checks
 local spell_resource_cache = {}
@@ -307,24 +314,52 @@ on_render_menu(function()
 
     if menu.menu_elements.spells_tree:push("Equipped Spells") then
         -- Display spells in priority order, but only if they're equipped
+        local displayed_equipped = {}
         for _, spell_name in ipairs(current_spell_priority) do
             if equipped_lookup[spell_name] then
                 local spell = spells[spell_name]
                 if spell and type(spell.menu) == "function" then
                     spell.menu()
+                    displayed_equipped[spell_name] = true
                 end
             end
         end
+
+        -- Fallback: render any equipped spells that were not in the priority list (deterministic order)
+        for _, spell_name in ipairs(get_sorted_spell_names()) do
+            if not displayed_equipped[spell_name] and equipped_lookup[spell_name] then
+                local spell = spells[spell_name]
+                if spell and type(spell.menu) == "function" then
+                    spell.menu()
+                    displayed_equipped[spell_name] = true
+                end
+            end
+        end
+
         menu.menu_elements.spells_tree:pop()
     end
 
     if menu.menu_elements.disabled_spells_tree:push("Inactive Spells") then
+        local displayed_inactive = {}
         for _, spell_name in ipairs(current_spell_priority) do
             local spell = spells[spell_name]
             if spell and type(spell.menu) == "function" and not equipped_lookup[spell_name] then
                 spell.menu()
+                displayed_inactive[spell_name] = true
             end
         end
+
+        -- Fallback: render any non-equipped spells missing from priority list (deterministic order)
+        for _, spell_name in ipairs(get_sorted_spell_names()) do
+            if not displayed_inactive[spell_name] and not equipped_lookup[spell_name] then
+                local spell = spells[spell_name]
+                if spell and type(spell.menu) == "function" then
+                    spell.menu()
+                    displayed_inactive[spell_name] = true
+                end
+            end
+        end
+
         menu.menu_elements.disabled_spells_tree:pop()
     end
 
@@ -358,7 +393,7 @@ local function use_ability(spell_name, delay_after_cast)
         if not getter then
             if menu.menu_elements.enable_debug:get() then
                 my_utility.debug_print("[USE_ABILITY] Invalid targeting mode " ..
-                tostring(targeting_mode) .. " for " .. spell_name .. ", using closest target")
+                    tostring(targeting_mode) .. " for " .. spell_name .. ", using closest target")
             end
             getter = function() return closest_target end
         end

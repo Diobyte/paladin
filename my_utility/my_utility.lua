@@ -180,15 +180,18 @@ local function try_cast_spell(spell_name, spell_id, menu_boolean, next_time_allo
 end
 
 local function is_auto_play_enabled()
-    -- auto play fire spells without orbwalker
-    local is_auto_play_active = auto_play.is_active();
-    local auto_play_objective = auto_play.get_objective();
-    local is_auto_play_fighting = auto_play_objective == objective.fight;
-    if is_auto_play_active and is_auto_play_fighting then
-        return true;
+    -- Guard against missing globals in headless or early-init states
+    local ap = rawget(_G, "auto_play")
+    local obj = rawget(_G, "objective")
+    if type(ap) ~= "table" or type(ap.is_active) ~= "function" or type(ap.get_objective) ~= "function" then
+        return false
     end
 
-    return false;
+    local objective_fight = obj and obj.fight
+    local is_auto_play_active = ap:is_active()
+    local auto_play_objective = ap:get_objective()
+    local is_auto_play_fighting = objective_fight ~= nil and auto_play_objective == objective_fight
+    return is_auto_play_active and is_auto_play_fighting
 end
 
 local mount_buff_name = "Generic_SetCannotBeAddedToAITargetList";
@@ -341,7 +344,13 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
         return true;
     end
 
-    local current_orb_mode = orbwalker.get_orb_mode()
+    local ow = rawget(_G, "orbwalker")
+    if type(ow) ~= "table" or type(ow.get_orb_mode) ~= "function" then
+        -- In environments without the orbwalker (or not yet initialized), allow auto-play to continue
+        return is_auto_play_enabled()
+    end
+
+    local current_orb_mode = ow.get_orb_mode()
 
     if current_orb_mode == orb_mode.none then
         return false

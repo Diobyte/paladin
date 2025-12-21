@@ -1,4 +1,5 @@
 -- luacheck: globals cast_spell console prediction target_selector actors_manager
+---@diagnostic disable: undefined-global, undefined-field
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
@@ -20,6 +21,10 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "shield_bash_spam_with_intricacy")),
     use_offensively       = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "shield_bash_use_offensively")),
+    use_custom_cooldown   = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "shield_bash_use_custom_cooldown")),
+    custom_cooldown_sec   = my_utility.safe_slider_float(0.1, 5.0, 0.1,
+        get_hash(my_utility.plugin_label .. "shield_bash_custom_cooldown_sec")),
     filter_mode           = my_utility.safe_combo_box(1,
         get_hash(my_utility.plugin_label .. "shield_bash_offensive_filter")),
     enemy_count_threshold = my_utility.safe_slider_int(0, 30, 5,
@@ -42,6 +47,13 @@ local function menu()
             menu_elements.check_buff:render("Only recast if buff is not active", "")
             menu_elements.spam_with_intricacy:render("Spam with Intricacy", "")
             menu_elements.use_offensively:render("Use Offensively", "")
+
+            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                "Override the default cooldown with a custom value")
+            if menu_elements.use_custom_cooldown:get() then
+                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                    "Set the custom cooldown in seconds", 2)
+            end
 
             if menu_elements.use_offensively:get() then
                 menu_elements.evaluation_range:render("Evaluation Range", my_utility.evaluation_range_description)
@@ -163,9 +175,11 @@ local function logics(best_target, target_selector_data)
         end, CAST_DELAY)
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + (delay or CAST_DELAY);
+        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
+            (delay or CAST_DELAY);
+        next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Shield Bash - Charged at enemy");
-        return true, (delay or CAST_DELAY)
+        return true, cooldown
     end
 
     if menu_elements.debug_mode:get() then

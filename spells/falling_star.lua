@@ -6,19 +6,24 @@ local max_spell_range = 15.0
 local targeting_type = "ranged"
 local menu_elements =
 {
-    tree_tab         = my_utility.safe_tree_tab(1),
-    main_boolean     = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "falling_star_main_bool_base")),
-    targeting_mode   = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "falling_star_targeting_mode")),
-    priority_target  = my_utility.safe_checkbox(false,
+    tree_tab            = my_utility.safe_tree_tab(1),
+    main_boolean        = my_utility.safe_checkbox(true,
+        get_hash(my_utility.plugin_label .. "falling_star_main_bool_base")),
+    targeting_mode      = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "falling_star_targeting_mode")),
+    priority_target     = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "falling_star_priority_target")),
-    min_target_range = my_utility.safe_slider_float(1, max_spell_range - 1, 3,
+    min_target_range    = my_utility.safe_slider_float(1, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
-    recast_delay     = my_utility.safe_slider_float(0.0, 10.0, 0.5,
+    recast_delay        = my_utility.safe_slider_float(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
-    elites_only      = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
-    cast_delay       = my_utility.safe_slider_float(0.01, 1.0, 0.1,
+    elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
+    use_custom_cooldown = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "falling_star_use_custom_cooldown")),
+    custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.1,
+        get_hash(my_utility.plugin_label .. "falling_star_custom_cooldown_sec")),
+    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
         get_hash(my_utility.plugin_label .. "falling_star_cast_delay")),
-    debug_mode       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "falling_star_debug_mode")),
+    debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "falling_star_debug_mode")),
 }
 
 local function menu()
@@ -34,6 +39,12 @@ local function menu()
             menu_elements.recast_delay:render("Recast Delay (Melee)",
                 "\n     Minimum time between casts when in melee range (prevents spamming on bosses)     \n\n", 1)
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                "Override the default cooldown with a custom value")
+            if menu_elements.use_custom_cooldown:get() then
+                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                    "Set the custom cooldown in seconds", 2)
+            end
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
@@ -126,7 +137,8 @@ local function logics(target, target_selector_data)
 
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = (delay or menu_elements.cast_delay:get());
+        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
+            (delay or menu_elements.cast_delay:get());
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Falling Star - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
