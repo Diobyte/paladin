@@ -16,7 +16,6 @@ local menu_elements =
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.1,
         get_hash(my_utility.plugin_label .. "defiance_aura_custom_cooldown_sec")),
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "defiance_aura_debug_mode")),
-    check_buff          = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "defiance_aura_check_buff")),
 }
 
 local function menu()
@@ -32,8 +31,6 @@ local function menu()
                 menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Set the custom cooldown in seconds", 2)
             end
             menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
-            menu_elements.check_buff:render("Only recast if buff is not active",
-                "Check if buff is already active before casting")
         end
 
         menu_elements.tree_tab:pop()
@@ -55,19 +52,6 @@ local function logics()
         end
         return false
     end;
-
-    -- Check if we have the buff already active
-    local check_buff = menu_elements.check_buff:get();
-    if check_buff then
-        local is_buff_active = my_utility.is_buff_active(spell_data.defiance_aura.spell_id,
-            spell_data.defiance_aura.buff_id);
-        if is_buff_active then
-            if menu_elements.debug_mode:get() then
-                my_utility.debug_print("[DEFIANCE AURA DEBUG] Buff already active - skipping cast")
-            end
-            return false;
-        end
-    end
 
     -- Check cast on cooldown option via helper
     local maintained, mdelay = my_utility.try_maintain_buff("defiance_aura", spell_data.defiance_aura.spell_id,
