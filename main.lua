@@ -4,7 +4,7 @@ if local_player == nil then
 end
 
 local character_id = local_player:get_character_class_id();
-local is_paladin = character_id == 7 or character_id == 8 or character_id == 9;
+local is_paladin = character_id == 9;
 if not is_paladin then
     return
 end;
@@ -26,7 +26,7 @@ local equipped_lookup = {}
 
 -- OPTIMIZATION: Pre-cache all spell priorities for instant lookup
 local spell_priority_cache = {}
-for build_index = 0, 11 do
+for build_index = 0, 12 do
     spell_priority_cache[build_index] = get_spell_priority(build_index)
 end
 
@@ -250,7 +250,7 @@ on_render_menu(function()
     if menu.menu_elements.disabled_spells_tree:push("Inactive Spells") then
         for _, spell_name in ipairs(current_spell_priority) do
             local spell = spells[spell_name]
-            if spell and spell_name ~= "evade" and (not equipped_lookup[spell_name] or not spell.menu.menu_elements.main_boolean:get()) then
+            if spell and spell_name ~= "evade" and not equipped_lookup[spell_name] then
                 spell.menu()
             end
         end
@@ -298,106 +298,6 @@ local damage_resistance_value = 25
 local target_selector_data_all = nil
 
 local target_scoring = require('my_utility/target_scoring')
-
-local function evaluate_targets(target_list, melee_range)
-    local best_ranged_target = nil
-    local best_melee_target = nil
-    local best_cursor_target = nil
-    local closest_cursor_target = nil
-    local closest_cursor_target_angle = 0
-
-    local ranged_max_score = 0
-    local melee_max_score = 0
-    local cursor_max_score = 0
-
-    local melee_range_sqr = melee_range * melee_range
-    local player_position = get_player_position()
-    local cursor_position = get_cursor_position()
-    local cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get()
-    local cursor_targeting_radius_sqr = cursor_targeting_radius * cursor_targeting_radius
-    local best_target_evaluation_radius = menu.menu_elements.best_target_evaluation_radius:get()
-    local cursor_targeting_angle = menu.menu_elements.cursor_targeting_angle:get()
-    local enemy_count_threshold = menu.menu_elements.enemy_count_threshold:get()
-    local closest_cursor_distance_sqr = math.huge
-
-    for _, unit in ipairs(target_list) do
-        local unit_health = unit:get_current_health()
-        local unit_name = unit:get_skin_name()
-        local unit_position = unit:get_position()
-        local distance_sqr = unit_position:squared_dist_to_ignore_z(player_position)
-        local cursor_distance_sqr = unit_position:squared_dist_to_ignore_z(cursor_position)
-        local buffs = unit:get_buffs()
-
-        -- get enemy count in range of enemy unit
-        local all_units_count, normal_units_count, elite_units_count, champion_units_count, boss_units_count = my_utility
-            .enemy_count_in_range(best_target_evaluation_radius, unit_position)
-
-        -- if enemy count is less than enemy count threshold and unit is not elite, champion or boss, skip this unit
-        if all_units_count >= enemy_count_threshold or unit:is_elite() or unit:is_champion() or unit:is_boss() then
-            local total_score = normal_units_count * normal_monster_value
-            total_score = total_score + (boss_value * boss_units_count)
-            total_score = total_score + (champion_value * champion_units_count)
-            total_score = total_score + (elite_value * elite_units_count)
-
-            -- Check if unit has damage resistance buff
-            for _, buff in ipairs(buffs) do
-                if buff.name_hash == spell_data.enemies.damage_resistance.spell_id then
-                    -- if the enemy is the provider of the damage resistance aura
-                    if buff.type == spell_data.enemies.damage_resistance.buff_ids.provider then
-                        total_score = total_score + damage_resistance_value
-                        break
-                    else -- otherwise the enemy is the receiver of the damage resistance aura
-                        total_score = total_score - damage_resistance_value
-                        break
-                    end
-                end
-            end
-
-            -- Check if unit is an infernal horde objective
-            for _, objective_name in ipairs(my_utility.horde_objectives) do
-                if unit_name:match(objective_name) and unit_health > 1 then
-                    total_score = total_score + 1000
-                    break
-                end
-            end
-
-            -- in max range
-            if total_score > ranged_max_score then
-                ranged_max_score = total_score
-                best_ranged_target = unit
-            end
-
-            -- in melee range
-            if distance_sqr < melee_range_sqr and total_score > melee_max_score then
-                melee_max_score = total_score
-                best_melee_target = unit
-            end
-
-            -- in cursor angle
-            if cursor_distance_sqr <= cursor_targeting_radius_sqr then
-                local angle_to_cursor = unit_position:get_angle(cursor_position, player_position)
-                if angle_to_cursor <= cursor_targeting_angle then
-                    -- in cursor radius
-                    if cursor_distance_sqr <= cursor_targeting_radius_sqr then
-                        if total_score > cursor_max_score then
-                            cursor_max_score = total_score
-                            best_cursor_target = unit
-                        end
-
-                        if cursor_distance_sqr < closest_cursor_distance_sqr then
-                            closest_cursor_distance_sqr = cursor_distance_sqr
-                            closest_cursor_target = unit
-                            closest_cursor_target_angle = angle_to_cursor
-                        end
-                    end
-                end
-            end
-        end -- end of the if
-    end
-
-    return best_ranged_target, best_melee_target, best_cursor_target, closest_cursor_target, ranged_max_score,
-        melee_max_score, cursor_max_score, closest_cursor_target_angle
-end
 
 local function use_ability(spell_name, delay_after_cast)
     local spell = spells[spell_name]
@@ -456,28 +356,6 @@ local function use_ability(spell_name, delay_after_cast)
     return false
 end
 
-local function use_ability(spell_name, delay_after_cast)
-    local spell = spells[spell_name]
-    if not (spell and spell.menu.menu_elements.main_boolean:get()) then
-        return false
-    end
-
-    local target_unit = nil
-    if spell.menu.menu_elements.targeting_mode then
-        local targeting_mode = spell.menu.menu_elements.targeting_mode:get()
-        target_unit = target_unit_map[targeting_mode]()
-    end
-
-    --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
-    local success, cooldown = spell.logics(target_unit)
-    if success then
-        next_cast_time = get_time_since_inject() + (cooldown or delay_after_cast)
-        return true
-    end
-
-    return false
-end
-
 local function get_equipped_spell_ids()
     local equipped_spells = {}
     -- Get player spells
@@ -498,7 +376,7 @@ end
 -- on_update callback
 on_update(function()
     -- Update spell priority dynamically every frame for real-time adjustments
-    current_spell_priority = get_spell_priority(menu.menu_elements.build_selector:get())
+    current_spell_priority = spell_priority_cache[menu.menu_elements.build_selector:get()]
 
     -- Sync debug flag from menu to the utility module
     my_utility.set_debug_enabled(menu.menu_elements.enable_debug:get())

@@ -838,7 +838,7 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
 
             -- Boost Condemn if enemies are far (need to pull into aura range)
             if spell_name == "condemn" then
-                local enemies = actors_manager.get_enemy_actors()
+                local enemies = actors_manager.get_enemy_npcs()
                 local far_enemies = 0
                 for _, enemy in ipairs(enemies) do
                     local dist = enemy:get_position():dist_to(local_player:get_position())
@@ -865,7 +865,7 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         end
 
         -- Enemy count: Boost AOE spells if many enemies
-        local enemy_count = #actors_manager.get_enemy_actors()
+        local enemy_count = #actors_manager.get_enemy_npcs()
         local aoe_boost = 0
         if enemy_count >= 5 then
             aoe_boost = 2
