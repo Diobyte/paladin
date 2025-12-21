@@ -66,7 +66,7 @@ local function evaluate_targets(target_list, melee_range, config)
                 local is_infernal_objective = false
                 for _, objective_name in ipairs(my_utility.horde_objectives) do
                     if unit_name and objective_name and string.find(string.lower(unit_name), string.lower(objective_name), 1, true) and unit_health > 1 then
-                        total_score = total_score + 1000
+                        total_score = total_score + (config.horde_objective_weight or 1000)
                         is_infernal_objective = true
                         break
                     end
@@ -101,7 +101,8 @@ local function evaluate_targets(target_list, melee_range, config)
                     end
                     -- lower health preference
                     local new_health = new_unit.get_current_health and new_unit:get_current_health() or math.huge
-                    local cur_health = current_unit.get_current_health and current_unit:get_current_health() or math.huge
+                    local cur_health = current_unit.get_current_health and current_unit:get_current_health() or math
+                    .huge
                     return new_health < cur_health
                 end
 
@@ -120,7 +121,7 @@ local function evaluate_targets(target_list, melee_range, config)
                 -- in cursor angle
                 if cursor_distance_sqr <= cursor_targeting_radius_sqr then
                     local angle_to_cursor = unit_position.get_angle and
-                    unit_position:get_angle(cursor_position, player_position) or 0
+                        unit_position:get_angle(cursor_position, player_position) or 0
                     if angle_to_cursor <= cursor_targeting_angle then
                         if total_score > cursor_max_score or (total_score == cursor_max_score and tiebreaker_prefers(unit, best_cursor_target)) then
                             cursor_max_score = total_score

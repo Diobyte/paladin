@@ -11,6 +11,7 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "fanaticism_aura_cast_on_cooldown")),
     cast_delay       = my_utility.safe_slider_float(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "fanaticism_aura_cast_delay")),
+    debug_mode       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "fanaticism_aura_debug_mode")),
 }
 
 local function menu()
@@ -20,6 +21,7 @@ local function menu()
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
         menu_elements.tree_tab:pop()
     end
@@ -34,7 +36,12 @@ local function logics()
         next_time_allowed_cast,
         spell_data.fanaticism_aura.spell_id);
 
-    if not is_logic_allowed then return false end;
+    if not is_logic_allowed then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[FANATICISM AURA DEBUG] Logic not allowed - spell conditions not met")
+        end
+        return false
+    end;
 
     -- Check cast on cooldown option via helper
     local maintained, mdelay = my_utility.try_maintain_buff("fanaticism_aura", spell_data.fanaticism_aura.spell_id,
@@ -45,6 +52,9 @@ local function logics()
             next_time_allowed_cast = current_time + mdelay;
             my_utility.debug_print("Cast Fanaticism Aura (On Cooldown)");
             return true, mdelay;
+        end
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[FANATICISM AURA DEBUG] Cast on cooldown failed")
         end
         return false
     end
@@ -60,6 +70,9 @@ local function logics()
         return true, cooldown;
     end;
 
+    if menu_elements.debug_mode:get() then
+        my_utility.debug_print("[FANATICISM AURA DEBUG] Cast failed")
+    end
     return false;
 end
 

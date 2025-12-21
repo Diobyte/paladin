@@ -8,11 +8,14 @@ local menu_elements =
     tree_tab         = my_utility.safe_tree_tab(1),
     main_boolean     = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "shield_charge_main_bool_base")),
     targeting_mode   = my_utility.safe_combo_box(0, get_hash(my_utility.plugin_label .. "shield_charge_targeting_mode")),
+    priority_target  = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "shield_charge_priority_target")),
     min_target_range = my_utility.safe_slider_float(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "shield_charge_min_target_range")),
     elites_only      = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "shield_charge_elites_only")),
     cast_delay       = my_utility.safe_slider_float(0.01, 1.0, 0.1,
         get_hash(my_utility.plugin_label .. "shield_charge_cast_delay")),
+    debug_mode       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "shield_charge_debug_mode")),
 }
 
 local function menu()
@@ -21,10 +24,13 @@ local function menu()
         if menu_elements.main_boolean:get() then
             menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
+            menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
+                "Targets Boss > Champion > Elite > Any")
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
 
         menu_elements.tree_tab:pop()
@@ -33,18 +39,55 @@ end
 
 local next_time_allowed_cast = 0;
 
-local function logics(target)
-    if not target then return false end;
-    if menu_elements.elites_only:get() and not target:is_elite() then return false end
+local function logics(target, target_selector_data)
+    if not target then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[SHIELD CHARGE DEBUG] No target provided")
+        end
+        return false
+    end;
+
+    -- Handle priority targeting mode
+    if menu_elements.priority_target:get() and target_selector_data then
+        local priority_target = target_selector_data.get_priority_target()
+        if priority_target then
+            target = priority_target
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[SHIELD CHARGE DEBUG] Priority targeting enabled - using priority target: " ..
+                    (target:get_skin_name() or "Unknown"))
+            end
+        else
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[SHIELD CHARGE DEBUG] Priority targeting enabled but no priority target found")
+            end
+            return false
+        end
+    end
+
+    if menu_elements.elites_only:get() and not target:is_elite() then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[SHIELD CHARGE DEBUG] Elites only mode - target is not elite")
+        end
+        return false
+    end
+
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
         menu_boolean,
         next_time_allowed_cast,
         spell_data.shield_charge.spell_id);
 
-    if not is_logic_allowed then return false end;
+    if not is_logic_allowed then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[SHIELD CHARGE DEBUG] Logic not allowed - spell conditions not met")
+        end
+        return false
+    end;
 
     if not my_utility.is_in_range(target, max_spell_range) then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[SHIELD CHARGE DEBUG] Target out of range")
+        end
         return false
     end
 
@@ -55,11 +98,19 @@ local function logics(target)
 
     if is_in_min_range then
         -- We are in melee range (Boss logic)
-        if not target:is_boss() then return false end
+        if not target:is_boss() then
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[SHIELD CHARGE DEBUG] In melee range but target is not boss")
+            end
+            return false
+        end
 
         local current_time = get_time_since_inject()
         local last_cast = my_utility.get_last_cast_time("shield_charge")
         if current_time < last_cast + 2.0 then -- Hardcoded 2.0s delay for Shield Charge weaving
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[SHIELD CHARGE DEBUG] Recast delay not met for boss DPS")
+            end
             return false
         end
     end
@@ -77,6 +128,9 @@ local function logics(target)
         return true, cooldown;
     end;
 
+    if menu_elements.debug_mode:get() then
+        my_utility.debug_print("[SHIELD CHARGE DEBUG] Cast failed")
+    end
     return false;
 end
 

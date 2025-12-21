@@ -24,6 +24,7 @@ local spell_data = {
         cast_type = "target", -- Ranged projectile at target
         damage_type = "holy",
         faith_gen = 16,
+        cast_delay = 0.1, -- Fast cast for filler spell
         description = "Throw a Holy hammer dealing 90% damage. Generates 16 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - projectile homes to target
     },
@@ -33,6 +34,7 @@ local spell_data = {
         cast_type = "target", -- Melee multi-strike at target
         damage_type = "physical",
         faith_cost = 20,
+        cast_delay = 0.15, -- Quick melee attack
         description = "Strike enemies with blinding speed, 80% + 3x20% damage. Costs 20 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
@@ -67,6 +69,7 @@ local spell_data = {
         cast_type = "self", -- Spirals outward FROM player
         damage_type = "holy",
         faith_cost = 10,
+        cast_delay = 0.1, -- Fast cast for spam potential
         description = "Throw a Blessed Hammer that spirals out, 115% damage",
         -- Targeting: cast_spell.self(spell_id) - hammers spiral from player position
     },
@@ -88,6 +91,7 @@ local spell_data = {
         cast_type = "target", -- Impale target with lance
         damage_type = "holy",
         faith_cost = 25,
+        cast_delay = 0.2, -- Medium cast time for mobility skill
         is_mobility = true,
         description = "Impale enemies with a heavenly lance, stabbing 2x90% damage",
         -- Targeting: cast_spell.target(target, spell_id) - melee/short range skillshot
@@ -108,31 +112,31 @@ local spell_data = {
     -- buff_id may differ from spell_id - buff hash is used for buff detection
     -- =====================================================
     defiance_aura = {
-        spell_id = 2187578,                           -- Verified: wowhead.com/diablo-4/skill/defiance-aura-2187578
-        buff_id = 2187578,                            -- Buff hash for detection (same as spell_id, verify in-game)
+        spell_id = 2187578,                             -- Verified: wowhead.com/diablo-4/skill/defiance-aura-2187578
+        buff_id = 2187578,                              -- Buff hash for detection (same as spell_id, verify in-game)
         buff_name_patterns = { "defiance", "resolve" }, -- Fallback name patterns
         category = "aura",
-        cast_type = "self",                           -- Self-cast buff
+        cast_type = "self",                             -- Self-cast buff
         duration = 12.0,
         description = "Defensive aura granting damage reduction",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
     fanaticism_aura = {
-        spell_id = 2187741,                             -- Verified: wowhead.com/diablo-4/skill/fanaticism-aura-2187741
-        buff_id = 2187741,                              -- Buff hash for detection (same as spell_id, verify in-game)
+        spell_id = 2187741,                               -- Verified: wowhead.com/diablo-4/skill/fanaticism-aura-2187741
+        buff_id = 2187741,                                -- Buff hash for detection (same as spell_id, verify in-game)
         buff_name_patterns = { "fanatic", "fanaticism" }, -- Fallback name patterns
         category = "aura",
-        cast_type = "self",                             -- Self-cast buff
+        cast_type = "self",                               -- Self-cast buff
         duration = 12.0,
         description = "Offensive aura granting attack speed",
         -- Targeting: cast_spell.self(spell_id) - buff around player
     },
     holy_light_aura = {
-        spell_id = 2297097,                                             -- Verified: wowhead.com/diablo-4/skill/holy-light-aura-2297097
-        buff_id = 2297097,                                              -- Buff hash for detection (same as spell_id, verify in-game)
+        spell_id = 2297097,                                               -- Verified: wowhead.com/diablo-4/skill/holy-light-aura-2297097
+        buff_id = 2297097,                                                -- Buff hash for detection (same as spell_id, verify in-game)
         buff_name_patterns = { "holy_light", "holylight", "light_aura" }, -- Fallback name patterns
         category = "aura",
-        cast_type = "self",                                             -- Self-cast buff
+        cast_type = "self",                                               -- Self-cast buff
         duration = 12.0,
         description = "Healing aura granting life regeneration",
         -- Targeting: cast_spell.self(spell_id) - buff around player
@@ -194,6 +198,7 @@ local spell_data = {
         cast_type = "self", -- AoE pulls to player after delay
         damage_type = "holy",
         cooldown = 15.0,
+        cast_delay = 0.2, -- Medium cast time for AoE setup
         description = "Harness Light, Pull enemies in after 1.5s, Stun, 240% damage",
         -- Targeting: cast_spell.self(spell_id) - centered on player
     },
@@ -269,8 +274,9 @@ local spell_data = {
         cast_type = "target", -- Charge at enemy and bash
         damage_type = "physical",
         faith_cost = 32,
-        description = "Charge at an enemy and bash in front of you, dealing 205% damage. Costs 32 Faith.",
+        cast_delay = 0.3, -- Medium cast time for charge skill
         is_mobility = true,
+        description = "Charge at an enemy and bash in front of you, dealing 205% damage. Costs 32 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - charges to target location
     },
 

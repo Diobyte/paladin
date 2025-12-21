@@ -3,12 +3,18 @@ local spell_data = require("my_utility/spell_data")
 
 local menu_elements =
 {
-    tree_tab         = my_utility.safe_tree_tab(1),
-    main_boolean     = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "consecration_main_bool_base")),
-    cast_on_cooldown = my_utility.safe_checkbox(false,
+    tree_tab            = my_utility.safe_tree_tab(1),
+    main_boolean        = my_utility.safe_checkbox(true,
+        get_hash(my_utility.plugin_label .. "consecration_main_bool_base")),
+    cast_on_cooldown    = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "consecration_cast_on_cooldown")),
-    cast_delay       = my_utility.safe_slider_float(0.01, 10.0, 0.1,
+    cast_delay          = my_utility.safe_slider_float(0.01, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "consecration_cast_delay")),
+    use_custom_cooldown = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "consecration_use_custom_cooldown")),
+    custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.1,
+        get_hash(my_utility.plugin_label .. "consecration_custom_cooldown_sec")),
+    debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "consecration_debug_mode")),
 }
 
 local function menu()
@@ -18,6 +24,12 @@ local function menu()
             menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                 "Always cast when ready (maintains buff constantly)")
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
+            menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                "Override the default cooldown with a custom value")
+            if menu_elements.use_custom_cooldown:get() then
+                menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Set the custom cooldown in seconds", 2)
+            end
+            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
 
         menu_elements.tree_tab:pop()
@@ -33,7 +45,12 @@ local function logics()
         next_time_allowed_cast,
         spell_data.consecration.spell_id);
 
-    if not is_logic_allowed then return false end;
+    if not is_logic_allowed then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[CONSECRATION DEBUG] Logic not allowed - spell conditions not met")
+        end
+        return false
+    end;
 
     -- Check cast on cooldown option via helper
     local maintained, mdelay = my_utility.try_maintain_buff("consecration", spell_data.consecration.spell_id,
@@ -44,7 +61,13 @@ local function logics()
             local current_time = get_time_since_inject();
             next_time_allowed_cast = current_time + mdelay;
             my_utility.debug_print("Cast Consecration (On Cooldown)");
+            if menu_elements.use_custom_cooldown:get() then
+                return true, menu_elements.custom_cooldown_sec:get()
+            end
             return true, mdelay;
+        end
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[CONSECRATION DEBUG] Cast on cooldown failed")
         end
         return false
     end
@@ -57,9 +80,15 @@ local function logics()
         local cooldown = (delay or menu_elements.cast_delay:get());
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Consecration");
+        if menu_elements.use_custom_cooldown:get() then
+            return true, menu_elements.custom_cooldown_sec:get()
+        end
         return true, cooldown;
     end;
 
+    if menu_elements.debug_mode:get() then
+        my_utility.debug_print("[CONSECRATION DEBUG] Cast failed")
+    end
     return false;
 end
 

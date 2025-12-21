@@ -12,7 +12,6 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
     cast_delay       = my_utility.safe_slider_float(0.01, 1.0, 0.1,
         get_hash(my_utility.plugin_label .. "paladin_evade_cast_delay")),
-    debug_mode       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "paladin_evade_debug_mode")),
 }
 
 local function menu()
@@ -24,7 +23,6 @@ local function menu()
             menu_elements.min_target_range:render("Min Target Distance",
                 "\n     Must be lower than Max Targeting Range     \n\n", 1)
             menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
-            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
         end
 
         menu_elements.tree_tab:pop()
@@ -34,30 +32,16 @@ end
 local next_time_allowed_cast = 0;
 
 local function logics(target)
-    if not target then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[PALADIN EVADE DEBUG] No target provided")
-        end
-        return false
-    end;
-
+    if not target then return false end;
     local menu_boolean = menu_elements.main_boolean:get();
     local is_logic_allowed = my_utility.is_spell_allowed(
         menu_boolean,
         next_time_allowed_cast,
         spell_data.paladin_evade.spell_id);
 
-    if not is_logic_allowed then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[PALADIN EVADE DEBUG] Logic not allowed - spell conditions not met")
-        end
-        return false
-    end;
+    if not is_logic_allowed then return false end;
 
     if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[PALADIN EVADE DEBUG] Target not in valid range")
-        end
         return false
     end
 
@@ -73,9 +57,6 @@ local function logics(target)
         return true, cooldown;
     end;
 
-    if menu_elements.debug_mode:get() then
-        my_utility.debug_print("[PALADIN EVADE DEBUG] Cast failed")
-    end
     return false;
 end
 

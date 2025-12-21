@@ -17,12 +17,8 @@ local menu_elements =
     elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
     allow_out_of_combat = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "evade_allow_out_of_combat")),
-    use_out_of_combat   = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_use_out_of_combat")),
-    min_ooc_evade_range = my_utility.safe_slider_float(2.5, 5, 3,
-        get_hash(my_utility.plugin_label .. "min_ooc_evade_range")),
     cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
         get_hash(my_utility.plugin_label .. "evade_cast_delay")),
-    debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_debug_mode")),
 }
 
 local function menu()
@@ -37,17 +33,8 @@ local function menu()
                     "\n     Must be lower than Max Targeting Range     \n\n", 1)
             end
             menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
-            menu_elements.allow_out_of_combat:render("Allow Out of Combat",
-                "Allow casting evade when no target is present")
             menu_elements.cast_delay:render("Cast Delay",
                 "Time between casts in seconds (min: 0.1s manual, 0.5s auto-play)", 2)
-            menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
-        end
-
-        menu_elements.use_out_of_combat:render("Enable Evade - Out of combat", "")
-        if menu_elements.use_out_of_combat:get() then
-            menu_elements.min_ooc_evade_range:render("Min Distance Out of Combat",
-                "\n     Minimum travel distance to use evade out of combat     \n\n", 1)
         end
 
         menu_elements.tree_tab:pop()
@@ -63,9 +50,6 @@ local function logics(target)
     local current_time_check = get_time_since_inject();
     if current_time_check < next_time_allowed_cast then
         -- still on module-enforced cooldown
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[EVADE DEBUG] Still on cooldown")
-        end
         return false
     end
 
@@ -74,38 +58,22 @@ local function logics(target)
         next_time_allowed_cast,
         spell_data.evade.spell_id);
 
-    if not is_logic_allowed then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[EVADE DEBUG] Logic not allowed - spell conditions not met")
-        end
-        return false
-    end;
+    if not is_logic_allowed then return false end;
 
     local mobility_only = menu_elements.mobility_only:get();
 
     -- Check if we have a valid target based on targeting mode
     if not target and not mobility_only and not menu_elements.allow_out_of_combat:get() then
         -- No target found and out-of-combat usage not allowed
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[EVADE DEBUG] No target and out-of-combat not allowed")
-        end
         return false -- Can't cast without a target in combat mode
     end
 
-    if target and menu_elements.elites_only:get() and not target:is_elite() then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[EVADE DEBUG] Elites only mode - target is not elite")
-        end
-        return false
-    end
+    if target and menu_elements.elites_only:get() and not target:is_elite() then return false end
 
     local cast_position = nil
     if mobility_only then
         if target then
             if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
-                if menu_elements.debug_mode:get() then
-                    my_utility.debug_print("[EVADE DEBUG] Target not in valid range for mobility")
-                end
                 return false
             end
             cast_position = target:get_position()
@@ -114,9 +82,6 @@ local function logics(target)
             local cursor_position = get_cursor_position()
             local player_position = get_player_position()
             if cursor_position:squared_dist_to_ignore_z(player_position) > max_spell_range * max_spell_range then
-                if menu_elements.debug_mode:get() then
-                    my_utility.debug_print("[EVADE DEBUG] Cursor too far for mobility cast")
-                end
                 return false -- Cursor too far
             end
             cast_position = cursor_position
@@ -128,9 +93,6 @@ local function logics(target)
             -- Always cast against elites/bosses or when we have good clustering
             if not (target:is_elite() or target:is_champion() or target:is_boss()) then
                 if enemy_count < 1 then -- Minimum 1 enemies for non-elite (relaxed for general use)
-                    if menu_elements.debug_mode:get() then
-                        my_utility.debug_print("[EVADE DEBUG] Not enough enemies for clustering: " .. enemy_count)
-                    end
                     return false
                 end
             end
@@ -143,22 +105,13 @@ local function logics(target)
                     local cursor_position = get_cursor_position()
                     local player_position = get_player_position()
                     if cursor_position:squared_dist_to_ignore_z(player_position) > max_spell_range * max_spell_range then
-                        if menu_elements.debug_mode:get() then
-                            my_utility.debug_print("[EVADE DEBUG] Cursor too far for out-of-combat cast")
-                        end
                         return false -- Cursor too far
                     end
                     cast_position = cursor_position
                 else
-                    if menu_elements.debug_mode:get() then
-                        my_utility.debug_print("[EVADE DEBUG] Enemies present but no target for out-of-combat cast")
-                    end
                     return false
                 end
             else
-                if menu_elements.debug_mode:get() then
-                    my_utility.debug_print("[EVADE DEBUG] Out-of-combat not allowed and no target")
-                end
                 return false
             end
         end
@@ -186,51 +139,13 @@ local function logics(target)
         return true, actual_delay;
     end;
 
-    if menu_elements.debug_mode:get() then
-        my_utility.debug_print("[EVADE DEBUG] Cast failed")
-    end
     return false;
-end
-
-local function out_of_combat()
-    local use_out_of_combat = menu_elements.use_out_of_combat:get();
-    if not use_out_of_combat then
-        return false
-    end
-
-    -- Check if we are actually out of combat
-    local enemies = actors_manager.get_enemy_actors()
-    if #enemies > 0 then
-        return false
-    end
-
-    -- Check minimum distance
-    local player_position = get_player_position()
-    local cursor_position = get_cursor_position()
-    local distance_sqr = cursor_position:squared_dist_to_ignore_z(player_position)
-    local min_range = menu_elements.min_ooc_evade_range:get()
-    if distance_sqr < min_range * min_range then
-        return false
-    end
-
-    -- Cast towards cursor
-    if cast_spell.position(spell_data.evade.spell_id, cursor_position, 0) then
-        local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + 0.5; -- Fixed delay for out of combat
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[EVADE DEBUG] Cast out of combat evade")
-        end
-        return true
-    end
-
-    return false
 end
 
 return
 {
     menu = menu,
     logics = logics,
-    out_of_combat = out_of_combat,
     menu_elements = menu_elements,
     -- Expose helper for tests to manipulate cooldown state
     set_next_time_allowed_cast = function(t) next_time_allowed_cast = t end

@@ -82,6 +82,42 @@ local function get_unit_weight(unit)
     return score
 end
 
+-- Function to get the best target based on priority (Boss > Champion > Elite > Any)
+local function get_priority_target(target_selector_data)
+    local best_target = nil
+    local target_type = "none"
+
+    -- Check for boss targets first (highest priority)
+    if target_selector_data and target_selector_data.has_boss then
+        best_target = target_selector_data.closest_boss
+        target_type = "Boss"
+        return best_target, target_type
+    end
+
+    -- Then check for champion targets
+    if target_selector_data and target_selector_data.has_champion then
+        best_target = target_selector_data.closest_champion
+        target_type = "Champion"
+        return best_target, target_type
+    end
+
+    -- Then check for elite targets
+    if target_selector_data and target_selector_data.has_elite then
+        best_target = target_selector_data.closest_elite
+        target_type = "Elite"
+        return best_target, target_type
+    end
+
+    -- Finally, use any available target
+    if target_selector_data and target_selector_data.closest_unit then
+        best_target = target_selector_data.closest_unit
+        target_type = "Regular"
+        return best_target, target_type
+    end
+
+    return nil, "none"
+end
+
 -- Define the function to get the best weighted target
 local function get_best_weighted_target(entity_list)
     local highest_score = -1
@@ -583,4 +619,5 @@ return
 
     get_unit_weight = get_unit_weight,
     get_best_weighted_target = get_best_weighted_target,
+    get_priority_target = get_priority_target,
 }

@@ -25,7 +25,7 @@ local function safe_tree_tab(index)
         return tree_node:new(index)
     else
         -- fallback object with minimal interface used by spell modules
-        return { push = function() return false end, pop = function() end }
+        return { push = function(self, ...) return false end, pop = function() end }
     end
 end
 
@@ -86,6 +86,10 @@ local spell_cast_history = {}
 
 local function record_spell_cast(spell_name)
     spell_cast_history[spell_name] = (type(get_time_since_inject) == 'function') and get_time_since_inject() or 0
+end
+
+local function reset_spell_cast_tracking()
+    spell_cast_history = {}
 end
 
 local function get_last_cast_time(spell_name)
@@ -656,6 +660,7 @@ return
     buff_stack_count = buff_stack_count,
 
     record_spell_cast = record_spell_cast,
+    reset_spell_cast_tracking = reset_spell_cast_tracking,
     get_last_cast_time = get_last_cast_time,
 
     is_auto_play_enabled = is_auto_play_enabled,
