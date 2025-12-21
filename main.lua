@@ -53,8 +53,27 @@ local function refresh_equipped_lookup()
         if player_spells and #player_spells > 0 then
             local equipped_ids = {}
             for _, s in ipairs(player_spells) do
-                if s and s.spell_id and s.is_equipped then
+                local is_equipped = s.is_equipped
+                -- Handle is_equipped as function or property
+                if type(is_equipped) == "function" then
+                    is_equipped = s:is_equipped()
+                end
+                
+                if s and s.spell_id and is_equipped then
                     table.insert(equipped_ids, s.spell_id)
+                end
+            end
+
+            -- Fallback: If no spells found with is_equipped (other than evade which is handled separately), 
+            -- assume is_equipped check failed and include all learned spells.
+            if #equipped_ids == 0 then
+                for _, s in ipairs(player_spells) do
+                    if s and s.spell_id then
+                        table.insert(equipped_ids, s.spell_id)
+                    end
+                end
+                if rawget(_G, 'DEBUG_EQUIPPED_SPELLS') or (menu and menu.menu_elements.enable_debug:get()) then
+                    print("DEBUG: is_equipped check returned 0 spells, falling back to all learned spells")
                 end
             end
 
@@ -74,10 +93,12 @@ local function refresh_equipped_lookup()
     equipped_lookup = new_lookup
 
     -- Debug: Log equipped spells count
-    if rawget(_G, 'DEBUG_EQUIPPED_SPELLS') then
+    if rawget(_G, 'DEBUG_EQUIPPED_SPELLS') or (menu and menu.menu_elements.enable_debug:get()) then
         local count = 0
         for _ in pairs(equipped_lookup) do count = count + 1 end
-        print("DEBUG: refresh_equipped_lookup found " .. count .. " equipped spells")
+        -- Only print if count changes or periodically to avoid spam? 
+        -- For now, relying on user to enable debug only when needed.
+        -- console.print("DEBUG: refresh_equipped_lookup found " .. count .. " equipped spells")
     end
 end
 
@@ -828,7 +849,7 @@ on_render(function()
             local best_cursor_target_position_2d = graphics.w2s(best_cursor_target_position);
             graphics.circle_3d(best_cursor_target_position, 0.60, color_orange_red(255));
             graphics.l_text_2d("BEST_CURSOR_TARGET - Score:" .. cursor_max_score, best_cursor_target_position_2d,
-                font_size,
+            font_size,
                 color_orange_red(255))
         end
 
