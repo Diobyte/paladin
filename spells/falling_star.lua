@@ -69,15 +69,16 @@ local function logics(target)
 
     local cast_ok, delay = my_utility.try_cast_spell("falling_star", spell_data.falling_star.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-        return cast_spell.position(spell_data.falling_star.spell_id, target:get_position(), 0)
-    end, menu_elements.cast_delay:get())
+            return cast_spell.position(spell_data.falling_star.spell_id, target:get_position(), 0)
+        end, menu_elements.cast_delay:get())
 
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + (delay or menu_elements.cast_delay:get());
+        local cooldown = (delay or menu_elements.cast_delay:get());
+        next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Falling Star - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        return true;
+        return true, cooldown;
     end;
 
     return false;
@@ -88,5 +89,6 @@ return
     menu = menu,
     logics = logics,
     menu_elements = menu_elements,
-    targeting_type = targeting_type
+    targeting_type = targeting_type,
+    set_next_time_allowed_cast = function(t) next_time_allowed_cast = t end
 }

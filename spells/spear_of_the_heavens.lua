@@ -53,15 +53,12 @@ local function logics(target)
             return cast_spell.position(spell_data.spear_of_the_heavens.spell_id, target:get_position(), 0)
         end, menu_elements.cast_delay:get())
     if cast_ok then
-        print("DBG spear: delay type=", type(delay), "value=", tostring(delay))
         local current_time = get_time_since_inject();
-        print("DBG spear: current_time type=", type(current_time), "value=", tostring(current_time))
         local d = (type(delay) == 'number') and delay or tonumber(menu_elements.cast_delay:get()) or 0.1
-        print('DBG spear: d type=', type(d), 'd=', tostring(d))
         next_time_allowed_cast = current_time + d;
         my_utility.debug_print("Cast Spear of the Heavens - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        return true
+        return true, d
     end
 
     return false;
@@ -72,5 +69,6 @@ return
     menu = menu,
     logics = logics,
     menu_elements = menu_elements,
-    targeting_type = targeting_type
+    targeting_type = targeting_type,
+    set_next_time_allowed_cast = function(t) next_time_allowed_cast = t end
 }

@@ -50,7 +50,7 @@ local function logics()
             local current_time = get_time_since_inject();
             next_time_allowed_cast = current_time + mdelay;
             my_utility.debug_print("Cast Holy Light Aura (On Cooldown)");
-            return true;
+            return true, mdelay;
         end
         return false
     end
@@ -60,9 +60,10 @@ local function logics()
         function() return cast_spell.self(spell_data.holy_light_aura.spell_id, 0) end, menu_elements.cast_delay:get())
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + (delay or menu_elements.cast_delay:get());
+        local cooldown = (delay or menu_elements.cast_delay:get());
+        next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Holy Light Aura");
-        return true;
+        return true, cooldown;
     end;
 
     return false;

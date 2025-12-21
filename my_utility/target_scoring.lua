@@ -62,22 +62,57 @@ local function evaluate_targets(target_list, melee_range, config)
                     end
                 end
 
-                -- Check if unit is an infernal horde objective
+                -- Check if unit is an infernal horde objective (case-insensitive/plain search)
+                local is_infernal_objective = false
                 for _, objective_name in ipairs(my_utility.horde_objectives) do
-                    if unit_name:match(objective_name) and unit_health > 1 then
+                    if unit_name and objective_name and string.find(string.lower(unit_name), string.lower(objective_name), 1, true) and unit_health > 1 then
                         total_score = total_score + 1000
+                        is_infernal_objective = true
                         break
                     end
                 end
 
+                -- helper to decide tie-breakers (prefer infernal objective, then smaller distance, then lower health)
+                local function tiebreaker_prefers(new_unit, current_unit)
+                    if not current_unit then return true end
+                    -- infernal objective preference
+                    local new_name = new_unit.get_skin_name and new_unit:get_skin_name() or ''
+                    local cur_name = current_unit.get_skin_name and current_unit:get_skin_name() or ''
+                    local function is_obj(n)
+                        for _, obj_name in ipairs(my_utility.horde_objectives) do
+                            if n and obj_name and string.find(string.lower(n), string.lower(obj_name), 1, true) then
+                                return true
+                            end
+                        end
+                        return false
+                    end
+                    local new_obj = is_obj(new_name)
+                    local cur_obj = is_obj(cur_name)
+                    if new_obj ~= cur_obj then
+                        return new_obj -- true if new is objective
+                    end
+                    -- distance preference (smaller distance wins)
+                    local new_pos = new_unit.get_position and new_unit:get_position() or player_position
+                    local cur_pos = current_unit.get_position and current_unit:get_position() or player_position
+                    local new_dist = new_pos:squared_dist_to_ignore_z(player_position) or 0
+                    local cur_dist = cur_pos:squared_dist_to_ignore_z(player_position) or 0
+                    if new_dist ~= cur_dist then
+                        return new_dist < cur_dist
+                    end
+                    -- lower health preference
+                    local new_health = new_unit.get_current_health and new_unit:get_current_health() or math.huge
+                    local cur_health = current_unit.get_current_health and current_unit:get_current_health() or math.huge
+                    return new_health < cur_health
+                end
+
                 -- in max range
-                if total_score > ranged_max_score then
+                if total_score > ranged_max_score or (total_score == ranged_max_score and tiebreaker_prefers(unit, best_ranged_target)) then
                     ranged_max_score = total_score
                     best_ranged_target = unit
                 end
 
                 -- in melee range
-                if distance_sqr < melee_range_sqr and total_score > melee_max_score then
+                if distance_sqr < melee_range_sqr and (total_score > melee_max_score or (total_score == melee_max_score and tiebreaker_prefers(unit, best_melee_target))) then
                     melee_max_score = total_score
                     best_melee_target = unit
                 end
@@ -87,7 +122,7 @@ local function evaluate_targets(target_list, melee_range, config)
                     local angle_to_cursor = unit_position.get_angle and
                     unit_position:get_angle(cursor_position, player_position) or 0
                     if angle_to_cursor <= cursor_targeting_angle then
-                        if total_score > cursor_max_score then
+                        if total_score > cursor_max_score or (total_score == cursor_max_score and tiebreaker_prefers(unit, best_cursor_target)) then
                             cursor_max_score = total_score
                             best_cursor_target = unit
                         end

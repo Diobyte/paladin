@@ -351,8 +351,15 @@ local function use_ability(spell_name, delay_override)
     end
 
     --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
-    if (target_unit and spell.logics(target_unit)) or (not target_unit and spell.logics()) then
-        next_cast_time = get_time_since_inject() + delay
+    local success, returned_cooldown = nil, nil
+    if target_unit then
+        success, returned_cooldown = spell.logics(target_unit)
+    else
+        success, returned_cooldown = spell.logics()
+    end
+    if success then
+        local cd_to_use = returned_cooldown or delay
+        next_cast_time = get_time_since_inject() + cd_to_use
         my_utility.record_spell_cast(spell_name)
         return true
     end

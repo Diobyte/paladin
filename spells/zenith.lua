@@ -32,14 +32,15 @@ local function logics()
     -- Use helper to perform the cast and record
     local cast_ok, delay = my_utility.try_cast_spell("zenith", spell_data.zenith.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-        return cast_spell.self(spell_data.zenith.spell_id, 0)
-    end, menu_elements.cast_delay:get())
+            return cast_spell.self(spell_data.zenith.spell_id, 0)
+        end, menu_elements.cast_delay:get())
 
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + delay;
+        local cooldown = (delay or menu_elements.cast_delay:get());
+        next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Zenith");
-        return true;
+        return true, cooldown;
     end;
 
     return false;
@@ -49,5 +50,6 @@ return
 {
     menu = menu,
     logics = logics,
-    menu_elements = menu_elements
+    menu_elements = menu_elements,
+    set_next_time_allowed_cast = function(t) next_time_allowed_cast = t end
 }

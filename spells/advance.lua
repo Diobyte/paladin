@@ -112,8 +112,6 @@ local function logics(target)
     if cast_ok then
         local current_time = get_time_since_inject();
         local d = (type(delay) == 'number') and delay or tonumber(cast_delay) or 0.1
-        print('DBG advance: current_time type=', type(current_time), 'value=', tostring(current_time), 'd type=', type(d),
-            'value=', tostring(d))
         next_time_allowed_cast = current_time + d;
         my_utility.debug_print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..

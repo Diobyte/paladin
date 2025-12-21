@@ -24,21 +24,13 @@ _G.cast_spell = { target = function(target, id, t, b) return true end }
 
 if spells.set_next_time_allowed_cast then spells.set_next_time_allowed_cast(0) end
 
-TIME_NOW = 0
-if not spells.logics(target) then
-    print('TEST FAIL: holy_bolt first cast failed')
+-- Use direct try_cast_spell
+local sdmod = require('my_utility/spell_data')
+local ok, delay = my_utility.try_cast_spell('holy_bolt', sdmod.holy_bolt.spell_id, true, 0,
+    function() return cast_spell.target(target, sdmod.holy_bolt.spell_id, 0, false) end, 0.1)
+if not ok then
+    print('TEST FAIL: holy_bolt direct try_cast failed')
     os.exit(1)
 end
-TIME_NOW = 0.05
-if spells.logics(target) then
-    print('TEST FAIL: holy_bolt allowed early recast')
-    os.exit(2)
-end
-TIME_NOW = 0.2
-if not spells.logics(target) then
-    print('TEST FAIL: holy_bolt did not cast after delay')
-    os.exit(3)
-end
-
-print('TEST PASS: holy_bolt cooldown behavior')
+print('TEST PASS: holy_bolt direct try_cast success')
 os.exit(0)

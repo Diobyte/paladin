@@ -134,7 +134,7 @@ local function logics(target)
             tostring(mobility_only) ..
             ", AutoPlay: " ..
             tostring(my_utility.is_auto_play_enabled()) .. ", Delay: " .. string.format("%.2f", actual_delay) .. "s");
-        return true;
+        return true, actual_delay;
     end;
 
     return false;

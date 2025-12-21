@@ -74,8 +74,8 @@ local function get_unit_weight(unit)
         end
     end
 
-    local is_champion = unit:is_elite()
-    if is_champion then
+    local is_elite = unit:is_elite()
+    if is_elite then
         score = score + 400
     end
 

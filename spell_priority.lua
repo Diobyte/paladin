@@ -594,10 +594,6 @@ local function adjust_priorities_for_items(base_priorities)
                     if name:find("Attack Speed") or name:find("attacks_per_second") then
                         attack_speed_total = attack_speed_total + value
                     end
-                    -- Check for cooldown reduction (increases ultimate priority)
-                    if name:find("Cooldown Reduction") or name:find("cooldown_reduction") then
-                        cdr_total = cdr_total + value
-                    end
                     -- Check for critical hit damage
                     if name:find("Critical Strike Damage") or name:find("crit_damage") then
                         crit_damage_total = crit_damage_total + value
@@ -610,6 +606,10 @@ local function adjust_priorities_for_items(base_priorities)
             end
         end
     end
+
+    -- Compute cooldown reduction centrally using my_utility helper for consistency
+    local my_utility = require('my_utility/my_utility')
+    cdr_total = my_utility.get_total_cooldown_reduction_pct() or 0
 
     -- Create adjusted priorities based on item stats
     local adjusted_priorities = {}

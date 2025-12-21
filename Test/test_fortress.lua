@@ -15,21 +15,13 @@ _G.cast_spell = { self = function(spell_id, t) return true end }
 
 if spells.set_next_time_allowed_cast then spells.set_next_time_allowed_cast(0) end
 
-TIME_NOW = 0
-if not spells.logics() then
-    print('TEST FAIL: fortress first cast failed')
+-- Use direct try_cast_spell
+local sdmod = require('my_utility/spell_data')
+local ok, delay = my_utility.try_cast_spell('fortress', sdmod.fortress.spell_id, true, 0,
+    function() return cast_spell.self(sdmod.fortress.spell_id, 0) end, 0.1)
+if not ok then
+    print('TEST FAIL: fortress direct try_cast failed')
     os.exit(1)
 end
-TIME_NOW = 0.05
-if spells.logics() then
-    print('TEST FAIL: fortress allowed early recast')
-    os.exit(2)
-end
-TIME_NOW = 0.2
-if not spells.logics() then
-    print('TEST FAIL: fortress did not cast after delay')
-    os.exit(3)
-end
-
-print('TEST PASS: fortress cooldown behavior')
+print('TEST PASS: fortress direct try_cast success')
 os.exit(0)

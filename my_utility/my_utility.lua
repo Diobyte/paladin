@@ -51,15 +51,37 @@ local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
 
     if cast_spell.self(spell_id, 0) then
         -- record and return a small delay to avoid spam
-        my_utility = my_utility or {}
-        if my_utility and type(my_utility.record_spell_cast) == "function" then
-            my_utility.record_spell_cast(spell_name)
-        end
+        record_spell_cast(spell_name)
         local delay = min_delay or 0.1
         return true, delay
     end
 
     return false, 0
+end
+
+-- Helper: compute total cooldown reduction from equipped items (percentage, e.g., 25 = 25%)
+local function get_total_cooldown_reduction_pct()
+    local local_player = get_local_player()
+    if not local_player or type(local_player.get_equipped_items) ~= 'function' then return 0 end
+    local equipped_items = local_player:get_equipped_items() or {}
+    local cdr_total = 0
+    for _, item in ipairs(equipped_items) do
+        if item and type(item.get_affixes) == 'function' then
+            local affixes = item:get_affixes()
+            for _, aff in ipairs(affixes) do
+                if aff and type(aff.get_name) == 'function' and type(aff.get_roll) == 'function' then
+                    local name = aff:get_name()
+                    local roll = aff:get_roll() or 0
+                    if type(name) == 'string' and (name:find("Cooldown Reduction") or name:find("cooldown_reduction")) then
+                        cdr_total = cdr_total + roll
+                    end
+                end
+            end
+        end
+    end
+    -- Safety cap to avoid negative/absurd cooldowns
+    if cdr_total > 75 then cdr_total = 75 end
+    return cdr_total
 end
 
 -- Generic simple helper to attempt a cast and centralize recording/logging.
@@ -73,7 +95,11 @@ local function try_cast_spell(spell_name, spell_id, menu_boolean, next_time_allo
         local last = get_last_cast_time(spell_name)
         if last ~= nil then
             local current_time = (type(get_time_since_inject) == 'function') and get_time_since_inject() or 0
-            if current_time < (last + sd.cooldown) then
+            -- Apply cooldown reduction from items when enforcing internal cooldowns
+            local cdr_pct = get_total_cooldown_reduction_pct()
+            local effective_cd = sd.cooldown * (1 - (cdr_pct / 100))
+            if effective_cd < 0 then effective_cd = 0 end
+            if current_time < (last + effective_cd) then
                 -- still on cooldown
                 return false
             end
@@ -87,9 +113,8 @@ local function try_cast_spell(spell_name, spell_id, menu_boolean, next_time_allo
     if type(cast_fn) ~= "function" then return false end
 
     if cast_fn() then
-        if type(my_utility) == "table" and type(my_utility.record_spell_cast) == "function" then
-            my_utility.record_spell_cast(spell_name)
-        end
+        -- record internally so we don't depend on a global module reference
+        record_spell_cast(spell_name)
         return true, delay or 0.1
     end
 
@@ -325,6 +350,19 @@ function is_target_within_angle(origin, reference, target, max_angle)
     local to_reference = (reference - origin):normalize();
     local to_target = (target - origin):normalize();
     local dot_product = to_reference:dot(to_target);
+
+    -- Guard against tiny floating point errors that can push dot slightly outside [-1,1]
+    -- which would make math.acos return NaN. Clamp to safe range.
+    if dot_product ~= dot_product then
+        -- If dot is NaN for any reason, default to 1 (colinear) to avoid NaN propagation.
+        dot_product = 1
+    end
+    if dot_product > 1 then
+        dot_product = 1
+    elseif dot_product < -1 then
+        dot_product = -1
+    end
+
     local angle = math.deg(math.acos(dot_product));
     return angle <= max_angle;
 end
@@ -555,6 +593,7 @@ return
     debug_print = debug_print,
     try_maintain_buff = try_maintain_buff,
     try_cast_spell = try_cast_spell,
+    get_total_cooldown_reduction_pct = get_total_cooldown_reduction_pct,
     has_shield = has_shield,
 
     get_best_point = get_best_point,

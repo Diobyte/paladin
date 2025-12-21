@@ -42,7 +42,7 @@ local function logics()
             local current_time = get_time_since_inject();
             next_time_allowed_cast = current_time + mdelay;
             my_utility.debug_print("Cast Fanaticism Aura (On Cooldown)");
-            return true;
+            return true, mdelay;
         end
         return false
     end
@@ -52,9 +52,10 @@ local function logics()
         function() return cast_spell.self(spell_data.fanaticism_aura.spell_id, 0) end, menu_elements.cast_delay:get())
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + (delay or menu_elements.cast_delay:get());
+        local cooldown = (delay or menu_elements.cast_delay:get());
+        next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Fanaticism Aura");
-        return true;
+        return true, cooldown;
     end;
 
     return false;
@@ -64,5 +65,6 @@ return
 {
     menu = menu,
     logics = logics,
-    menu_elements = menu_elements
+    menu_elements = menu_elements,
+    set_next_time_allowed_cast = function(t) next_time_allowed_cast = t end
 }

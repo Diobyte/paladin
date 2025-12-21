@@ -10,7 +10,24 @@ _G.get_local_player = function() return { get_current_health = function() return
 
 local spells = require('spells/aegis')
 local my_utility = require('my_utility/my_utility')
-my_utility.is_spell_allowed = function(...) return true end
+-- Provide permissive utility and orbwalker stubs
+local util_stub = { is_spell_ready = function() return true end, is_spell_affordable = function() return true end, can_cast_spell = function() return true end }
+package.loaded['utility'] = util_stub
+_G.utility = util_stub
+local orb_stub = { get_orb_mode = function() return 1 end }
+package.loaded['orbwalker'] = orb_stub
+_G.orbwalker = orb_stub
+_G.orb_mode = { none = 0, pvp = 1, clear = 2 }
+local auto_play_stub = { is_active = function() return false end, get_objective = function() return 0 end }
+package.loaded['auto_play'] = auto_play_stub
+_G.auto_play = auto_play_stub
+local objective_stub = { fight = 1 }
+package.loaded['objective'] = objective_stub
+_G.objective = objective_stub
+_G.get_local_player = function() return { get_buffs = function() return {} end, get_active_spell_id = function() return 0 end, get_equipped_items = function() return {} end, get_current_health = function() return 10 end, get_max_health = function() return 100 end, get_position = function() return { x = 0, y = 0, z = 0 } end } end
+local evade_stub = { is_dangerous_position = function() return false end }
+package.loaded['evade'] = evade_stub
+_G.evade = evade_stub
 
 _G.cast_spell = { self = function(spell_id, t) return true end }
 
