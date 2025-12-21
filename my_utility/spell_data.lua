@@ -13,6 +13,27 @@
 -- cast_spell.target(target, spell_id, animation_time, is_debug_mode) - Target a unit (melee, homing)
 -- cast_spell.position(spell_id, position, animation_time) - Cast at ground position (AoE, skillshots)
 
+-- Import the spell_data class from the global context
+local spell_data_class = _G.spell_data
+
+-- Create a module to hold our spell data
+local spell_data_module = {}
+
+-- Function to create spell data objects
+function spell_data_module.create_spell_data(radius, range, cast_delay, projectile_speed, has_wall_collision, spell_id,
+                                             geometry_type, targeting_type)
+    return spell_data_class:new(
+        radius,
+        range,
+        cast_delay,
+        projectile_speed,
+        has_wall_collision,
+        spell_id,
+        geometry_type or spell_geometry.rectangular,
+        targeting_type or targeting_type.skillshot
+    )
+end
+
 local spell_data = {
     -- =====================================================
     -- BASIC SKILLS (Resource Generators)
@@ -24,7 +45,17 @@ local spell_data = {
         cast_type = "target", -- Ranged projectile at target
         damage_type = "holy",
         faith_gen = 16,
-        cast_delay = 0.1, -- Fast cast for filler spell
+        cast_delay = 0.1,               -- Fast cast for filler spell
+        data = spell_data_module.create_spell_data(
+            0.7,                        -- radius
+            15.0,                       -- range
+            0.1,                        -- cast_delay
+            2.0,                        -- projectile_speed
+            true,                       -- has_wall_collision
+            2174078,                    -- spell_id
+            spell_geometry.rectangular, -- geometry_type
+            targeting_type.skillshot    -- targeting_type
+        ),
         description = "Throw a Holy hammer dealing 90% damage. Generates 16 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - projectile homes to target
     },
@@ -34,7 +65,17 @@ local spell_data = {
         cast_type = "target", -- Melee multi-strike at target
         damage_type = "physical",
         faith_cost = 20,
-        cast_delay = 0.15, -- Quick melee attack
+        cast_delay = 0.15,              -- Quick melee attack
+        data = spell_data_module.create_spell_data(
+            0.7,                        -- radius
+            5.0,                        -- range
+            0.15,                       -- cast_delay
+            0.0,                        -- projectile_speed
+            false,                      -- has_wall_collision
+            2132824,                    -- spell_id
+            spell_geometry.rectangular, -- geometry_type
+            targeting_type.skillshot    -- targeting_type
+        ),
         description = "Strike enemies with blinding speed, 80% + 3x20% damage. Costs 20 Faith.",
         -- Targeting: cast_spell.target(target, spell_id) - requires melee range
     },
@@ -324,5 +365,10 @@ local spell_data = {
         -- Targeting: cast_spell.position(spell_id, safe_pos) - enhanced dash to safety
     },
 }
+
+-- Merge spell_data_module functions with spell_data for easier access
+for k, v in pairs(spell_data_module) do
+    spell_data[k] = v
+end
 
 return spell_data

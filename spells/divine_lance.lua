@@ -1,6 +1,10 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
+-- Declare globals for linter
+local cast_spell = cast_spell
+local console = console
+
 local max_spell_range = 15.0
 local targeting_type = "ranged"
 local menu_elements =
@@ -74,7 +78,7 @@ local function logics(target, target_selector_data)
         end
         if not target then
             if menu_elements.debug_mode:get() then
-                my_utility.debug_print("[DIVINE LANCE DEBUG] No target provided")
+                console.print("[DIVINE LANCE DEBUG] No target provided")
             end
             return false
         end
@@ -82,7 +86,7 @@ local function logics(target, target_selector_data)
 
     if menu_elements.elites_only:get() and not target:is_elite() then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[DIVINE LANCE DEBUG] Elites only mode - target is not elite")
+            console.print("[DIVINE LANCE DEBUG] Elites only mode - target is not elite")
         end
         return false
     end
@@ -95,14 +99,14 @@ local function logics(target, target_selector_data)
 
     if not is_logic_allowed then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[DIVINE LANCE DEBUG] Logic not allowed - spell conditions not met")
+            console.print("[DIVINE LANCE DEBUG] Logic not allowed - spell conditions not met")
         end
         return false
     end;
 
     if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[DIVINE LANCE DEBUG] Target not in valid range")
+            console.print("[DIVINE LANCE DEBUG] Target not in valid range")
         end
         return false
     end
@@ -115,7 +119,7 @@ local function logics(target, target_selector_data)
         local current_time = get_time_since_inject();
         local cooldown = (delay or menu_elements.cast_delay:get());
         next_time_allowed_cast = current_time + cooldown;
-        my_utility.debug_print("Cast Divine Lance - Target: " ..
+        console.print("Cast Divine Lance - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
         if menu_elements.use_custom_cooldown:get() then
             return true, menu_elements.custom_cooldown_sec:get()
@@ -124,7 +128,7 @@ local function logics(target, target_selector_data)
     end;
 
     if menu_elements.debug_mode:get() then
-        my_utility.debug_print("[DIVINE LANCE DEBUG] Cast failed")
+        console.print("[DIVINE LANCE DEBUG] Cast failed")
     end
     return false;
 end

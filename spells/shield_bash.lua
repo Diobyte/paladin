@@ -58,6 +58,8 @@ end
 local next_time_allowed_cast = 0;
 local CAST_DELAY = 0.1
 
+local shield_bash_data = spell_data.shield_bash.data
+
 local function logics(target_selector_data)
     -- Shield Bash requires a target to charge at
     local menu_boolean = menu_elements.main_boolean:get();

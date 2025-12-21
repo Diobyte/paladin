@@ -151,23 +151,18 @@ local function logics(target, target_selector_data)
         cast_position = target:get_position()
     end
 
-    local cast_ok, delay = my_utility.try_cast_spell("advance", spell_data.advance.spell_id, menu_boolean,
-        next_time_allowed_cast, function()
-            return cast_spell.position(spell_data.advance.spell_id, cast_position, 0)
-        end, menu_elements.cast_delay:get())
+    local cast_ok = cast_spell.position(spell_data.advance.spell_id, cast_position, 0)
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or menu_elements.cast_delay:get());
-        next_time_allowed_cast = current_time + cooldown;
-        my_utility.debug_print("Cast Advance - Target: " ..
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        console.print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));
-        return true, cooldown
+        return true, my_utility.spell_delays.regular_cast
     end
 
     if menu_elements.debug_mode:get() then
-        my_utility.debug_print("[ADVANCE DEBUG] Cast failed")
+        console.print("[ADVANCE DEBUG] Cast failed")
     end
     return false;
 end

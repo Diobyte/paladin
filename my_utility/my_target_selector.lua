@@ -368,8 +368,45 @@ local function get_target_selector_data(source, list)
         lowest_max_health_boss = lowest_max_health_boss,
         highest_max_health_boss = highest_max_health_boss,
 
-        list = possible_targets_list
+        list = possible_targets_list,
+        get_priority_target = function(self) return get_priority_target(self) end
     }
+end
+
+-- Function to get the best target based on priority (Boss > Champion > Elite > Any)
+local function get_priority_target(target_selector_data)
+    local best_target = nil
+    local target_type = "none"
+
+    -- Check for boss targets first (highest priority)
+    if target_selector_data and target_selector_data.has_boss then
+        best_target = target_selector_data.closest_boss
+        target_type = "Boss"
+        return best_target, target_type
+    end
+
+    -- Then check for champion targets
+    if target_selector_data and target_selector_data.has_champion then
+        best_target = target_selector_data.closest_champion
+        target_type = "Champion"
+        return best_target, target_type
+    end
+
+    -- Then check for elite targets
+    if target_selector_data and target_selector_data.has_elite then
+        best_target = target_selector_data.closest_elite
+        target_type = "Elite"
+        return best_target, target_type
+    end
+
+    -- Finally, use any available target
+    if target_selector_data and target_selector_data.closest_unit then
+        best_target = target_selector_data.closest_unit
+        target_type = "Regular"
+        return best_target, target_type
+    end
+
+    return nil, "none"
 end
 
 local function dot2D(v1, v2)

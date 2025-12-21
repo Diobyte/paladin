@@ -375,6 +375,12 @@ local function is_spell_allowed(spell_enable_check, next_cast_allowed_time, spel
     return true
 end
 
+local spell_delays = {
+    regular_cast = 0.1,
+    instant_cast = 0.0,
+    long_cast = 0.5
+}
+
 local function generate_points_around_target(target_position, radius, num_points)
     local points = {};
     for i = 1, num_points do

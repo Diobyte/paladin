@@ -18,6 +18,8 @@ local menu_elements =
     debug_mode       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "holy_bolt_debug_mode")),
 }
 
+local holy_bolt_data = spell_data.holy_bolt.data
+
 local function menu()
     if menu_elements.tree_tab:push("Holy Bolt") then
         menu_elements.main_boolean:render("Enable Holy Bolt", "")
@@ -91,22 +93,17 @@ local function logics(target, target_selector_data)
         return false
     end
 
-    local cast_ok, delay = my_utility.try_cast_spell("holy_bolt", spell_data.holy_bolt.spell_id, menu_boolean,
-        next_time_allowed_cast, function()
-            return cast_spell.target(target, spell_data.holy_bolt.spell_id, 0, false)
-        end, menu_elements.cast_delay:get())
-
+    local cast_ok = cast_spell.target(target, spell_data.holy_bolt.spell_id, 0, false)
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = (delay or menu_elements.cast_delay:get());
-        next_time_allowed_cast = current_time + cooldown;
-        my_utility.debug_print("Cast Holy Bolt - Target: " ..
+        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
+        console.print("Cast Holy Bolt - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        return true, cooldown;
-    end;
+        return true, my_utility.spell_delays.regular_cast
+    end
 
     if menu_elements.debug_mode:get() then
-        my_utility.debug_print("[HOLY BOLT DEBUG] Cast failed")
+        console.print("[HOLY BOLT DEBUG] Cast failed")
     end
     return false;
 end

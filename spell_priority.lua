@@ -820,7 +820,7 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         if faith_current > (faith_max * 0.8) then
             local ultimates = { "arbiter_of_justice", "heavens_fury", "spear_of_the_heavens", "zenith", "aegis",
                 "fortress" }
-            local util = package.loaded and package.loaded['utility'] or utility
+            local util = package.loaded and package.loaded['my_utility'] or my_utility
             for _, ult_name in ipairs(ultimates) do
                 if spell_name == ult_name and spell_data[ult_name] and type(util) == "table" and type(util.is_spell_ready) == "function" and util.is_spell_ready(spell_data[ult_name].spell_id) then
                     new_position = math.max(1, i - 1)

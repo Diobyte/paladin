@@ -55,6 +55,8 @@ end
 
 local next_time_allowed_cast = 0;
 
+local clash_data = spell_data.clash.data
+
 local function logics(target, target_selector_data)
     if not target then
         if menu_elements.debug_mode:get() then

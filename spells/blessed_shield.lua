@@ -49,6 +49,8 @@ end
 
 local next_time_allowed_cast = 0;
 
+local blessed_shield_data = spell_data.blessed_shield.data
+
 local function logics(target)
     if not target then
         if menu_elements.debug_mode:get() then
