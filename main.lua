@@ -32,14 +32,6 @@ local menu = require("menu")
 -- Equipped spells lookup
 local equipped_lookup = {}
 
--- Fast lookup: spell_id -> spell_name (built once)
-local spell_id_to_name = {}
-for spell_name, data in pairs(spell_data) do
-    if type(data) == "table" and data.spell_id ~= nil then
-        spell_id_to_name[data.spell_id] = spell_name
-    end
-end
-
 local next_equipped_refresh_time = 0.0
 local function refresh_equipped_lookup()
     equipped_lookup = {}
@@ -54,17 +46,23 @@ local function refresh_equipped_lookup()
         return
     end
 
+    local equipped_ids = {}
     for _, s in ipairs(player_spells) do
-        if s and s.spell_id then
-            logger.log("Spell ID: " .. tostring(s.spell_id) .. " equipped: " .. tostring(s.is_equipped))
-            if s.is_equipped then
-                local spell_name = spell_id_to_name[s.spell_id]
-                if spell_name then
-                    equipped_lookup[spell_name] = true
-                    logger.log("Mapped to spell: " .. spell_name)
-                else
-                    logger.log("No mapping for spell ID: " .. tostring(s.spell_id))
-                end
+        if s and s.spell_id and s.is_equipped then
+            table.insert(equipped_ids, s.spell_id)
+        end
+    end
+
+    -- Add evade ID explicitly
+    if spell_data.evade and spell_data.evade.spell_id then
+        table.insert(equipped_ids, spell_data.evade.spell_id)
+    end
+
+    for _, spell_id in ipairs(equipped_ids) do
+        for spell_name, data in pairs(spell_data) do
+            if type(data) == "table" and data.spell_id == spell_id then
+                equipped_lookup[spell_name] = true
+                break
             end
         end
     end
@@ -280,22 +278,9 @@ on_render_menu(function()
     refresh_equipped_lookup()
 
     if menu.menu_elements.spells_tree:push("Equipped Spells") then
-        -- Collect equipped spell IDs for display
-        local equipped_ids = {}
-        for name, _ in pairs(equipped_lookup) do
-            if spell_data[name] and spell_data[name].spell_id then
-                table.insert(equipped_ids, tostring(spell_data[name].spell_id))
-            end
-        end
-        if #equipped_ids > 0 then
-            menu.menu_elements.spells_tree:text("Active Spell IDs: " .. table.concat(equipped_ids, ", "))
-        else
-            menu.menu_elements.spells_tree:text("No active spells detected")
-        end
-
         -- Display spells in priority order, but only if they're equipped
         for _, spell_name in ipairs(current_spell_priority) do
-            if equipped_lookup[spell_name] or spell_name == "evade" then
+            if equipped_lookup[spell_name] then
                 local spell = spells[spell_name]
                 if spell then
                     spell.menu()
@@ -308,7 +293,7 @@ on_render_menu(function()
     if menu.menu_elements.disabled_spells_tree:push("Inactive Spells") then
         for _, spell_name in ipairs(current_spell_priority) do
             local spell = spells[spell_name]
-            if spell and spell_name ~= "evade" and not equipped_lookup[spell_name] then
+            if spell and not equipped_lookup[spell_name] then
                 spell.menu()
             end
         end
