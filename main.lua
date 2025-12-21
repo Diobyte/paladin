@@ -50,8 +50,24 @@ local function refresh_equipped_lookup()
     local local_player = get_local_player()
     local spells_found = false
 
-    -- Check if get_spells exists before calling it
-    if local_player and type(local_player.get_spells) == "function" then
+    -- 1. Try Global get_equipped_spell_ids() (Reference Repo Approach)
+    if rawget(_G, "get_equipped_spell_ids") then
+        local equipped_ids = get_equipped_spell_ids()
+        if equipped_ids and #equipped_ids > 0 then
+            for _, spell_id in ipairs(equipped_ids) do
+                for spell_name, data in pairs(spell_data) do
+                    if type(data) == "table" and data.spell_id == spell_id then
+                        new_lookup[spell_name] = true
+                        spells_found = true
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    -- 2. Fallback to local_player:get_spells() if global failed
+    if not spells_found and local_player and type(local_player.get_spells) == "function" then
         local player_spells = local_player:get_spells()
         if player_spells and #player_spells > 0 then
             local equipped_ids = {}
@@ -487,7 +503,7 @@ local function get_equipped_spell_ids()
                 if type(is_equipped) == "function" then
                     is_equipped = spell:is_equipped()
                 end
-                
+
                 if is_equipped then
                     table.insert(equipped_spells, spell.spell_id)
                 end
