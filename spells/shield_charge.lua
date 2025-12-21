@@ -1,5 +1,6 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
+local my_target_selector = require("my_utility/my_target_selector")
 
 local max_spell_range = 12.0
 local targeting_type = "ranged"
@@ -49,7 +50,7 @@ local function logics(target, target_selector_data)
 
     -- Handle priority targeting mode
     if menu_elements.priority_target:get() and target_selector_data then
-        local priority_target = target_selector_data.get_priority_target()
+        local priority_target = my_target_selector.get_priority_target(target_selector_data)
         if priority_target then
             target = priority_target
             if menu_elements.debug_mode:get() then

@@ -1,5 +1,6 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
+local my_target_selector = require("my_utility/my_target_selector")
 
 local max_spell_range = 10.0
 local targeting_type = "ranged"
@@ -75,7 +76,7 @@ local function logics(target, target_selector_data)
 
     -- Handle priority targeting mode for combat mode
     if menu_elements.priority_target:get() and target_selector_data and not mobility_only then
-        local priority_target = target_selector_data.get_priority_target()
+        local priority_target = my_target_selector.get_priority_target(target_selector_data)
         if priority_target then
             target = priority_target
             if menu_elements.debug_mode:get() then
@@ -151,18 +152,23 @@ local function logics(target, target_selector_data)
         cast_position = target:get_position()
     end
 
-    local cast_ok = cast_spell.position(spell_data.advance.spell_id, cast_position, 0)
+    local cast_ok, delay = my_utility.try_cast_spell("advance", spell_data.advance.spell_id, menu_boolean,
+        next_time_allowed_cast, function()
+            return cast_spell.position(spell_data.advance.spell_id, cast_position, 0)
+        end, menu_elements.cast_delay:get())
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
-        console.print("Cast Advance - Target: " ..
+        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
+            (delay or menu_elements.cast_delay:get());
+        next_time_allowed_cast = current_time + cooldown;
+        my_utility.debug_print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..
             ", Mobility: " .. tostring(mobility_only));
-        return true, my_utility.spell_delays.regular_cast
+        return true, cooldown
     end
 
     if menu_elements.debug_mode:get() then
-        console.print("[ADVANCE DEBUG] Cast failed")
+        my_utility.debug_print("[ADVANCE DEBUG] Cast failed")
     end
     return false;
 end

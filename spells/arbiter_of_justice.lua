@@ -71,7 +71,7 @@ local function logics(target, target_selector_data)
 
     -- Handle priority targeting mode
     if menu_elements.priority_target:get() and target_selector_data then
-        local priority_target = target_selector_data.get_priority_target()
+        local priority_target = my_target_selector.get_priority_target(target_selector_data)
         if priority_target then
             target = priority_target
             if menu_elements.debug_mode:get() then

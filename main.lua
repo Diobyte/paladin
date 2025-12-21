@@ -1,17 +1,25 @@
-local local_player = get_local_player();
-if local_player == nil then
-    return
+-- NOTE:
+-- Do not `return` at file-load time. If the player/orbwalker isn't ready yet,
+-- returning here prevents `on_render_menu` from being registered (GUI won't show).
+-- Gate class-specific logic inside callbacks instead.
+
+local orbwalker_initialized = false;
+
+local function try_init_orbwalker()
+    if orbwalker_initialized then
+        return;
+    end
+
+    if type(orbwalker) == "table" and type(orbwalker.set_block_movement) == "function" and
+        type(orbwalker.set_clear_toggle) == "function" then
+        orbwalker.set_block_movement(true);
+        orbwalker.set_clear_toggle(true);
+        orbwalker_initialized = true;
+    end
 end
 
-local character_id = local_player:get_character_class_id();
-local is_paladin = character_id == 9;
-if not is_paladin then
-    return
-end;
-
--- orbwalker settings
-orbwalker.set_block_movement(true);
-orbwalker.set_clear_toggle(true);
+-- Add cast_end_time mechanism to prevent spell overlap (from reference repos)
+local cast_end_time = 0.0
 
 local my_target_selector = require("my_utility/my_target_selector");
 local my_utility = require("my_utility/my_utility");
@@ -23,6 +31,42 @@ local menu = require("menu")
 
 -- Equipped spells lookup
 local equipped_lookup = {}
+
+-- Fast lookup: spell_id -> spell_name (built once)
+local spell_id_to_name = {}
+for spell_name, data in pairs(spell_data) do
+    if type(data) == "table" and data.spell_id ~= nil then
+        spell_id_to_name[data.spell_id] = spell_name
+    end
+end
+
+local next_equipped_refresh_time = 0.0
+local function refresh_equipped_lookup()
+    equipped_lookup = {}
+
+    local local_player = get_local_player()
+    if not local_player then
+        return
+    end
+
+    local player_spells = local_player:get_spells()
+    if not player_spells then
+        return
+    end
+
+    for _, s in ipairs(player_spells) do
+        if s and s.is_equipped and s.spell_id then
+            local spell_name = spell_id_to_name[s.spell_id]
+            if spell_name then
+                equipped_lookup[spell_name] = true
+            end
+        end
+    end
+end
+
+-- Target selector data for targets that pass collision/visibility filters
+local target_selector_data_visible = nil
+local target_selector_data_all = nil
 
 -- OPTIMIZATION: Pre-cache all spell priorities for instant lookup
 local spell_priority_cache = {}
@@ -59,6 +103,13 @@ local angle_table = { false, 90.0 } -- max angle
 local next_target_update_time = 0.0 -- Time of next target evaluation
 local next_cast_time = 0.0          -- Time of next possible cast
 local targeting_refresh_interval = 0.2
+
+-- Default enemy weights for different enemy types
+local normal_monster_value = 2
+local elite_value = 10
+local champion_value = 15
+local boss_value = 50
+local damage_resistance_value = 25
 
 -- Declare target_selector_data_all to avoid linter errors
 local target_selector_data_all = nil
@@ -145,9 +196,14 @@ local target_unit_map = {
 }
 
 on_render_menu(function()
+    if not menu.menu_elements.main_tree:push("DirtyDio Paladin v2.2.0") then
+        return;
+    end
+
     menu.menu_elements.main_boolean:render("Enable Plugin", "");
 
     if not menu.menu_elements.main_boolean:get() then
+        menu.menu_elements.main_tree:pop();
         return;
     end;
 
@@ -214,19 +270,8 @@ on_render_menu(function()
         menu.menu_elements.settings_tree:pop()
     end
 
-    local equipped_spells = get_equipped_spell_ids()
-
-    -- Create a lookup table for equipped spells
-    equipped_lookup = {}
-    for _, spell_id in ipairs(equipped_spells) do
-        -- Check each spell in spell_data to find matching spell_id
-        for spell_name, data in pairs(spell_data) do
-            if data.spell_id == spell_id then
-                equipped_lookup[spell_name] = true
-                break
-            end
-        end
-    end
+    -- Keep menu in sync even if load-order changes; also used by on_update
+    refresh_equipped_lookup()
 
     if menu.menu_elements.spells_tree:push("Equipped Spells") then
         -- Display spells in priority order, but only if they're equipped
@@ -250,46 +295,9 @@ on_render_menu(function()
         end
         menu.menu_elements.disabled_spells_tree:pop()
     end
+
+    menu.menu_elements.main_tree:pop();
 end)
-
--- Targets
-local best_ranged_target = nil
-local best_ranged_target_visible = nil
-local best_melee_target = nil
-local best_melee_target_visible = nil
-local closest_target = nil
-local closest_target_visible = nil
-local best_cursor_target = nil
-local closest_cursor_target = nil
-local closest_cursor_target_angle = 0
--- Targetting scores
-local ranged_max_score = 0
-local ranged_max_score_visible = 0
-local melee_max_score = 0
-local melee_max_score_visible = 0
-local cursor_max_score = 0
-
--- Targetting settings
-local max_targeting_range = menu.menu_elements.max_targeting_range:get()
-local collision_table = { true, 1 } -- collision width
-local floor_table = { true, 5.0 }   -- floor height
-local angle_table = { false, 90.0 } -- max angle
-
--- Cache for heavy function results
-local next_target_update_time = 0.0 -- Time of next target evaluation
-local next_cast_time = 0.0          -- Time of next possible cast
-local targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
-
--- Default enemy weights for different enemy types
-local normal_monster_value = 2
-local elite_value = 10
-local champion_value = 15
-local boss_value = 50
-local damage_resistance_value = 25
-
-local target_selector_data_all = nil
-
-local target_scoring = require('my_utility/target_scoring')
 
 local function use_ability(spell_name, delay_after_cast)
     local spell = spells[spell_name]
@@ -300,47 +308,30 @@ local function use_ability(spell_name, delay_after_cast)
     local target_unit = nil
     if spell.menu_elements.targeting_mode then
         local targeting_mode = spell.menu_elements.targeting_mode:get()
-
-        -- Check for specific targeting maps in the spell module
         if spell.targeting_type == "melee" then
-            -- Map melee modes to global indices
-            local map = {
-                [0] = 2,                              -- Melee Target
-                [1] = 3,                              -- Melee Target (in sight)
-                [2] = 4,                              -- Closest Target
-                [3] = 5,                              -- Closest Target (in sight)
-                [4] = 6,                              -- Best Cursor Target
-                [5] = 7                               -- Closest Cursor Target
-            }
-            targeting_mode = map[targeting_mode] or 2 -- Default to Melee Target
+            targeting_mode = targeting_mode_maps.melee[targeting_mode] or 2
         elseif spell.targeting_type == "ranged" then
-            -- Map ranged modes to global indices
-            local map = {
-                [0] = 0,                              -- Ranged Target
-                [1] = 1,                              -- Ranged Target (in sight)
-                [2] = 4,                              -- Closest Target
-                [3] = 5,                              -- Closest Target (in sight)
-                [4] = 6,                              -- Best Cursor Target
-                [5] = 7                               -- Closest Cursor Target
-            }
-            targeting_mode = map[targeting_mode] or 0 -- Default to Ranged Target
+            targeting_mode = targeting_mode_maps.ranged[targeting_mode] or 0
         end
 
-        target_unit = ({
-            [0] = best_ranged_target,
-            [1] = best_ranged_target_visible,
-            [2] = best_melee_target,
-            [3] = best_melee_target_visible,
-            [4] = closest_target,
-            [5] = closest_target_visible,
-            [6] = best_cursor_target,
-            [7] = closest_cursor_target
-        })[targeting_mode]
+        local getter = target_unit_map[targeting_mode]
+        if getter then
+            target_unit = getter()
+        end
     end
 
-    --if target_unit is nil, it means the spell is not targetted and we use the default logic without target
-    if (target_unit and spell.logics(target_unit, target_selector_data_all)) or (not target_unit and spell.logics()) then
-        next_cast_time = get_time_since_inject() + delay_after_cast
+    -- Spell logics now return (success, cooldown) like reference repos
+    local success, cooldown
+    if target_unit then
+        success, cooldown = spell.logics(target_unit, target_selector_data_all)
+    else
+        success, cooldown = spell.logics()
+    end
+
+    if success then
+        local actual_cooldown = cooldown or delay_after_cast
+        next_cast_time = get_time_since_inject() + actual_cooldown
+        cast_end_time = get_time_since_inject() + actual_cooldown
         my_utility.record_spell_cast(spell_name)
         return true
     end
@@ -386,7 +377,26 @@ on_update(function()
 
     local current_time = get_time_since_inject()
     local local_player = get_local_player()
-    if not local_player or menu.menu_elements.main_boolean:get() == false or current_time < next_cast_time then
+    if not local_player then
+        return;
+    end
+
+    -- Only run logic for Paladin (class_id 7, 8, or 9 - all paladin variants in Season 11)
+    local character_id = local_player:get_character_class_id();
+    local is_paladin = character_id == 7 or character_id == 8 or character_id == 9;
+    if not is_paladin then
+        return;
+    end
+
+    try_init_orbwalker();
+
+    -- Refresh equipped spell lookup periodically so casting doesn't depend on opening the menu.
+    if current_time >= next_equipped_refresh_time then
+        refresh_equipped_lookup()
+        next_equipped_refresh_time = current_time + 0.5
+    end
+
+    if menu.menu_elements.main_boolean:get() == false or current_time < next_cast_time then
         return
     end
 
@@ -400,10 +410,6 @@ on_update(function()
     end
 
     targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
-    -- OPTIMIZATION: Reduced default targeting refresh rate for better responsiveness
-    if targeting_refresh_interval > 0.15 then
-        targeting_refresh_interval = 0.15 -- Cap at 0.15s for optimal performance
-    end
     -- Only update targets if targeting_refresh_interval has expired
     if current_time >= next_target_update_time then
         local player_position = get_player_position()
@@ -419,6 +425,10 @@ on_update(function()
         target_selector_data_all = my_target_selector.get_target_selector_data(
             player_position,
             entity_list)
+
+        target_selector_data_visible = my_target_selector.get_target_selector_data(
+            player_position,
+            entity_list_visible)
 
         if not target_selector_data_all or not target_selector_data_all.is_valid then
             return
@@ -473,6 +483,22 @@ on_update(function()
                 melee_range,
                 config)
             closest_target = target_selector_data_all.closest_unit
+
+            -- Visible/(in sight) targets: use the collision/visibility-filtered list.
+            if target_selector_data_visible and target_selector_data_visible.is_valid then
+                best_ranged_target_visible, best_melee_target_visible, _, _, ranged_max_score_visible,
+                melee_max_score_visible, _, _ = target_scoring.evaluate_targets(
+                    target_selector_data_visible.list,
+                    melee_range,
+                    config)
+                closest_target_visible = target_selector_data_visible.closest_unit
+            else
+                best_ranged_target_visible = nil
+                best_melee_target_visible = nil
+                closest_target_visible = nil
+                ranged_max_score_visible = 0
+                melee_max_score_visible = 0
+            end
         end
 
         -- Update next target update time
@@ -503,6 +529,11 @@ on_render(function()
 
     local local_player = get_local_player();
     if not local_player then
+        return;
+    end
+
+    -- Only render Paladin debug for Paladin
+    if local_player:get_character_class_id() ~= 9 then
         return;
     end
 

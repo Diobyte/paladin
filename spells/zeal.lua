@@ -1,5 +1,6 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
+local my_target_selector = require("my_utility/my_target_selector")
 
 local max_spell_range = 5.0
 local targeting_type = "melee"
@@ -58,7 +59,7 @@ local function logics(target, target_selector_data)
 
     -- Handle priority targeting mode
     if menu_elements.priority_target:get() and target_selector_data then
-        local priority_target = target_selector_data.get_priority_target()
+        local priority_target = my_target_selector.get_priority_target(target_selector_data)
         if priority_target then
             target = priority_target
             if menu_elements.debug_mode:get() then
@@ -111,17 +112,22 @@ local function logics(target, target_selector_data)
         return false
     end
 
-    local cast_ok = cast_spell.target(target, spell_data.zeal.spell_id, 0, false)
+    local cast_ok, delay = my_utility.try_cast_spell("zeal", spell_data.zeal.spell_id, menu_boolean,
+        next_time_allowed_cast, function()
+            return cast_spell.target(target, spell_data.zeal.spell_id, 0, false)
+        end, menu_elements.cast_delay:get())
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + my_utility.spell_delays.regular_cast;
-        console.print("Cast Zeal - Target: " ..
+        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
+            (delay or menu_elements.cast_delay:get());
+        next_time_allowed_cast = current_time + cooldown;
+        my_utility.debug_print("Cast Zeal - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        return true, my_utility.spell_delays.regular_cast
+        return true, cooldown
     end
 
     if menu_elements.debug_mode:get() then
-        console.print("[ZEAL DEBUG] Cast failed")
+        my_utility.debug_print("[ZEAL DEBUG] Cast failed")
     end
     return false;
 end
