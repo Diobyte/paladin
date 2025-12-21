@@ -25,9 +25,6 @@ local function try_init_orbwalker()
     end
 end
 
--- Add cast_end_time mechanism to prevent spell overlap (from reference repos)
-local cast_end_time = 0.0
-
 local my_target_selector = require("my_utility/my_target_selector");
 local my_utility = require("my_utility/my_utility");
 local spell_data = require("my_utility/spell_data");
@@ -432,7 +429,6 @@ local function use_ability(spell_name, delay_after_cast)
         local actual_cooldown = cooldown or delay_after_cast or MIN_CASTING_DELAY
         local current_time = get_time_since_inject()
         next_cast_time = current_time + actual_cooldown
-        cast_end_time = current_time + actual_cooldown
         my_utility.record_spell_cast(spell_name)
         return true
     end
@@ -708,13 +704,13 @@ on_render(function()
     -- Draw max range
     max_targeting_range = menu.menu_elements.max_targeting_range:get()
     if menu.menu_elements.draw_max_range:get() then
-        graphics.circle_3d(player_position, max_targeting_range, color_white(85), 2.5, 144)
+        graphics.circle_3d(player_position, max_targeting_range, color_white(85))
     end
 
     -- Draw melee range
     if menu.menu_elements.draw_melee_range:get() then
         local melee_range = my_utility.get_melee_range()
-        graphics.circle_3d(player_position, melee_range, color_white(85), 2.5, 144)
+        graphics.circle_3d(player_position, melee_range, color_white(85))
     end
 
     -- Draw enemy circles
@@ -735,7 +731,7 @@ on_render(function()
         local cursor_targeting_radius = menu.menu_elements.cursor_targeting_radius:get()
 
         -- Draw cursor radius
-        graphics.circle_3d(cursor_position, cursor_targeting_radius, color_white(target_evaluation_radius_alpha), 1);
+        graphics.circle_3d(cursor_position, cursor_targeting_radius, color_white(target_evaluation_radius_alpha));
     end
 
     -- Only draw targets if we have valid target selector data
@@ -753,12 +749,12 @@ on_render(function()
             local best_ranged_target_visible_position_2d = graphics.w2s(best_ranged_target_visible_position);
             graphics.line(best_ranged_target_visible_position_2d, player_screen_position, color_red(visible_alpha),
                 2.5)
-            graphics.circle_3d(best_ranged_target_visible_position, 0.80, color_red(visible_alpha), 2.0);
+            graphics.circle_3d(best_ranged_target_visible_position, 0.80, color_red(visible_alpha));
             graphics.circle_3d(best_ranged_target_visible_position, best_target_evaluation_radius,
-                color_white(target_evaluation_radius_alpha), 1);
+                color_white(target_evaluation_radius_alpha));
             local text_position = vec2:new(best_ranged_target_visible_position_2d.x,
                 best_ranged_target_visible_position_2d.y - y_offset)
-            graphics.text_2d("RANGED_VISIBLE - Score:" .. ranged_max_score_visible, text_position, font_size,
+            graphics.l_text_2d("RANGED_VISIBLE - Score:" .. ranged_max_score_visible, text_position, font_size,
                 color_red(visible_text))
         end
 
@@ -766,12 +762,12 @@ on_render(function()
         if best_ranged_target_visible ~= best_ranged_target and best_ranged_target and best_ranged_target:is_enemy() then
             local best_ranged_target_position = best_ranged_target:get_position();
             local best_ranged_target_position_2d = graphics.w2s(best_ranged_target_position);
-            graphics.circle_3d(best_ranged_target_position, 0.80, color_red_pale(alpha), 2.0);
+            graphics.circle_3d(best_ranged_target_position, 0.80, color_red_pale(alpha));
             graphics.circle_3d(best_ranged_target_position, best_target_evaluation_radius,
-                color_white(target_evaluation_radius_alpha), 1);
+                color_white(target_evaluation_radius_alpha));
             local text_position = vec2:new(best_ranged_target_position_2d.x,
                 best_ranged_target_position_2d.y - y_offset)
-            graphics.text_2d("RANGED - Score:" .. ranged_max_score, text_position, font_size, color_red_pale(alpha))
+            graphics.l_text_2d("RANGED - Score:" .. ranged_max_score, text_position, font_size, color_red_pale(alpha))
         end
 
         -- Draw visible melee target
@@ -780,12 +776,12 @@ on_render(function()
             local best_melee_target_visible_position_2d = graphics.w2s(best_melee_target_visible_position);
             graphics.line(best_melee_target_visible_position_2d, player_screen_position, color_green(visible_alpha),
                 2.5)
-            graphics.circle_3d(best_melee_target_visible_position, 0.70, color_green(visible_alpha), 2.0);
+            graphics.circle_3d(best_melee_target_visible_position, 0.70, color_green(visible_alpha));
             graphics.circle_3d(best_melee_target_visible_position, best_target_evaluation_radius,
-                color_white(target_evaluation_radius_alpha), 1);
+                color_white(target_evaluation_radius_alpha));
             local text_position = vec2:new(best_melee_target_visible_position_2d.x,
                 best_melee_target_visible_position_2d.y)
-            graphics.text_2d("MELEE_VISIBLE - Score:" .. melee_max_score_visible, text_position, font_size,
+            graphics.l_text_2d("MELEE_VISIBLE - Score:" .. melee_max_score_visible, text_position, font_size,
                 color_green(visible_text))
         end
 
@@ -793,11 +789,11 @@ on_render(function()
         if best_melee_target_visible ~= best_melee_target and best_melee_target and best_melee_target:is_enemy() then
             local best_melee_target_position = best_melee_target:get_position();
             local best_melee_target_position_2d = graphics.w2s(best_melee_target_position);
-            graphics.circle_3d(best_melee_target_position, 0.70, color_green_pale(alpha), 2.0);
+            graphics.circle_3d(best_melee_target_position, 0.70, color_green_pale(alpha));
             graphics.circle_3d(best_melee_target_position, best_target_evaluation_radius,
-                color_white(target_evaluation_radius_alpha), 1);
+                color_white(target_evaluation_radius_alpha));
             local text_position = vec2:new(best_melee_target_position_2d.x, best_melee_target_position_2d.y)
-            graphics.text_2d("MELEE - Score:" .. melee_max_score, text_position, font_size, color_green_pale(alpha))
+            graphics.l_text_2d("MELEE - Score:" .. melee_max_score, text_position, font_size, color_green_pale(alpha))
         end
 
         -- Draw visible closest target
@@ -805,23 +801,23 @@ on_render(function()
             local closest_target_visible_position = closest_target_visible:get_position();
             local closest_target_visible_position_2d = graphics.w2s(closest_target_visible_position);
             graphics.line(closest_target_visible_position_2d, player_screen_position, color_cyan(visible_alpha), 2.5)
-            graphics.circle_3d(closest_target_visible_position, 0.60, color_cyan(visible_alpha), 2.0);
+            graphics.circle_3d(closest_target_visible_position, 0.60, color_cyan(visible_alpha));
             graphics.circle_3d(closest_target_visible_position, best_target_evaluation_radius,
-                color_white(target_evaluation_radius_alpha), 1);
+                color_white(target_evaluation_radius_alpha));
             local text_position = vec2:new(closest_target_visible_position_2d.x,
                 closest_target_visible_position_2d.y + y_offset)
-            graphics.text_2d("CLOSEST_VISIBLE", text_position, font_size, color_cyan(visible_text))
+            graphics.l_text_2d("CLOSEST_VISIBLE", text_position, font_size, color_cyan(visible_text))
         end
 
         -- Draw closest target if it's not the same as the visible closest target
         if closest_target_visible ~= closest_target and closest_target and closest_target:is_enemy() then
             local closest_target_position = closest_target:get_position();
             local closest_target_position_2d = graphics.w2s(closest_target_position);
-            graphics.circle_3d(closest_target_position, 0.60, color_cyan_pale(alpha), 2.0);
+            graphics.circle_3d(closest_target_position, 0.60, color_cyan_pale(alpha));
             graphics.circle_3d(closest_target_position, best_target_evaluation_radius,
-                color_white(target_evaluation_radius_alpha), 1);
+                color_white(target_evaluation_radius_alpha));
             local text_position = vec2:new(closest_target_position_2d.x, closest_target_position_2d.y + y_offset)
-            graphics.text_2d("CLOSEST", text_position, font_size, color_cyan_pale(alpha))
+            graphics.l_text_2d("CLOSEST", text_position, font_size, color_cyan_pale(alpha))
         end
     end
 
@@ -830,8 +826,9 @@ on_render(function()
         if best_cursor_target and best_cursor_target:is_enemy() then
             local best_cursor_target_position = best_cursor_target:get_position();
             local best_cursor_target_position_2d = graphics.w2s(best_cursor_target_position);
-            graphics.circle_3d(best_cursor_target_position, 0.60, color_orange_red(255), 2.0, 5);
-            graphics.text_2d("BEST_CURSOR_TARGET - Score:" .. cursor_max_score, best_cursor_target_position_2d, font_size,
+            graphics.circle_3d(best_cursor_target_position, 0.60, color_orange_red(255));
+            graphics.l_text_2d("BEST_CURSOR_TARGET - Score:" .. cursor_max_score, best_cursor_target_position_2d,
+                font_size,
                 color_orange_red(255))
         end
 
@@ -839,10 +836,10 @@ on_render(function()
         if closest_cursor_target and closest_cursor_target:is_enemy() then
             local closest_cursor_target_position = closest_cursor_target:get_position();
             local closest_cursor_target_position_2d = graphics.w2s(closest_cursor_target_position);
-            graphics.circle_3d(closest_cursor_target_position, 0.40, color_green_pastel(255), 2.0, 5);
+            graphics.circle_3d(closest_cursor_target_position, 0.40, color_green_pastel(255));
             local text_position = vec2:new(closest_cursor_target_position_2d.x,
                 closest_cursor_target_position_2d.y + y_offset)
-            graphics.text_2d("CLOSEST_CURSOR_TARGET - Angle:" .. string.format("%.1f", closest_cursor_target_angle),
+            graphics.l_text_2d("CLOSEST_CURSOR_TARGET - Angle:" .. string.format("%.1f", closest_cursor_target_angle),
                 text_position, font_size,
                 color_green_pastel(255))
         end

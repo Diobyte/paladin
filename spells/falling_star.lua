@@ -142,7 +142,8 @@ local function logics(target, target_selector_data)
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Falling Star - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        return true, cooldown;
+        -- Return the cast delay (animation time) instead of the full cooldown so other spells can be cast
+        return true, delay or menu_elements.cast_delay:get();
     end;
 
     if menu_elements.debug_mode:get() then

@@ -110,6 +110,23 @@ local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
         return nil
     end
 
+    -- Check if buff is already active to prevent spamming
+    -- Since spell_id != buff_id and we don't have correct buff IDs, we use a timer-based approach
+    -- if the spell has a duration defined in spell_data.
+    local spell_info = spell_data[spell_name]
+    if spell_info and spell_info.duration then
+        local last_cast = get_last_cast_time(spell_name)
+        if last_cast > 0 then
+            local current_time = get_time_since_inject()
+            -- If we cast it recently and the duration hasn't expired, assume buff is active
+            -- Add a small buffer (e.g. 0.5s) to recast slightly before expiration if desired,
+            -- or just strictly check duration.
+            if current_time < last_cast + spell_info.duration then
+                return false, 0
+            end
+        end
+    end
+
     -- If utility exists, check readiness; otherwise be permissive and attempt cast
     if type(utility) == "table" and not utility.is_spell_ready(spell_id) then
         return false, 0
