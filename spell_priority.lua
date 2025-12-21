@@ -1,11 +1,10 @@
----@diagnostic disable: undefined-field
+---@diagnostic disable: undefined-field, undefined-global
 -- Paladin Spell Priority Configuration
 -- Defines spell casting order for all 12 paladin builds
 -- Build indices: 0=default, 1-11=specialized builds
 
 local my_utility = require("my_utility/my_utility");
 local spell_data = require("my_utility/spell_data");
-local actors_manager = require("actors_manager");
 
 -- Helper to determine spell tier for sorting logic
 -- Tier 1: Critical/Survival
