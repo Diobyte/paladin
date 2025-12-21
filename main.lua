@@ -145,15 +145,9 @@ local target_unit_map = {
 }
 
 on_render_menu(function()
-    if not menu.menu_elements.main_tree:push("DirtyDio Paladin v2.2.0") then
-        return;
-    end;
-
     menu.menu_elements.main_boolean:render("Enable Plugin", "");
 
     if not menu.menu_elements.main_boolean:get() then
-        -- plugin not enabled, stop rendering menu elements
-        menu.menu_elements.main_tree:pop();
         return;
     end;
 
@@ -256,8 +250,6 @@ on_render_menu(function()
         end
         menu.menu_elements.disabled_spells_tree:pop()
     end
-
-    menu.menu_elements.main_tree:pop();
 end)
 
 -- Targets
