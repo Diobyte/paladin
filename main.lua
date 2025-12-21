@@ -55,10 +55,16 @@ local function refresh_equipped_lookup()
     end
 
     for _, s in ipairs(player_spells) do
-        if s and s.is_equipped and s.spell_id then
-            local spell_name = spell_id_to_name[s.spell_id]
-            if spell_name then
-                equipped_lookup[spell_name] = true
+        if s and s.spell_id then
+            logger.log("Spell ID: " .. tostring(s.spell_id) .. " equipped: " .. tostring(s.is_equipped))
+            if s.is_equipped then
+                local spell_name = spell_id_to_name[s.spell_id]
+                if spell_name then
+                    equipped_lookup[spell_name] = true
+                    logger.log("Mapped to spell: " .. spell_name)
+                else
+                    logger.log("No mapping for spell ID: " .. tostring(s.spell_id))
+                end
             end
         end
     end
@@ -274,6 +280,19 @@ on_render_menu(function()
     refresh_equipped_lookup()
 
     if menu.menu_elements.spells_tree:push("Equipped Spells") then
+        -- Collect equipped spell IDs for display
+        local equipped_ids = {}
+        for name, _ in pairs(equipped_lookup) do
+            if spell_data[name] and spell_data[name].spell_id then
+                table.insert(equipped_ids, tostring(spell_data[name].spell_id))
+            end
+        end
+        if #equipped_ids > 0 then
+            menu.menu_elements.spells_tree:text("Active Spell IDs: " .. table.concat(equipped_ids, ", "))
+        else
+            menu.menu_elements.spells_tree:text("No active spells detected")
+        end
+
         -- Display spells in priority order, but only if they're equipped
         for _, spell_name in ipairs(current_spell_priority) do
             if equipped_lookup[spell_name] or spell_name == "evade" then
