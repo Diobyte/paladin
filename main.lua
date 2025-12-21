@@ -403,7 +403,7 @@ on_update(function()
     end
 
     -- Out of combat evade (unchanged)
-    if spells.evade and spells.evade.menu.menu_elements.use_out_of_combat:get() then
+    if spells.evade and spells.evade.menu_elements.use_out_of_combat:get() then
         spells.evade.out_of_combat()
     end
 
