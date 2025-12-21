@@ -45,7 +45,7 @@ local function refresh_equipped_lookup()
     equipped_lookup = {}
 
     local local_player = get_local_player()
-    if not local_player then
+    if not local_player or not local_player.get_spells then
         return
     end
 
