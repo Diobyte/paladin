@@ -135,7 +135,7 @@ local function logics(target)
     local mobility_only = menu_elements.mobility_only:get();
 
     -- Check if we have a valid target based on targeting mode
-    if not target and not mobility_only and not menu_elements.allow_out_of_combat:get() then
+    if not target and not mobility_only and not (menu_elements.evade_mode:get() == 1) then
         -- No target found and out-of-combat usage not allowed
         if menu_elements.debug_mode:get() then
             my_utility.debug_print("[EVADE DEBUG] No target and out-of-combat not allowed")
@@ -188,7 +188,7 @@ local function logics(target)
             cast_position = target:get_position()
         else
             -- If out of combat allowed, cast towards cursor when no target
-            if menu_elements.allow_out_of_combat:get() then
+            if (menu_elements.evade_mode:get() == 1) then
                 local enemies = actors_manager.get_enemy_actors()
                 if #enemies == 0 then
                     local cursor_position = get_cursor_position()
