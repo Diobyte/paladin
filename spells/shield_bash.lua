@@ -47,7 +47,7 @@ local function menu()
                 menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
                     "Targets Boss > Champion > Elite > Any")
                 menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting",
-                    1)
+                1)
                 menu_elements.spam_with_intricacy:render("Spam with Intricacy", "")
                 menu_elements.use_offensively:render("Use Offensively", "")
 
