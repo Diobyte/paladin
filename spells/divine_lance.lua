@@ -58,33 +58,27 @@ end
 local next_time_allowed_cast = 0;
 
 local function logics(target, target_selector_data)
-    -- Priority Targeting Mode: prioritize targets by type
+    if not target then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[DIVINE LANCE DEBUG] No target provided")
+        end
+        return false
+    end;
+
+    -- Handle priority targeting mode
     if menu_elements.priority_target:get() and target_selector_data then
         local my_target_selector = require("my_utility/my_target_selector")
-        local priority_best_target, target_type = my_target_selector.get_priority_target(target_selector_data)
-
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[DIVINE LANCE DEBUG] Priority targeting mode - Target type: " .. target_type)
-        end
-
-        if priority_best_target and my_utility.is_in_range(priority_best_target, max_spell_range) then
-            target = priority_best_target
+        local priority_target = my_target_selector.get_priority_target(target_selector_data)
+        if priority_target and my_utility.is_in_range(priority_target, max_spell_range) then
+            target = priority_target
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[DIVINE LANCE DEBUG] Priority targeting enabled - using priority target: " ..
+                    (target:get_skin_name() or "Unknown"))
+            end
         else
             if menu_elements.debug_mode:get() then
                 my_utility.debug_print("[DIVINE LANCE DEBUG] No valid priority target in range, using original target")
             end
-            -- Fall back to original target
-        end
-        -- Regular target mode (using the target passed from main.lua)
-    else
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[DIVINE LANCE DEBUG] Regular target mode")
-        end
-        if not target then
-            if menu_elements.debug_mode:get() then
-                my_utility.debug_print("[DIVINE LANCE DEBUG] No target provided")
-            end
-            return false
         end
     end
 

@@ -40,9 +40,11 @@ local function menu()
                 menu_elements.min_target_range:render("Min Target Distance",
                     "\n     Must be lower than Max Targeting Range     \n\n", 1)
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
-                menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
+                menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
+                    "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
-                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Override default cast delay")
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                        "Set the custom cooldown in seconds", 2)
                 end
                 menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
