@@ -21,12 +21,11 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "advance_max_faith")),
     force_priority      = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
     elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
+    use_smart_aoe       = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "advance_use_smart_aoe")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "advance_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 1.0,
         get_hash(my_utility.plugin_label .. "advance_custom_cooldown_sec")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
-        get_hash(my_utility.plugin_label .. "advance_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "advance_debug_mode")),
 }
 
@@ -44,18 +43,19 @@ local function menu()
                     "Targets Boss > Champion > Elite > Any")
                 menu_elements.force_priority:render("Force Priority", "Only cast if priority target is found")
                 menu_elements.min_target_range:render("Min Target Distance",
-                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                    "Distance to switch logic. Outside: Gap Closer. Inside: Priority Target Only.", 1)
                 menu_elements.max_faith:render("Max Faith %",
                     "Don't cast if Faith is above this % (unless Mobility Only)", 1)
                 menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
+                menu_elements.use_smart_aoe:render("Smart AOE Targeting",
+                    "Target best cluster of enemies instead of single target")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
                     menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
                         "Set the custom cooldown in seconds", 2)
                 end
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
             end
@@ -154,6 +154,28 @@ local function logics(target, target_selector_data)
             return false
         end
         cast_position = target:get_position()
+
+        -- Smart AOE Logic
+        if menu_elements.use_smart_aoe:get() then
+            local player_position = get_player_position()
+            local width = spell_data.advance.data
+                .radius -- spell_data stores width as radius for rectangular spells usually
+            local range = max_spell_range
+            local area_data = target_selector.get_most_hits_target_rectangle_area_heavy(player_position, range, width)
+
+            if area_data and area_data.n_hits > 1 and area_data.main_target then
+                -- For rectangular spells, we might want to just use the main target from area_data
+                -- or try to optimize angle. get_best_point_rec seems to try to optimize angle/position.
+                local best_point_data = my_utility.get_best_point_rec(area_data.main_target:get_position(), 2.0, width,
+                    area_data.victim_list)
+                if best_point_data and best_point_data.point then
+                    cast_position = best_point_data.point
+                    if menu_elements.debug_mode:get() then
+                        my_utility.debug_print("[ADVANCE DEBUG] Smart AOE active - Hits: " .. area_data.n_hits)
+                    end
+                end
+            end
+        end
     end
 
     if not cast_position then
@@ -165,12 +187,12 @@ local function logics(target, target_selector_data)
 
     local cast_ok, delay = my_utility.try_cast_spell("advance", spell_data.advance.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-            return cast_spell.position(spell_data.advance.spell_id, cast_position, 0)
-        end, menu_elements.cast_delay:get())
+            return cast_spell.position(spell_data.advance.spell_id, cast_position, spell_data.advance.cast_delay)
+        end, spell_data.advance.cast_delay)
     if cast_ok then
         local current_time = get_time_since_inject();
         local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or menu_elements.cast_delay:get());
+            (delay or spell_data.advance.cast_delay);
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Advance - Target: " ..
             (target and my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1] or "None") ..

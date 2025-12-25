@@ -110,12 +110,11 @@ local function refresh_equipped_lookup()
     end
 
     if not spells_found then
-        -- Fallback: If get_spells is missing or returned nothing, enable all spells
-        -- This ensures the GUI shows all spells when the API is not available
-        for spell_name, data in pairs(spell_data) do
-            if type(data) == "table" and data.spell_id then
-                new_lookup[spell_name] = true
-            end
+        -- Fallback removed: Do not enable all spells if API fails.
+        -- This prevents the script from attempting to cast spells the player does not have.
+        -- If no spells are detected, they will appear under "Inactive Spells" in the menu.
+        if rawget(_G, 'DEBUG_EQUIPPED_SPELLS') or (menu and menu.menu_elements.enable_debug:get()) then
+            console.print("DEBUG: No equipped spells found. API might be initializing or failed.")
         end
     end
 
@@ -315,8 +314,8 @@ on_render_menu(function()
 
         menu.menu_elements.build_selector:render("Build Selector",
             { "Default", "Judgement Nuke", "Hammerkuna", "Arbiter", "Captain America", "Shield Bash", "Wing Strikes",
-                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin", "Auto" },
-            "Select a build to optimize spell priorities and timings for max DPS. 'Auto' will detect based on equipped spells.")
+                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin" },
+            "Select a build to optimize spell priorities and timings for max DPS.")
 
         -- Spell priority is now updated in on_update for real-time adjustments
 
@@ -490,66 +489,12 @@ local function use_ability(spell_name, delay_after_cast)
     return false
 end
 
-local function get_equipped_spell_ids()
-    local equipped_spells = {}
-    -- Get player spells
-    local local_player = get_local_player()
-    if local_player and type(local_player.get_spells) == "function" then
-        local player_spells = local_player:get_spells()
-        if player_spells then
-            for _, spell in ipairs(player_spells) do
-                local is_equipped = spell.is_equipped
-                if type(is_equipped) == "function" then
-                    is_equipped = spell:is_equipped()
-                end
 
-                if is_equipped then
-                    table.insert(equipped_spells, spell.spell_id)
-                end
-            end
-        end
-    end
-    return equipped_spells
-end
-
-local function detect_build()
-    local equipped_ids = get_equipped_spell_ids()
-    local id_map = {}
-    for _, id in ipairs(equipped_ids) do id_map[id] = true end
-
-    -- Detection logic based on key spells with nil safety
-    if spell_data.brandish and spell_data.blessed_shield and
-        id_map[spell_data.brandish.spell_id] and id_map[spell_data.blessed_shield.spell_id] then
-        return 1  -- Judgement Nuke
-    elseif spell_data.blessed_hammer and id_map[spell_data.blessed_hammer.spell_id] then
-        return 2  -- Hammerkuna
-    elseif spell_data.arbiter_of_justice and id_map[spell_data.arbiter_of_justice.spell_id] then
-        return 3  -- Arbiter
-    elseif spell_data.shield_bash and id_map[spell_data.shield_bash.spell_id] then
-        return 5  -- Shield Bash
-    elseif spell_data.heavens_fury and id_map[spell_data.heavens_fury.spell_id] then
-        return 9  -- Heaven's Fury
-    elseif spell_data.spear_of_the_heavens and id_map[spell_data.spear_of_the_heavens.spell_id] then
-        return 10 -- Spear
-    elseif spell_data.zenith and id_map[spell_data.zenith.spell_id] then
-        return 11 -- Zenith Tank
-    elseif spell_data.fanaticism_aura and spell_data.defiance_aura and
-        id_map[spell_data.fanaticism_aura.spell_id] and id_map[spell_data.defiance_aura.spell_id] then
-        return 12 -- Auradin
-    end
-
-    return 0 -- Default
-end
 
 -- on_update callback
 on_update(function()
     local current_time = get_time_since_inject()
     local build_index = menu.menu_elements.build_selector:get()
-
-    -- Auto-build detection
-    if build_index == 13 then
-        build_index = detect_build()
-    end
 
     -- Update spell priority dynamically for real-time adjustments
     if not last_priority_update_time or current_time > last_priority_update_time + PRIORITY_UPDATE_INTERVAL then
@@ -605,8 +550,19 @@ on_update(function()
     end
 
     targeting_refresh_interval = menu.menu_elements.targeting_refresh_interval:get()
+
+    -- Optimization: Only run targeting if Orbwalker is active, Auto-Play is on, or Debug Targets is enabled
+    local is_orbwalker_active = false
+    local ow = rawget(_G, "orbwalker")
+    if type(ow) == "table" and type(ow.get_orb_mode) == "function" and ow.get_orb_mode() ~= 0 then
+        is_orbwalker_active = true
+    end
+
+    local should_update_targets = is_orbwalker_active or my_utility.is_auto_play_enabled() or
+        menu.menu_elements.draw_targets:get()
+
     -- Only update targets if targeting_refresh_interval has expired
-    if current_time >= next_target_update_time then
+    if should_update_targets and current_time >= next_target_update_time then
         local player_position = get_player_position()
         max_targeting_range = menu.menu_elements.max_targeting_range:get()
 

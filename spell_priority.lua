@@ -175,6 +175,7 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         elseif build_index == 3 then                                       -- Arbiter
             if spell_name == "arbiter_of_justice" then score = score + 300 end
             if spell_name == "zeal" then score = score + 100 end           -- Wrath builder
+            if spell_name == "consecration" then score = score + 500 end   -- Ensure Consecration casts
         elseif build_index == 4 then                                       -- Captain America
             if spell_name == "blessed_shield" then score = score + 250 end
         elseif build_index == 5 then                                       -- Shield Bash
@@ -193,10 +194,12 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         elseif build_index == 11 then -- Zenith Tank
             if spell_name == "zenith" then score = score + 250 end
             if spell_name == "aegis" then score = score + 100 end
-        elseif build_index == 12 then                                       -- Auradin
-            if spell_name == "holy_light_aura" then score = score + 300 end -- Critical
-            if spell_name == "condemn" then score = score + 100 end         -- Pull
-            if spell_name == "blessed_hammer" then score = score + 100 end  -- Proc
+        elseif build_index == 12 then                                          -- Auradin
+            if spell_name == "holy_light_aura" then score = score + 300 end    -- Critical
+            if spell_name == "condemn" then score = score + 100 end            -- Pull
+            if spell_name == "blessed_hammer" then score = score + 100 end     -- Proc
+            if spell_name == "consecration" then score = score + 500 end       -- Ensure Consecration casts
+            if spell_name == "arbiter_of_justice" then score = score + 500 end -- Ensure Arbiter casts
         end
 
         -- 6. AOE Logic

@@ -27,8 +27,6 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "evade_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.5,
         get_hash(my_utility.plugin_label .. "evade_custom_cooldown_sec")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
-        get_hash(my_utility.plugin_label .. "evade_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_debug_mode")),
 }
 
@@ -48,13 +46,13 @@ local function menu()
                 menu_elements.mobility_only:render("Only use for mobility", "")
                 if menu_elements.mobility_only:get() then
                     menu_elements.min_target_range:render("Min Target Distance",
-                        "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                        "Minimum distance to target to allow casting", 1)
                 end
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
 
                 if menu_elements.evade_mode:get() == 1 then
                     menu_elements.min_travel_range:render("Min Travel Distance",
-                        "\n     Minimum travel distance to use evade out of combat     \n\n", 1)
+                        "Minimum travel distance to use evade out of combat", 1)
                 end
 
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
@@ -64,8 +62,6 @@ local function menu()
                         "Set the custom cooldown in seconds",
                         2)
                 end
-                menu_elements.cast_delay:render("Cast Delay",
-                    "Time between casts in seconds (min: 0.1s manual, 0.5s auto-play)", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
             end
@@ -121,7 +117,7 @@ local function logics(target)
                 )
 
                 if not evade.is_dangerous_position(test_pos) then
-                    if cast_spell.position(spell_data.evade.spell_id, test_pos, 0) then
+                    if cast_spell.position(spell_data.evade.spell_id, test_pos, spell_data.evade.cast_delay) then
                         local current_time = get_time_since_inject()
                         next_time_allowed_cast = current_time + 0.5
                         my_utility.debug_print("[EVADE] Auto-dodged to safety!")
@@ -187,41 +183,20 @@ local function logics(target)
             end
             cast_position = target:get_position()
         else
-            -- If out of combat allowed, cast towards cursor when no target
-            if (menu_elements.evade_mode:get() == 1) then
-                local enemies = actors_manager.get_enemy_actors()
-                if #enemies == 0 then
-                    local cursor_position = get_cursor_position()
-                    local player_position = get_player_position()
-                    if cursor_position:squared_dist_to_ignore_z(player_position) > max_spell_range * max_spell_range then
-                        if menu_elements.debug_mode:get() then
-                            my_utility.debug_print("[EVADE DEBUG] Cursor too far for out-of-combat cast")
-                        end
-                        return false -- Cursor too far
-                    end
-                    cast_position = cursor_position
-                else
-                    if menu_elements.debug_mode:get() then
-                        my_utility.debug_print("[EVADE DEBUG] Enemies present but no target for out-of-combat cast")
-                    end
-                    return false
-                end
-            else
-                if menu_elements.debug_mode:get() then
-                    my_utility.debug_print("[EVADE DEBUG] Out-of-combat not allowed and no target")
-                end
-                return false
+            if menu_elements.debug_mode:get() then
+                my_utility.debug_print("[EVADE DEBUG] No target for combat evade")
             end
+            return false
         end
     end
 
     -- Cast the evade spell
-    if cast_spell.position(spell_data.evade.spell_id, cast_position, 0) then
+    if cast_spell.position(spell_data.evade.spell_id, cast_position, spell_data.evade.cast_delay) then
         local current_time = get_time_since_inject();
         -- Enforce a minimum delay to prevent spamming. Use a smaller minimum when player-controlled
         -- for more responsive manual evades, and a larger minimum when auto-play is enabled to avoid spam.
         local user_delay = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            menu_elements.cast_delay:get();
+            spell_data.evade.cast_delay;
         local min_delay_auto = 0.5;   -- Minimum when auto-play is active
         local min_delay_manual = 0.1; -- Minimum when player-controlled
         local min_delay = my_utility.is_auto_play_enabled() and min_delay_auto or min_delay_manual
@@ -245,6 +220,14 @@ local function logics(target)
 end
 
 local function out_of_combat()
+    -- Check if Orbwalker is active before allowing travel evade
+    local ow = rawget(_G, "orbwalker")
+    if type(ow) == "table" and type(ow.get_orb_mode) == "function" then
+        if ow.get_orb_mode() == 0 then -- orb_mode.none
+            return false
+        end
+    end
+
     -- Mode 1 is "Combat & Travel"
     local is_travel_mode = menu_elements.evade_mode:get() == 1;
     if not is_travel_mode then
@@ -257,17 +240,32 @@ local function out_of_combat()
         return false
     end
 
+    -- Check if we are in a safezone
+    local in_combat_area = my_utility.is_buff_active(spell_data.in_combat_area.spell_id,
+        spell_data.in_combat_area.buff_id);
+    if not in_combat_area then return false end;
+
+    local local_player = get_local_player()
+    local is_moving = local_player:is_moving()
+    local is_dashing = local_player:is_dashing()
+
+    -- if standing still
+    if not is_moving then return false end;
+
+    -- if not self play then we dont want to spam evade
+    if is_dashing then return false end;
+
     -- Check minimum distance
     local player_position = get_player_position()
-    local cursor_position = get_cursor_position()
-    local distance_sqr = cursor_position:squared_dist_to_ignore_z(player_position)
+    local destination = local_player:get_move_destination()
+    local distance_sqr = destination:squared_dist_to_ignore_z(player_position)
     local min_range = menu_elements.min_travel_range:get()
     if distance_sqr < min_range * min_range then
         return false
     end
 
-    -- Cast towards cursor
-    if cast_spell.position(spell_data.evade.spell_id, cursor_position, 0) then
+    -- Cast towards destination
+    if cast_spell.position(spell_data.evade.spell_id, destination, spell_data.evade.cast_delay) then
         local current_time = get_time_since_inject();
         local cooldown = 0.5; -- Fixed delay for out of combat
         next_time_allowed_cast = current_time + cooldown;

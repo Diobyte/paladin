@@ -17,8 +17,6 @@ local menu_elements =
     min_target_range    = my_utility.safe_slider_float(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "brandish_min_target_range")),
     elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "brandish_elites_only")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
-        get_hash(my_utility.plugin_label .. "brandish_cast_delay")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "brandish_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.1,
@@ -37,9 +35,8 @@ local function menu()
                 menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
                     "Targets Boss > Champion > Elite > Any")
                 menu_elements.min_target_range:render("Min Target Distance",
-                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                    "Minimum distance to target to allow casting", 1)
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
@@ -108,17 +105,20 @@ local function logics(target, target_selector_data)
     end
 
     local cast_ok, delay = my_utility.try_cast_spell("brandish", spell_data.brandish.spell_id, menu_boolean,
-        next_time_allowed_cast, function() return cast_spell.target(target, spell_data.brandish.spell_id, 0, false) end,
-        menu_elements.cast_delay:get())
+        next_time_allowed_cast,
+        function() return cast_spell.target(target, spell_data.brandish.spell_id, spell_data.brandish.cast_delay, false) end,
+        spell_data.brandish.cast_delay)
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = (delay or menu_elements.cast_delay:get());
+        local cooldown = (delay or spell_data.brandish.cast_delay);
+
+        if menu_elements.use_custom_cooldown:get() then
+            cooldown = menu_elements.custom_cooldown_sec:get()
+        end
+
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Brandish - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        if menu_elements.use_custom_cooldown:get() then
-            return true, menu_elements.custom_cooldown_sec:get()
-        end
         return true, cooldown;
     end
 

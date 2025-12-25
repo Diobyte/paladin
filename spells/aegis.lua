@@ -15,23 +15,21 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "aegis_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 1.0,
         get_hash(my_utility.plugin_label .. "aegis_custom_cooldown_sec")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
-        get_hash(my_utility.plugin_label .. "aegis_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "aegis_debug_mode")),
 }
 
 local function menu()
     if menu_elements.tree_tab:push("Aegis") then
-        menu_elements.main_boolean:render("Enable Spell", "Defensive barrier ultimate that absorbs damage")
+        menu_elements.main_boolean:render("Enable Aegis", "Defensive barrier ultimate that absorbs damage")
 
         if menu_elements.main_boolean:get() then
             if menu_elements.advanced_tree:push("Advanced Settings") then
-                menu_elements.hp_threshold:render("HP Threshold", "Cast when HP is below this percent (0.0 - 1.0)", 2)
+                menu_elements.hp_threshold:render("HP Threshold", "Cast when HP is below this % (e.g. 0.5 = 50% HP)", 2)
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
                 if menu_elements.use_custom_cooldown:get() then
-                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Override default cast delay")
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                        "Set the custom cooldown in seconds")
                 end
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
             end
@@ -68,13 +66,17 @@ local function logics()
 
     local cast_ok, delay = my_utility.try_cast_spell("aegis", spell_data.aegis.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-            return cast_spell.self(spell_data.aegis.spell_id, 0)
-        end, menu_elements.cast_delay:get())
+            return cast_spell.self(spell_data.aegis.spell_id, spell_data.aegis.cast_delay)
+        end, spell_data.aegis.cast_delay)
 
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or menu_elements.cast_delay:get());
+        local cooldown = (delay or spell_data.aegis.cast_delay);
+
+        if menu_elements.use_custom_cooldown:get() then
+            cooldown = menu_elements.custom_cooldown_sec:get()
+        end
+
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Aegis - Defensive Barrier Activated");
         return true, cooldown;

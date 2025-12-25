@@ -5,12 +5,13 @@ local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
 
 local max_spell_range = 15.0 -- Charge range
+local targeting_type = "ranged"
 local menu_elements =
 {
     tree_tab              = my_utility.safe_tree_tab(1),
     main_boolean          = my_utility.safe_checkbox(true,
         get_hash(my_utility.plugin_label .. "shield_bash_main_bool_base")),
-    targeting_mode        = my_utility.safe_combo_box(3,
+    targeting_mode        = my_utility.safe_combo_box(0,
         get_hash(my_utility.plugin_label .. "shield_bash_targeting_mode")),
 
     advanced_tree         = my_utility.safe_tree_tab(2),
@@ -37,19 +38,20 @@ local menu_elements =
 
 local function menu()
     if menu_elements.tree_tab:push("Shield Bash") then
-        menu_elements.main_boolean:render("Enable Spell", "Charge at enemy and bash in front, dealing physical damage")
+        menu_elements.main_boolean:render("Enable Shield Bash",
+            "Charge at enemy and bash in front, dealing physical damage")
 
         if menu_elements.main_boolean:get() then
-            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes,
+            menu_elements.targeting_mode:render("Targeting Mode", my_utility.targeting_modes_ranged,
                 my_utility.targeting_mode_description)
 
             if menu_elements.advanced_tree:push("Advanced Settings") then
                 menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
                     "Targets Boss > Champion > Elite > Any")
                 menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting",
-                1)
-                menu_elements.spam_with_intricacy:render("Spam with Intricacy", "")
-                menu_elements.use_offensively:render("Use Offensively", "")
+                    1)
+                menu_elements.spam_with_intricacy:render("Spam with Intricacy", "Spam cast when Intricacy buff is active")
+                menu_elements.use_offensively:render("Use Offensively", "Use as a damage dealer (not just mobility)")
 
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
@@ -75,7 +77,6 @@ local function menu()
 end
 
 local next_time_allowed_cast = 0;
-local CAST_DELAY = 0.1
 
 local shield_bash_data = spell_data.shield_bash.data
 
@@ -176,12 +177,12 @@ local function logics(best_target, target_selector_data)
 
     local cast_ok, delay = my_utility.try_cast_spell("shield_bash", spell_data.shield_bash.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-            return cast_spell.target(target, spell_data.shield_bash.spell_id, 0, false)
-        end, CAST_DELAY)
+            return cast_spell.target(target, spell_data.shield_bash.spell_id, spell_data.shield_bash.cast_delay, false)
+        end, spell_data.shield_bash.cast_delay)
     if cast_ok then
         local current_time = get_time_since_inject();
         local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or CAST_DELAY);
+            (delay or spell_data.shield_bash.cast_delay);
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Shield Bash - Charged at enemy");
         return true, cooldown
@@ -198,5 +199,6 @@ return
     menu = menu,
     logics = logics,
     menu_elements = menu_elements,
+    targeting_type = targeting_type,
     set_next_time_allowed_cast = function(t) next_time_allowed_cast = t end
 }

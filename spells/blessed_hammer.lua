@@ -18,14 +18,14 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "blessed_hammer_priority_target")),
     min_target_range    = my_utility.safe_slider_float(0, max_spell_range - 1, 0,
         get_hash(my_utility.plugin_label .. "blessed_hammer_min_target_range")),
+    engagement_range    = my_utility.safe_slider_float(1.0, max_spell_range, 4.0,
+        get_hash(my_utility.plugin_label .. "blessed_hammer_engagement_range")),
     elites_only         = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "blessed_hammer_elites_only")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "blessed_hammer_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 1.0,
         get_hash(my_utility.plugin_label .. "blessed_hammer_custom_cooldown_sec")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
-        get_hash(my_utility.plugin_label .. "blessed_hammer_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "blessed_hammer_debug_mode")),
 }
@@ -41,13 +41,15 @@ local function menu()
                 menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
                     "Targets Boss > Champion > Elite > Any")
                 menu_elements.min_target_range:render("Min Target Distance",
-                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                    "Minimum distance to target to allow casting", 1)
+                menu_elements.engagement_range:render("Engagement Range",
+                    "Walk closer before starting to cast (prevents stuttering at max range)")
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
                 if menu_elements.use_custom_cooldown:get() then
-                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)", "Override default cast delay")
+                    menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
+                        "Set the custom cooldown in seconds")
                 end
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
             end
@@ -116,18 +118,27 @@ local function logics(target, target_selector_data)
         return false
     end
 
-    if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
+    -- Hysteresis Logic:
+    -- If we are already casting (streak), allow casting up to max_spell_range (8.0).
+    -- If we are approaching, only start casting at engagement_range (e.g. 4.0).
+    -- This prevents the "stop-cast-move-stop-cast" stutter at the edge of range.
+    local last_cast = my_utility.get_last_cast_time("blessed_hammer")
+    local current_time = get_time_since_inject()
+    local is_casting_streak = (current_time - last_cast) < 1.0
+    local effective_range = is_casting_streak and max_spell_range or menu_elements.engagement_range:get()
+
+    if not my_utility.is_in_range(target, effective_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         return false;
     end
 
     local cast_ok, delay = my_utility.try_cast_spell("blessed_hammer", spell_data.blessed_hammer.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-            return cast_spell.self(spell_data.blessed_hammer.spell_id, 0)
-        end, menu_elements.cast_delay:get())
+            return cast_spell.self(spell_data.blessed_hammer.spell_id, spell_data.blessed_hammer.cast_delay)
+        end, spell_data.blessed_hammer.cast_delay)
     if cast_ok then
         local current_time = get_time_since_inject();
         local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or menu_elements.cast_delay:get());
+            (delay or spell_data.blessed_hammer.cast_delay);
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Blessed Hammer");
         return true, cooldown

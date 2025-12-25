@@ -13,8 +13,6 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "rally_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 10.0, 0.1,
         get_hash(my_utility.plugin_label .. "rally_custom_cooldown_sec")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 10.0, 0.1,
-        get_hash(my_utility.plugin_label .. "rally_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "rally_debug_mode")),
 }
 
@@ -31,7 +29,6 @@ local function menu()
                     menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
                         "Set the custom cooldown in seconds", 2)
                 end
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
             end
@@ -87,11 +84,16 @@ local function logics()
 
     local cast_ok, delay = my_utility.try_cast_spell("rally", spell_data.rally.spell_id, menu_boolean,
         next_time_allowed_cast,
-        function() return cast_spell.self(spell_data.rally.spell_id, 0) end, menu_elements.cast_delay:get())
+        function() return cast_spell.self(spell_data.rally.spell_id, spell_data.rally.cast_delay) end,
+        spell_data.rally.cast_delay)
+
     if cast_ok then
-        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or menu_elements.cast_delay:get());
-        next_time_allowed_cast = current_time + cooldown;
+        local cooldown = (delay or spell_data.rally.cast_delay);
+
+        if menu_elements.use_custom_cooldown:get() then
+            cooldown = menu_elements.custom_cooldown_sec:get()
+        end
+
         my_utility.debug_print("Cast Rally");
         return true, cooldown;
     end;

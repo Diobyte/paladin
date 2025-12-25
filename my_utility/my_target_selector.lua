@@ -432,7 +432,7 @@ local function subtract2D(v1, v2, field)
     return vec2:new(X1, V1)
 end
 
-function CheckActorCollision(StartPoint, EndPoint, PositionToCheck, width)
+local function CheckActorCollision(StartPoint, EndPoint, PositionToCheck, width)
     -- Robust version that operates on numeric x/y values and works in tests without vec2
     local x1, y1 = StartPoint:x(), StartPoint:y()
     local x2, y2 = EndPoint:x(), EndPoint:y()
@@ -467,6 +467,12 @@ local function get_target_list(source, range, collision_table, floor_table, angl
     local entity_list_visible = {}
     local possible_targets_list = target_selector.get_near_target_list(source, range);
 
+    -- Optimization: Get all actors once outside the loop if collision check is enabled
+    local all_objects = nil
+    if collision_table[1] == true then
+        all_objects = actors_manager.get_all_actors()
+    end
+
     for _, unit in ipairs(possible_targets_list) do
         repeat
             -- only targetable units
@@ -496,19 +502,20 @@ local function get_target_list(source, range, collision_table, floor_table, angl
                 local is_invalid = prediction.is_wall_collision(source, unit_position, collision_table[2]);
                 if is_invalid then break end
 
-                local all_objects = actors_manager.get_all_actors()
                 local skip_due_actor = false
-                for _, obj in ipairs(all_objects) do
-                    if not obj:is_enemy() and obj:is_interactable() then
-                        local skin_name = obj:get_skin_name()
-                        for _, pattern in ipairs(actor_table) do
-                            if skin_name:match(pattern) and CheckActorCollision(source, unit_position, obj:get_position(), 3) then
-                                skip_due_actor = true
-                                break
+                if all_objects then
+                    for _, obj in ipairs(all_objects) do
+                        if not obj:is_enemy() and obj:is_interactable() then
+                            local skin_name = obj:get_skin_name()
+                            for _, pattern in ipairs(actor_table) do
+                                if skin_name:match(pattern) and CheckActorCollision(source, unit_position, obj:get_position(), 3) then
+                                    skip_due_actor = true
+                                    break
+                                end
                             end
                         end
+                        if skip_due_actor then break end
                     end
-                    if skip_due_actor then break end
                 end
 
                 if skip_due_actor then break end

@@ -18,8 +18,6 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "holy_light_aura_custom_cooldown_sec")),
     max_cast_range      = my_utility.safe_slider_float(1.0, 15.0, 5.0,
         get_hash(my_utility.plugin_label .. "holy_light_aura_max_cast_range")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 10.0, 0.1,
-        get_hash(my_utility.plugin_label .. "holy_light_aura_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "holy_light_aura_debug_mode")),
 }
@@ -38,7 +36,6 @@ local function menu()
                         "Set the custom cooldown in seconds", 2)
                 end
                 menu_elements.max_cast_range:render("Max Cast Range", "Only cast when enemies are within this range", 1)
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
             end
@@ -92,12 +89,17 @@ local function logics()
 
     local cast_ok, delay = my_utility.try_cast_spell("holy_light_aura", spell_data.holy_light_aura.spell_id, menu_boolean,
         next_time_allowed_cast,
-        function() return cast_spell.self(spell_data.holy_light_aura.spell_id, 0) end, menu_elements.cast_delay:get())
+        function() return cast_spell.self(spell_data.holy_light_aura.spell_id, spell_data.holy_light_aura.cast_delay) end,
+        spell_data.holy_light_aura.cast_delay)
+
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or menu_elements.cast_delay:get());
-        next_time_allowed_cast = current_time + cooldown;
+        local cooldown = (delay or spell_data.holy_light_aura.cast_delay);
+
+        if menu_elements.use_custom_cooldown:get() then
+            cooldown = menu_elements.custom_cooldown_sec:get()
+        end
+
         my_utility.debug_print("Cast Holy Light Aura");
         return true, cooldown;
     end;

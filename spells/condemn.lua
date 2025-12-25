@@ -21,8 +21,6 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "condemn_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 1.0,
         get_hash(my_utility.plugin_label .. "condemn_custom_cooldown_sec")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 1.0, 0.1,
-        get_hash(my_utility.plugin_label .. "condemn_cast_delay")),
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "condemn_debug_mode")),
 }
 
@@ -37,7 +35,7 @@ local function menu()
                 menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
                     "Targets Boss > Champion > Elite > Any")
                 menu_elements.min_target_range:render("Min Target Distance",
-                    "\n     Must be lower than Max Targeting Range     \n\n", 1)
+                    "Minimum distance to target to allow casting", 1)
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
@@ -45,7 +43,6 @@ local function menu()
                     menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
                         "Set the custom cooldown in seconds", 2)
                 end
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
             end
@@ -110,13 +107,13 @@ local function logics(target, target_selector_data)
 
     local cast_ok, delay = my_utility.try_cast_spell("condemn", spell_data.condemn.spell_id, menu_boolean,
         next_time_allowed_cast, function()
-            return cast_spell.self(spell_data.condemn.spell_id, 0)
-        end, menu_elements.cast_delay:get())
+            return cast_spell.self(spell_data.condemn.spell_id, spell_data.condemn.cast_delay)
+        end, spell_data.condemn.cast_delay)
 
     if cast_ok then
         local current_time = get_time_since_inject();
         local cooldown = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or
-            (delay or menu_elements.cast_delay:get());
+            (delay or spell_data.condemn.cast_delay);
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Condemn");
         return true, cooldown;

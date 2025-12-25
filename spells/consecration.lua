@@ -11,8 +11,6 @@ local menu_elements =
     advanced_tree       = my_utility.safe_tree_tab(2),
     cast_on_cooldown    = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "consecration_cast_on_cooldown")),
-    cast_delay          = my_utility.safe_slider_float(0.01, 10.0, 0.1,
-        get_hash(my_utility.plugin_label .. "consecration_cast_delay")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "consecration_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.1,
@@ -27,7 +25,6 @@ local function menu()
             if menu_elements.advanced_tree:push("Advanced Settings") then
                 menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                     "Always cast when ready (maintains buff constantly)")
-                menu_elements.cast_delay:render("Cast Delay", "Time between casts in seconds", 2)
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
@@ -81,15 +78,19 @@ local function logics()
 
     local cast_ok, delay = my_utility.try_cast_spell("consecration", spell_data.consecration.spell_id, menu_boolean,
         next_time_allowed_cast,
-        function() return cast_spell.self(spell_data.consecration.spell_id, 0) end, menu_elements.cast_delay:get())
+        function() return cast_spell.self(spell_data.consecration.spell_id, spell_data.consecration.cast_delay) end,
+        spell_data.consecration.cast_delay)
+
     if cast_ok then
         local current_time = get_time_since_inject();
-        local cooldown = (delay or menu_elements.cast_delay:get());
+        local cooldown = (delay or spell_data.consecration.cast_delay);
+
+        if menu_elements.use_custom_cooldown:get() then
+            cooldown = menu_elements.custom_cooldown_sec:get()
+        end
+
         next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Consecration");
-        if menu_elements.use_custom_cooldown:get() then
-            return true, menu_elements.custom_cooldown_sec:get()
-        end
         return true, cooldown;
     end;
 

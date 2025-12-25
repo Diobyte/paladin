@@ -137,7 +137,12 @@ local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
         return false, 0
     end
 
-    if cast_spell.self(spell_id, 0) then
+    local cast_delay = 0
+    if spell_data[spell_name] and spell_data[spell_name].cast_delay then
+        cast_delay = spell_data[spell_name].cast_delay
+    end
+
+    if cast_spell.self(spell_id, cast_delay) then
         -- record and return a small delay to avoid spam
         record_spell_cast(spell_name)
         local delay = min_delay or 0.1

@@ -34,7 +34,7 @@ local menu_elements =
 
 local function menu()
     if menu_elements.tree_tab:push("Arbiter of Justice") then
-        menu_elements.main_boolean:render("Enable Spell", "Enable or disable this spell")
+        menu_elements.main_boolean:render("Enable Arbiter of Justice", "Enable or disable this spell")
 
         if menu_elements.main_boolean:get() then
             -- Targeting
@@ -44,14 +44,15 @@ local function menu()
             if menu_elements.advanced_tree:push("Advanced Settings") then
                 menu_elements.priority_target:render("Priority Targeting (Ignore weighted targeting)",
                     "Targets Boss > Champion > Elite > Any")
-                menu_elements.min_target_range:render("Min Target Range", "Minimum distance to target to allow casting",
+                menu_elements.min_target_range:render("Min Target Range",
+                    "Minimum distance to target to allow casting (prevents casting too close)",
                     1)
-                menu_elements.min_hits:render("Min Hits", "Minimum number of enemies to hit to prioritize AOE target", 1)
+                menu_elements.min_hits:render("Min Hits", "Minimum enemies required to trigger Smart AOE targeting", 1)
 
                 -- Logic
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
                 menu_elements.force_priority:render("Force Priority",
-                    "Always cast on Boss/Elite/Champion regardless of min range")
+                    "Ignore Min Target Range for Boss/Elite/Champion targets")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
@@ -78,10 +79,13 @@ local function logics(target, target_selector_data)
     end;
 
     -- Handle priority targeting mode
+    local cast_position = target:get_position()
+
     if menu_elements.priority_target:get() and target_selector_data then
         local priority_target = my_target_selector.get_priority_target(target_selector_data)
         if priority_target and my_utility.is_in_range(priority_target, max_spell_range) then
             target = priority_target
+            cast_position = target:get_position()
             if menu_elements.debug_mode:get() then
                 my_utility.debug_print("[ARBITER DEBUG] Priority targeting enabled - using priority target: " ..
                     (target:get_skin_name() or "Unknown"))
@@ -101,6 +105,14 @@ local function logics(target, target_selector_data)
 
         if aoe_data.is_valid and aoe_data.hits_amount >= min_hits and aoe_data.main_target then
             target = aoe_data.main_target
+            cast_position = target:get_position()
+
+            -- Refine position using get_best_point
+            local best_point_data = my_utility.get_best_point(cast_position, 5.0, aoe_data.victim_list)
+            if best_point_data and best_point_data.point then
+                cast_position = best_point_data.point
+            end
+
             if menu_elements.debug_mode:get() then
                 my_utility.debug_print("[ARBITER DEBUG] Using AOE target with " .. aoe_data.hits_amount .. " hits")
             end
@@ -139,21 +151,26 @@ local function logics(target, target_selector_data)
         return false
     end
 
-    local cast_delay = 0.1;
     local cast_ok, delay = my_utility.try_cast_spell("arbiter_of_justice", spell_data.arbiter_of_justice.spell_id,
         menu_boolean,
         next_time_allowed_cast,
-        function() return cast_spell.position(spell_data.arbiter_of_justice.spell_id, target:get_position(), 0) end,
-        cast_delay)
+        function()
+            return cast_spell.position(spell_data.arbiter_of_justice.spell_id, cast_position,
+                spell_data.arbiter_of_justice.cast_delay)
+        end,
+        spell_data.arbiter_of_justice.cast_delay)
     if cast_ok then
         local current_time = get_time_since_inject();
-        next_time_allowed_cast = current_time + (delay or cast_delay);
+        local cooldown = (delay or spell_data.arbiter_of_justice.cast_delay);
+
+        if menu_elements.use_custom_cooldown:get() then
+            cooldown = menu_elements.custom_cooldown_sec:get()
+        end
+
+        next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Arbiter of Justice - Target: " ..
             my_utility.targeting_modes[menu_elements.targeting_mode:get() + 1]);
-        if menu_elements.use_custom_cooldown:get() then
-            return true, menu_elements.custom_cooldown_sec:get()
-        end
-        return true, delay;
+        return true, cooldown;
     end
 
     if menu_elements.debug_mode:get() then
