@@ -74,12 +74,48 @@ local function get_unit_weight(unit)
         end
     end
 
-    local is_champion = unit:is_elite()
-    if is_champion then
+    local is_elite = unit:is_elite()
+    if is_elite then
         score = score + 400
     end
 
     return score
+end
+
+-- Function to get the best target based on priority (Boss > Champion > Elite > Any)
+local function get_priority_target(target_selector_data)
+    local best_target = nil
+    local target_type = "none"
+
+    -- Check for boss targets first (highest priority)
+    if target_selector_data and target_selector_data.has_boss then
+        best_target = target_selector_data.closest_boss
+        target_type = "Boss"
+        return best_target, target_type
+    end
+
+    -- Then check for champion targets
+    if target_selector_data and target_selector_data.has_champion then
+        best_target = target_selector_data.closest_champion
+        target_type = "Champion"
+        return best_target, target_type
+    end
+
+    -- Then check for elite targets
+    if target_selector_data and target_selector_data.has_elite then
+        best_target = target_selector_data.closest_elite
+        target_type = "Elite"
+        return best_target, target_type
+    end
+
+    -- Finally, use any available target
+    if target_selector_data and target_selector_data.closest_unit then
+        best_target = target_selector_data.closest_unit
+        target_type = "Regular"
+        return best_target, target_type
+    end
+
+    return nil, "none"
 end
 
 -- Define the function to get the best weighted target
@@ -113,67 +149,67 @@ local function get_target_selector_data(source, list)
         }
     end;
 
-    local closest_unit = {};
+    local closest_unit = nil;
     local closest_unit_distance = math.huge;
 
-    local lowest_current_health_unit = {};
+    local lowest_current_health_unit = nil;
     local lowest_current_health_unit_health = math.huge;
 
-    local highest_current_health_unit = {};
+    local highest_current_health_unit = nil;
     local highest_current_health_unit_health = 0.0;
 
-    local lowest_max_health_unit = {};
+    local lowest_max_health_unit = nil;
     local lowest_max_health_unit_health = math.huge;
 
-    local highest_max_health_unit = {};
+    local highest_max_health_unit = nil;
     local highest_max_health_unit_health = 0.0;
 
     local has_elite = false;
-    local closest_elite = {};
+    local closest_elite = nil;
     local closest_elite_distance = math.huge;
 
-    local lowest_current_health_elite = {};
+    local lowest_current_health_elite = nil;
     local lowest_current_health_elite_health = math.huge;
 
-    local highest_current_health_elite = {};
+    local highest_current_health_elite = nil;
     local highest_current_health_elite_health = 0.0;
 
-    local lowest_max_health_elite = {};
+    local lowest_max_health_elite = nil;
     local lowest_max_health_elite_health = math.huge;
 
-    local highest_max_health_elite = {};
+    local highest_max_health_elite = nil;
     local highest_max_health_elite_health = 0.0;
 
     local has_champion = false;
-    local closest_champion = {};
+    local closest_champion = nil;
     local closest_champion_distance = math.huge;
 
-    local lowest_current_health_champion = {};
+    local lowest_current_health_champion = nil;
     local lowest_current_health_champion_health = math.huge;
 
-    local highest_current_health_champion = {};
+    local highest_current_health_champion = nil;
     local highest_current_health_champion_health = 0.0;
 
-    local lowest_max_health_champion = {};
+    local lowest_max_health_champion = nil;
     local lowest_max_health_champion_health = math.huge;
 
-    local highest_max_health_champion = {};
+    local highest_max_health_champion = nil;
     local highest_max_health_champion_health = 0.0;
 
     local has_boss = false;
-    local closest_boss = {};
+    local closest_boss = nil;
     local closest_boss_distance = math.huge;
 
-    local lowest_current_health_boss = {};
+    local lowest_current_health_boss = nil;
     local lowest_current_health_boss_health = math.huge;
 
-    local highest_current_health_boss = {};
+    local highest_current_health_boss = nil;
     local highest_current_health_boss_health = 0.0;
 
-    local lowest_max_health_boss = {};
+    local lowest_max_health_boss = nil;
     local lowest_max_health_boss_health = math.huge;
 
-    local highest_max_health_boss = {};
+    local highest_max_health_boss = nil;
     local highest_max_health_boss_health = 0.0;
 
     for _, unit in ipairs(possible_targets_list) do
@@ -299,7 +335,6 @@ local function get_target_selector_data(source, list)
                 highest_max_health_boss_health = max_health;
             end
         end
-        ::continue::
     end
 
     return
@@ -333,8 +368,45 @@ local function get_target_selector_data(source, list)
         lowest_max_health_boss = lowest_max_health_boss,
         highest_max_health_boss = highest_max_health_boss,
 
-        list = possible_targets_list
+        list = possible_targets_list,
+        get_priority_target = function(self) return get_priority_target(self) end
     }
+end
+
+-- Function to get the best target based on priority (Boss > Champion > Elite > Any)
+local function get_priority_target(target_selector_data)
+    local best_target = nil
+    local target_type = "none"
+
+    -- Check for boss targets first (highest priority)
+    if target_selector_data and target_selector_data.has_boss then
+        best_target = target_selector_data.closest_boss
+        target_type = "Boss"
+        return best_target, target_type
+    end
+
+    -- Then check for champion targets
+    if target_selector_data and target_selector_data.has_champion then
+        best_target = target_selector_data.closest_champion
+        target_type = "Champion"
+        return best_target, target_type
+    end
+
+    -- Then check for elite targets
+    if target_selector_data and target_selector_data.has_elite then
+        best_target = target_selector_data.closest_elite
+        target_type = "Elite"
+        return best_target, target_type
+    end
+
+    -- Finally, use any available target
+    if target_selector_data and target_selector_data.closest_unit then
+        best_target = target_selector_data.closest_unit
+        target_type = "Regular"
+        return best_target, target_type
+    end
+
+    return nil, "none"
 end
 
 local function dot2D(v1, v2)
@@ -360,56 +432,29 @@ local function subtract2D(v1, v2, field)
     return vec2:new(X1, V1)
 end
 
-function CheckActorCollision(StartPoint, EndPoint, PositionToCheck, width)
-    -- Vector from A to B
-    --local StartPoint = vec2(2,1);
-    --StartPoint = vec2:new(StartPoint:x(),StartPoint:y())
-    --local temp = vec2.dot_product(StartPoint));
-    --console.print(StartPoint:x(),StartPoint:y()," Pos",PositionToCheck:x(),PositionToCheck:y());
-    local AB = subtract2D(EndPoint, StartPoint, true)
+local function CheckActorCollision(StartPoint, EndPoint, PositionToCheck, width)
+    -- Robust version that operates on numeric x/y values and works in tests without vec2
+    local x1, y1 = StartPoint:x(), StartPoint:y()
+    local x2, y2 = EndPoint:x(), EndPoint:y()
+    local px, py = PositionToCheck:x(), PositionToCheck:y()
 
-    -- Vector from A to C
-    local AC = subtract2D(PositionToCheck, StartPoint, true)
-    --console.print(AC.x);
-    -- Dot product of AB and AC
-    local dotProduct = dot2D(AB, AC)
-    -- local dotProduct = vec2:dot_product(AB, AC)
-    --console.print(dotProduct);
-    -- If dot product is negative, PositionToCheck is not between StartPoint and EndPoint
-    if dotProduct < 0 then
-        return false
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local l2 = dx * dx + dy * dy
+
+    if l2 == 0 then
+        local dist2 = (px - x1) * (px - x1) + (py - y1) * (py - y1)
+        return dist2 <= width * width
     end
 
-    -- If dot product exceeds AB's squared magnitude, PositionToCheck is beyond EndPoint
-    local AB_squaredMag = squaredMagnitude2D(AB)
-    --console.print(AB_squaredMag);
-    if dotProduct > AB_squaredMag then
-        return false
-    end
+    local t = ((px - x1) * dx + (py - y1) * dy) / l2
+    if t < 0 then t = 0 end
+    if t > 1 then t = 1 end
 
-    -- Now, calculate the perpendicular distance from C to the line segment AB
-    -- Projection scalar t = dot(AC, AB) / squaredMagnitude(AB)
-
-    local t = dotProduct / AB_squaredMag
-    --console.print(t);
-
-    -- Project C onto the line AB: P = StartPoint + t * AB
-    local vecx = StartPoint:x() + t * AB.x
-
-    local vecy = StartPoint:y() + t * AB.y
-    local P = vec2:new(vecx, vecy);
-
-
-
-
-    -- Vector from C to P
-    local CP = subtract2D(PositionToCheck, P, false)
-    --console.print(CP.x,CP.y);
-    -- Distance from C to the line AB
-    local CP_distanceSquared = squaredMagnitude2D(CP)
-    --console.print(CP_distanceSquared)
-    -- If distance squared is less than the width squared, C is within the width tolerance
-    return CP_distanceSquared <= width * width
+    local projx = x1 + t * dx
+    local projy = y1 + t * dy
+    local dist2 = (px - projx) * (px - projx) + (py - projy) * (py - projy)
+    return dist2 <= width * width
 end
 
 -- get target list with few parameters
@@ -422,59 +467,63 @@ local function get_target_list(source, range, collision_table, floor_table, angl
     local entity_list_visible = {}
     local possible_targets_list = target_selector.get_near_target_list(source, range);
 
+    -- Optimization: Get all actors once outside the loop if collision check is enabled
+    local all_objects = nil
+    if collision_table[1] == true then
+        all_objects = actors_manager.get_all_actors()
+    end
+
     for _, unit in ipairs(possible_targets_list) do
-        -- only targetable units
-        if unit:is_untargetable() or unit:is_immune() then
-            goto continue
-        end
+        repeat
+            -- only targetable units
+            if unit:is_untargetable() or unit:is_immune() then break end
 
-        local unit_position = unit:get_position()
+            local unit_position = unit:get_position()
 
-        -- Check floor and angle conditions
-        if floor_table[1] == true then
-            local z_difference = math.abs(source:z() - unit_position:z())
-            local is_other_floor = z_difference > floor_table[2]
-            if is_other_floor then
-                goto continue
-            end
-        end
-
-        if angle_table[1] == true then
-            local cursor_position = get_cursor_position();
-            local angle = unit_position:get_angle(cursor_position, source);
-            local is_outside_angle = angle > angle_table[2]
-            if is_outside_angle then
-                goto continue
-            end
-        end
-
-        -- Add to entity_list regardless of collision
-        table.insert(entity_list, unit)
-
-        -- Check collision
-        if collision_table[1] == true then
-            local is_invalid = prediction.is_wall_collision(source, unit_position, collision_table[2]);
-            if is_invalid then
-                goto continue;
+            -- Check floor and angle conditions
+            if floor_table[1] == true then
+                local z_difference = math.abs(source:z() - unit_position:z())
+                local is_other_floor = z_difference > floor_table[2]
+                if is_other_floor then break end
             end
 
-            all_objects = actors_manager.get_all_actors()
-            for _, obj in ipairs(all_objects) do
-                if not obj:is_enemy() and obj:is_interactable() then
-                    local skin_name = obj:get_skin_name()
-                    for _, pattern in ipairs(actor_table) do
-                        if skin_name:match(pattern) and CheckActorCollision(source, unit_position, obj:get_position(), 3) then
-                            goto continue;
+            if angle_table[1] == true then
+                local cursor_position = get_cursor_position();
+                local angle = unit_position:get_angle(cursor_position, source);
+                local is_outside_angle = angle > angle_table[2]
+                if is_outside_angle then break end
+            end
+
+            -- Add to entity_list regardless of collision
+            table.insert(entity_list, unit)
+
+            -- Check collision
+            if collision_table[1] == true then
+                local is_invalid = prediction.is_wall_collision(source, unit_position, collision_table[2]);
+                if is_invalid then break end
+
+                local skip_due_actor = false
+                if all_objects then
+                    for _, obj in ipairs(all_objects) do
+                        if not obj:is_enemy() and obj:is_interactable() then
+                            local skin_name = obj:get_skin_name()
+                            for _, pattern in ipairs(actor_table) do
+                                if skin_name:match(pattern) and CheckActorCollision(source, unit_position, obj:get_position(), 3) then
+                                    skip_due_actor = true
+                                    break
+                                end
+                            end
                         end
+                        if skip_due_actor then break end
                     end
                 end
+
+                if skip_due_actor then break end
             end
-        end
 
-        -- Add to entity_list_visible
-        table.insert(entity_list_visible, unit)
-
-        ::continue::
+            -- Add to entity_list_visible
+            table.insert(entity_list_visible, unit)
+        until true
     end
 
     return entity_list_visible, entity_list
@@ -485,8 +534,8 @@ end
 -- score(float)
 -- main_target(gameobject)
 -- victim_list(table game_object)
-local function get_most_hits_rectangle(source, lenght, width)
-    local data = target_selector.get_most_hits_target_rectangle_area_heavy(source, lenght, width);
+local function get_most_hits_rectangle(source, length, width)
+    local data = target_selector.get_most_hits_target_rectangle_area_heavy(source, length, width);
 
     local is_valid = false;
     local hits_amount = data.n_hits;
@@ -614,4 +663,5 @@ return
 
     get_unit_weight = get_unit_weight,
     get_best_weighted_target = get_best_weighted_target,
+    get_priority_target = get_priority_target,
 }
