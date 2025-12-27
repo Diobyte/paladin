@@ -1,1 +1,1 @@
-if you game crashes delete dat settings files
+if your game crashes delete dat settings files
