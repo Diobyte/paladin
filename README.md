@@ -8,18 +8,41 @@ A comprehensive Paladin combat routine for Diablo 4, featuring multiple build lo
 - **Orbwalker Integration**: Works seamlessly with the orbwalker for movement and kiting.
 - **Customizable**: Fine-tune settings for every spell.
 
-## How to Configure Individual Spells
-You can customize the behavior of each spell individually through the in-game menu.
+## Configuration Guide
 
+### 1. Initial Setup
 1. **Open the Menu**: While the game is focused, press the menu key (default `Alt+F1`) to open the plugin interface.
-2. **Navigate to Spells**:
-   - **Equipped Spells**: Shows spells currently detected on your action bar.
-   - **Inactive Spells**: Shows all other supported spells not currently equipped.
-3. **Adjust Settings**: Click on any spell name to expand its specific options. Common settings include:
-   - **Enable/Disable**: Toggle the spell on or off completely.
-   - **Targeting Mode**: Choose how the spell selects targets (e.g., `Best Target`, `Closest Enemy`, `Cursor Position`).
-   - **Priority Targeting**: specific toggles to prioritize Elites or Bosses for heavy hitters.
-   - **Health Thresholds**: Set HP percentages for defensive skills like *Aegis* or *Fortress*.
+2. **Select Your Build**: **CRITICAL STEP**. Go to `Settings > Build Selector` and choose the build that matches your in-game loadout (e.g., "Auradin", "Hammerkuna"). This ensures the plugin uses the correct spell priority and rotation logic for maximum DPS.
+
+### 2. Spell Configuration
+You can customize the behavior of each spell individually:
+- **Equipped Spells**: Shows spells currently detected on your action bar.
+- **Inactive Spells**: Shows all other supported spells not currently equipped.
+- **Adjust Settings**: Click on any spell name to expand its specific options (Enable/Disable, Targeting Mode, Health Thresholds).
+
+## Settings & Usage Scenarios
+
+Understanding when to use specific settings can greatly improve performance:
+
+- **Targeting Refresh Interval**:
+  - *Scenario*: High-density mob packs.
+  - *Usage*: Lower this value (e.g., 0.1s) for faster target switching. Increase it if you experience FPS drops.
+
+- **Enemy Evaluation Radius**:
+  - *Scenario*: Using large AoE spells like *Consecration* or *Falling Star*.
+  - *Usage*: Increase this value to ensure the plugin considers enemies further away when calculating the best target cluster for AoE efficiency.
+
+- **Force Target Boss/Elite**:
+  - *Scenario*: Boss fights or high-tier Pit runs.
+  - *Usage*: Enable this to ensure your single-target damage is always focused on the highest priority threat, ignoring trash mobs that might distract the targeting logic.
+
+- **Cursor Targeting Radius**:
+  - *Scenario*: Builds requiring precise positioning.
+  - *Usage*: Adjust this to define how close an enemy must be to your mouse cursor to be considered a valid target when using "Cursor" targeting modes.
+
+- **Custom Enemy Weights**:
+  - *Scenario*: Advanced tuning.
+  - *Usage*: Tweak these values to make the targeting logic strictly prefer specific enemy types (e.g., giving Champions a massive weight to nuke them first).
 
 ## Disclaimer
 This software is an unofficial plugin created for educational and research purposes only.
