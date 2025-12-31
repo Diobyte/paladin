@@ -42,7 +42,7 @@ local function menu()
                 menu_elements.min_target_range:render("Min Target Distance",
                     "Distance to switch logic. Outside: Gap Closer (Instant). Inside: Boss DPS (uses internal 2s delay).",
                     1)
-                menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+                menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
                 menu_elements.use_smart_aoe:render("Smart AOE Targeting",
                     "Target best cluster of enemies instead of single target")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
@@ -86,9 +86,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not target:is_elite() then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[SHIELD CHARGE DEBUG] Elites only mode - target is not elite")
+            my_utility.debug_print("[SHIELD CHARGE DEBUG] Elites only mode - target is not elite or boss")
         end
         return false
     end

@@ -200,6 +200,7 @@ local spell_data = {
     },
     arbiter_of_justice = {
         spell_id = 2297125,
+        buff_id = 2297099,
         category = "ultimate",
         cast_type = "position",
         damage_type = "holy",

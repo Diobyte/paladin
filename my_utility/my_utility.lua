@@ -111,9 +111,24 @@ local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
     end
 
     -- Check if buff is already active to prevent spamming
-    -- Since spell_id != buff_id and we don't have correct buff IDs, we use a timer-based approach
-    -- if the spell has a duration defined in spell_data.
     local spell_info = spell_data[spell_name]
+    
+    -- Check actual buff if ID is known
+    if spell_info and spell_info.buff_id then
+        local local_player = get_local_player()
+        if local_player then
+            local buffs = local_player:get_buffs()
+            if buffs then
+                for _, buff in ipairs(buffs) do
+                    if buff.name_hash == spell_info.buff_id then
+                        return false, 0
+                    end
+                end
+            end
+        end
+    end
+
+    -- Fallback to timer-based approach if buff ID is not known or not found (and duration is set)
     if spell_info and spell_info.duration then
         local last_cast = get_last_cast_time(spell_name)
         if last_cast > 0 then

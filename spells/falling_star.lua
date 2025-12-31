@@ -19,6 +19,8 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "falling_star_min_target_range")),
     recast_delay        = my_utility.safe_slider_float(0.0, 10.0, 0.5,
         get_hash(my_utility.plugin_label .. "falling_star_recast_delay")),
+    maintain_arbiter_form = my_utility.safe_checkbox(true,
+        get_hash(my_utility.plugin_label .. "falling_star_maintain_arbiter_form")),
     elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "falling_star_elites_only")),
     use_smart_aoe       = my_utility.safe_checkbox(true,
         get_hash(my_utility.plugin_label .. "falling_star_use_smart_aoe")),
@@ -43,7 +45,9 @@ local function menu()
                     "Distance to switch logic. Outside: Gap Closer (Instant). Inside: Boss DPS (uses Recast Delay).", 1)
                 menu_elements.recast_delay:render("Recast Delay (Melee)",
                     "Time between casts when inside Min Target Distance (Boss DPS mode).", 1)
-                menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+                menu_elements.maintain_arbiter_form:render("Maintain Arbiter Form",
+                    "Ignore restrictions (Elites/Boss Only) if Arbiter of Justice is active")
+                menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
                 menu_elements.use_smart_aoe:render("Smart AOE Targeting",
                     "Target best cluster of enemies instead of single target")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
@@ -87,9 +91,21 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not target:is_elite() then
+    local local_player = get_local_player()
+    local is_arbiter_active = my_utility.is_spell_active(spell_data.arbiter_of_justice.buff_id)
+    if not is_arbiter_active and local_player then
+        is_arbiter_active = local_player:get_active_spell_id() == spell_data.arbiter_of_justice.spell_id
+    end
+    local maintain_arbiter = menu_elements.maintain_arbiter_form:get() and is_arbiter_active
+
+    if menu_elements.debug_mode:get() and menu_elements.maintain_arbiter_form:get() then
+        my_utility.debug_print("[FALLING STAR DEBUG] Maintain Arbiter Form: " ..
+            tostring(maintain_arbiter) .. " (Active: " .. tostring(is_arbiter_active) .. ")")
+    end
+
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) and not maintain_arbiter then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[FALLING STAR DEBUG] Elites only mode - target is not elite")
+            my_utility.debug_print("[FALLING STAR DEBUG] Elites only mode - target is not elite or boss")
         end
         return false
     end
@@ -121,7 +137,7 @@ local function logics(target, target_selector_data)
 
     if is_in_min_range then
         -- We are in melee range (Boss/Elite logic)
-        if not (target:is_boss() or target:is_elite() or target:is_champion()) then
+        if not (target:is_boss() or target:is_elite() or target:is_champion()) and not maintain_arbiter then
             if menu_elements.debug_mode:get() then
                 my_utility.debug_print("[FALLING STAR DEBUG] In melee range but target is not boss/elite")
             end

@@ -39,7 +39,7 @@ local function menu()
                     "Targets Boss > Champion > Elite > Any")
                 menu_elements.min_target_range:render("Min Target Distance",
                     "Minimum distance to target to allow casting", 1)
-                menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+                menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
@@ -87,9 +87,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not target:is_elite() then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[CLASH DEBUG] Elites only mode - target is not elite")
+            my_utility.debug_print("[CLASH DEBUG] Elites only mode - target is not elite or boss")
         end
         return false
     end

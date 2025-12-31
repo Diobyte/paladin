@@ -8,6 +8,9 @@ local menu_elements =
     main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "rally_main_bool_base")),
 
     advanced_tree       = my_utility.safe_tree_tab(2),
+    use_for_faith       = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "rally_use_for_faith")),
+    min_faith_pct       = my_utility.safe_slider_float(0.1, 0.9, 0.5,
+        get_hash(my_utility.plugin_label .. "rally_min_faith_pct")),
     cast_on_cooldown    = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "rally_cast_on_cooldown")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "rally_use_custom_cooldown")),
@@ -21,6 +24,11 @@ local function menu()
         menu_elements.main_boolean:render("Enable Rally", "")
         if menu_elements.main_boolean:get() then
             if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.use_for_faith:render("Use for Faith Generation",
+                    "Cast Rally when Faith is low to generate resources")
+                if menu_elements.use_for_faith:get() then
+                    menu_elements.min_faith_pct:render("Min Faith %", "Cast when Faith is below this percentage", 1)
+                end
                 menu_elements.cast_on_cooldown:render("Cast on Cooldown",
                     "Always cast when ready (maintains buff constantly)")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
@@ -68,6 +76,27 @@ local function logics()
             my_utility.debug_print("[RALLY DEBUG] Cast on cooldown failed")
         end
         return false
+    end
+
+    -- Faith Generation Logic
+    if menu_elements.use_for_faith:get() then
+        local local_player = get_local_player()
+        local current_faith_pct = local_player:get_primary_resource_current() / local_player:get_primary_resource_max()
+        if current_faith_pct < menu_elements.min_faith_pct:get() then
+            local cast_ok, delay = my_utility.try_cast_spell("rally", spell_data.rally.spell_id, menu_boolean,
+                next_time_allowed_cast,
+                function() return cast_spell.self(spell_data.rally.spell_id, spell_data.rally.cast_delay) end,
+                spell_data.rally.cast_delay)
+
+            if cast_ok then
+                local cooldown = (delay or spell_data.rally.cast_delay);
+                if menu_elements.use_custom_cooldown:get() then
+                    cooldown = menu_elements.custom_cooldown_sec:get()
+                end
+                my_utility.debug_print("Cast Rally (Faith Gen)");
+                return true, cooldown;
+            end
+        end
     end
 
     -- Original logic for situational casting

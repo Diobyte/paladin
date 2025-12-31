@@ -19,6 +19,8 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "advance_min_target_range")),
     max_faith           = my_utility.safe_slider_float(0.1, 1.0, 0.9,
         get_hash(my_utility.plugin_label .. "advance_max_faith")),
+    maintain_arbiter_form = my_utility.safe_checkbox(true,
+        get_hash(my_utility.plugin_label .. "advance_maintain_arbiter_form")),
     force_priority      = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "advance_force_priority")),
     elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "advance_elites_only")),
     use_smart_aoe       = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "advance_use_smart_aoe")),
@@ -46,6 +48,8 @@ local function menu()
                     "Distance to switch logic. Outside: Gap Closer. Inside: Priority Target Only.", 1)
                 menu_elements.max_faith:render("Max Faith %",
                     "Don't cast if Faith is above this % (unless Mobility Only)", 1)
+                menu_elements.maintain_arbiter_form:render("Maintain Arbiter Form",
+                    "Ignore restrictions (Faith/Elites) if Arbiter of Justice is active")
                 menu_elements.mobility_only:render("Mobility Only", "Only use this spell for gap closing/mobility")
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
                 menu_elements.use_smart_aoe:render("Smart AOE Targeting",
@@ -107,9 +111,16 @@ local function logics(target, target_selector_data)
         return false
     end;
 
-    if target and menu_elements.elites_only:get() and not target:is_elite() then
+    local local_player = get_local_player()
+    local is_arbiter_active = my_utility.is_spell_active(spell_data.arbiter_of_justice.buff_id)
+    if not is_arbiter_active and local_player then
+        is_arbiter_active = local_player:get_active_spell_id() == spell_data.arbiter_of_justice.spell_id
+    end
+    local maintain_arbiter = menu_elements.maintain_arbiter_form:get() and is_arbiter_active
+
+    if target and menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) and not maintain_arbiter then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[ADVANCE DEBUG] Elites only mode - target is not elite")
+            my_utility.debug_print("[ADVANCE DEBUG] Elites only mode - target is not elite or boss")
         end
         return false
     end
@@ -145,12 +156,12 @@ local function logics(target, target_selector_data)
         local current_faith_pct = local_player:get_primary_resource_current() / local_player:get_primary_resource_max()
         local max_faith = menu_elements.max_faith:get()
 
-        if current_faith_pct > max_faith and not (force_priority and is_priority) then
+        if current_faith_pct > max_faith and not (force_priority and is_priority) and not maintain_arbiter then
             return false
         end
 
         local is_in_min_range = my_utility.is_in_range(target, menu_elements.min_target_range:get())
-        if is_in_min_range and not (force_priority and is_priority) then
+        if is_in_min_range and not (force_priority and is_priority) and not maintain_arbiter then
             return false
         end
         cast_position = target:get_position()

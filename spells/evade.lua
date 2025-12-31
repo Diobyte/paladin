@@ -48,7 +48,7 @@ local function menu()
                     menu_elements.min_target_range:render("Min Target Distance",
                         "Minimum distance to target to allow casting", 1)
                 end
-                menu_elements.elites_only:render("Elites Only", "Only cast on Elite enemies")
+                menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
 
                 if menu_elements.evade_mode:get() == 1 then
                     menu_elements.min_travel_range:render("Min Travel Distance",
@@ -139,9 +139,9 @@ local function logics(target)
         return false -- Can't cast without a target in combat mode
     end
 
-    if target and menu_elements.elites_only:get() and not target:is_elite() then
+    if target and menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[EVADE DEBUG] Elites only mode - target is not elite")
+            my_utility.debug_print("[EVADE DEBUG] Elites only mode - target is not elite or boss")
         end
         return false
     end
