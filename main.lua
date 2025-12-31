@@ -4,7 +4,7 @@
 -- Gate class-specific logic inside callbacks instead.
 
 -- Plugin Configuration
-local PLUGIN_VERSION = "3.0.1"
+local PLUGIN_VERSION = "3.0.2"
 local PLUGIN_NAME = "DirtyDio Paladin"
 
 -- Orbwalker initialization
@@ -314,7 +314,7 @@ on_render_menu(function()
 
         menu.menu_elements.build_selector:render("Build Selector",
             { "Default", "Judgement Nuke", "Hammerkuna", "Arbiter", "Captain America", "Shield Bash", "Wing Strikes",
-                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin" },
+                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin", "Auradin Maxroll" },
             "Select a build to optimize spell priorities and timings for max DPS.")
 
         -- Spell priority is now updated in on_update for real-time adjustments

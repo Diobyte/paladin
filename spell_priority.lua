@@ -200,6 +200,46 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
             if spell_name == "blessed_hammer" then score = score + 100 end     -- Proc
             if spell_name == "consecration" then score = score + 500 end       -- Ensure Consecration casts
             if spell_name == "arbiter_of_justice" then score = score + 500 end -- Ensure Arbiter casts
+        elseif build_index == 13 then                                          -- Auradin Maxroll
+            -- 1. Auras - Critical for the build, always activate
+            if spell_name == "holy_light_aura" then score = score + 1000 end
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+
+            -- 2. Arbiter Form - Primary transformation
+            if spell_name == "arbiter_of_justice" then score = score + 800 end
+
+            -- 3. Mobility/Form Maintenance (Falling Star is key)
+            if spell_name == "falling_star" then score = score + 700 end
+
+            -- 4. Utility/Boss
+            if spell_name == "consecration" then
+                -- Higher priority if boss or elite is present, otherwise good utility
+                local has_boss_or_elite = false
+                if enemies then
+                    for _, enemy in ipairs(enemies) do
+                        if enemy:is_boss() or enemy:is_elite() or enemy:is_champion() then
+                            has_boss_or_elite = true
+                            break
+                        end
+                    end
+                end
+
+                if has_boss_or_elite then
+                    score = score + 650
+                else
+                    score = score + 600
+                end
+            end
+
+            -- Rally replaces Consecration in late game for speed, high priority if equipped
+            if spell_name == "rally" then score = score + 600 end
+
+            -- 5. Backup Form Maintenance
+            if spell_name == "condemn" then score = score + 500 end
+
+            -- Push Variant Logic: Shield Bash for mobility/proc
+            if spell_name == "shield_bash" then score = score + 400 end
         end
 
         -- 6. AOE Logic
