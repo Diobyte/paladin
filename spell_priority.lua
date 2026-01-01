@@ -240,6 +240,36 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
 
             -- Push Variant Logic: Shield Bash for mobility/proc
             if spell_name == "shield_bash" then score = score + 400 end
+        elseif build_index == 14 then                                          -- SotH Judgement (Rox Build)
+            -- 1. Arbiter Form - CRITICAL: Never drop out of form
+            if spell_name == "arbiter_of_justice" then score = score + 1000 end
+
+            -- 2. Spear of the Heavens - Primary damage dealer (hold down)
+            if spell_name == "spear_of_the_heavens" then score = score + 900 end
+
+            -- 3. Auras - Cast off cooldown for buffs
+            if spell_name == "fanaticism_aura" then score = score + 800 end
+            if spell_name == "defiance_aura" then score = score + 800 end
+
+            -- 4. Condemn - Grouping utility, position reliant
+            if spell_name == "condemn" then score = score + 700 end
+
+            -- 5. Consecration - Cast off cooldown
+            if spell_name == "consecration" then score = score + 600 end
+
+            -- 6. Boost for Elites/Bosses (build prefers bosses with minions)
+            local has_boss = false
+            if enemies then
+                for _, enemy in ipairs(enemies) do
+                    if enemy:is_boss() then
+                        has_boss = true
+                        break
+                    end
+                end
+            end
+            if has_boss and spell_name == "spear_of_the_heavens" then
+                score = score + 200 -- Extra priority on bosses
+            end
         end
 
         -- 6. AOE Logic
