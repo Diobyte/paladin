@@ -43,12 +43,12 @@ local function menu()
                 menu_elements.min_target_range:render("Min Target Distance",
                     "Minimum distance to target to allow casting", 1)
                 menu_elements.engagement_range:render("Engagement Range",
-                    "Walk closer before starting to cast (prevents stuttering at max range)")
+                    "Walk closer before starting to cast (prevents stuttering at max range)", 1)
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown", "")
                 if menu_elements.use_custom_cooldown:get() then
                     menu_elements.custom_cooldown_sec:render("Custom Cooldown (sec)",
-                        "Set the custom cooldown in seconds")
+                        "Set the custom cooldown in seconds", 2)
                 end
                 menu_elements.debug_mode:render("Debug Mode", "Enable debug logging for troubleshooting")
                 menu_elements.advanced_tree:pop()
