@@ -4,7 +4,7 @@
 -- Gate class-specific logic inside callbacks instead.
 
 -- Plugin Configuration
-local PLUGIN_VERSION = "3.0.2"
+local PLUGIN_VERSION = "3.0.3"
 local PLUGIN_NAME = "DirtyDio Paladin"
 
 -- Orbwalker initialization
