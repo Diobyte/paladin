@@ -9,6 +9,8 @@ local menu_elements =
     main_boolean        = my_utility.safe_checkbox(true, get_hash(my_utility.plugin_label .. "purify_main_bool_base")),
 
     advanced_tree       = my_utility.safe_tree_tab(2),
+    cast_on_cooldown    = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "purify_cast_on_cooldown")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "purify_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 10.0, 0.1,
@@ -22,6 +24,8 @@ local function menu()
 
         if menu_elements.main_boolean:get() then
             if menu_elements.advanced_tree:push("Advanced Settings") then
+                menu_elements.cast_on_cooldown:render("Cast on Cooldown",
+                    "Always cast when ready (proactive cleansing and healing)")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
@@ -49,6 +53,19 @@ local function logics()
         end
         return false
     end;
+
+    -- Check cast on cooldown option via helper
+    local maintained, mdelay = my_utility.try_maintain_buff("purify", spell_data.purify.spell_id, menu_elements)
+    if maintained ~= nil then
+        if maintained then
+            local current_time = get_time_since_inject();
+            local cd = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or mdelay
+            next_time_allowed_cast = current_time + cd;
+            my_utility.debug_print("Cast Purify (On Cooldown)");
+            return true, cd;
+        end
+        return false
+    end
 
     local cast_ok, delay = my_utility.try_cast_spell("purify", spell_data.purify.spell_id, menu_boolean,
         next_time_allowed_cast, function()

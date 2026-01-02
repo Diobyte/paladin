@@ -64,18 +64,12 @@ local function logics()
 
     -- Check cast on cooldown option via helper
     local maintained, mdelay = my_utility.try_maintain_buff("rally", spell_data.rally.spell_id, menu_elements)
-    if maintained ~= nil then
-        if maintained then
-            local current_time = get_time_since_inject();
-            local cd = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or mdelay
-            next_time_allowed_cast = current_time + cd;
-            my_utility.debug_print("Cast Rally (On Cooldown)");
-            return true, cd;
-        end
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[RALLY DEBUG] Cast on cooldown failed")
-        end
-        return false
+    if maintained then
+        local current_time = get_time_since_inject();
+        local cd = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or mdelay
+        next_time_allowed_cast = current_time + cd;
+        my_utility.debug_print("Cast Rally (On Cooldown)");
+        return true, cd;
     end
 
     -- Faith Generation Logic

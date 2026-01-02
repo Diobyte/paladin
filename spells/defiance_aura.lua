@@ -63,15 +63,10 @@ local function logics()
     if maintained ~= nil then
         if maintained then
             local current_time = get_time_since_inject();
-            next_time_allowed_cast = current_time + mdelay;
+            local cd = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or mdelay
+            next_time_allowed_cast = current_time + cd;
             my_utility.debug_print("Cast Defiance Aura (On Cooldown)");
-            if menu_elements.use_custom_cooldown:get() then
-                return true, menu_elements.custom_cooldown_sec:get()
-            end
-            return true, mdelay;
-        end
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[DEFIANCE AURA DEBUG] Maintain buff failed")
+            return true, cd;
         end
         return false
     end

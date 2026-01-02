@@ -68,9 +68,6 @@ local function logics()
             my_utility.debug_print("Cast Fanaticism Aura (On Cooldown)");
             return true, cd;
         end
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[FANATICISM AURA DEBUG] Cast on cooldown failed")
-        end
         return false
     end
 

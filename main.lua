@@ -4,7 +4,7 @@
 -- Gate class-specific logic inside callbacks instead.
 
 -- Plugin Configuration
-local PLUGIN_VERSION = "3.0.4"
+local PLUGIN_VERSION = "3.0.5"
 local PLUGIN_NAME = "DirtyDio Paladin"
 
 -- Orbwalker initialization
@@ -674,6 +674,19 @@ on_update(function()
 
         -- Update next target update time
         next_target_update_time = current_time + targeting_refresh_interval
+    end
+
+    -- 1. Handle "Cast on Cooldown" spells first (High Priority)
+    -- This ensures spells with "Cast on Cooldown" enabled are checked before the standard priority list
+    for _, spell_name in ipairs(current_spell_priority) do
+        if equipped_lookup[spell_name] then
+            local spell = spells[spell_name]
+            if spell and spell.menu_elements and spell.menu_elements.cast_on_cooldown and spell.menu_elements.cast_on_cooldown:get() then
+                if use_ability(spell_name, my_utility.spell_delays.regular_cast) then
+                    return
+                end
+            end
+        end
     end
 
     -- Ability usage - uses spell_priority to determine the order of spells

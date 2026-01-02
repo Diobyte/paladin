@@ -24,6 +24,8 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "arbiter_of_justice_force_priority")),
     elites_only         = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "arbiter_of_justice_elites_only")),
+    cast_on_cooldown    = my_utility.safe_checkbox(false,
+        get_hash(my_utility.plugin_label .. "arbiter_of_justice_cast_on_cooldown")),
     use_custom_cooldown = my_utility.safe_checkbox(false,
         get_hash(my_utility.plugin_label .. "arbiter_of_justice_use_custom_cooldown")),
     custom_cooldown_sec = my_utility.safe_slider_float(0.1, 5.0, 0.1,
@@ -53,6 +55,8 @@ local function menu()
                 menu_elements.elites_only:render("Elites Only", "Only cast on Elite/Boss enemies")
                 menu_elements.force_priority:render("Force Priority",
                     "Ignore Min Target Range for Boss/Elite/Champion targets")
+                menu_elements.cast_on_cooldown:render("Cast on Cooldown",
+                    "Always cast when ready (maintains Arbiter form constantly)")
                 menu_elements.use_custom_cooldown:render("Use Custom Cooldown",
                     "Override the default cooldown with a custom value")
                 if menu_elements.use_custom_cooldown:get() then
@@ -71,6 +75,20 @@ end
 local next_time_allowed_cast = 0;
 
 local function logics(target, target_selector_data)
+    -- Check cast on cooldown option first (maintains Arbiter form)
+    local maintained, mdelay = my_utility.try_maintain_buff("arbiter_of_justice", spell_data.arbiter_of_justice.spell_id,
+        menu_elements)
+    if maintained ~= nil then
+        if maintained then
+            local current_time = get_time_since_inject();
+            local cd = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or mdelay
+            next_time_allowed_cast = current_time + cd;
+            my_utility.debug_print("Cast Arbiter of Justice (Maintain Form)");
+            return true, cd;
+        end
+        return false
+    end
+
     if not target then
         if menu_elements.debug_mode:get() then
             my_utility.debug_print("[ARBITER DEBUG] No target provided")

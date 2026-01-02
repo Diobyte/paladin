@@ -98,22 +98,29 @@ end
 
 -- Try to maintain a buff by casting it on cooldown when the menu option is enabled.
 -- Returns:
---   true, delay  -> buff was cast and caller should set next_time_allowed_cast = now + delay
---   false, 0     -> menu enabled but cast attempt failed (not ready/affordable)
---   nil          -> menu option not enabled; caller should continue normal logic
+--   true, delay, "success"      -> buff was cast and caller should set next_time_allowed_cast = now + delay
+--   false, 0, "buff_active"     -> menu enabled but buff is already active
+--   false, 0, "cooldown"        -> menu enabled but spell is on cooldown
+--   false, 0, "cast_failed"     -> menu enabled but cast attempt failed
+--   nil, 0, "disabled"          -> menu option not enabled; caller should continue normal logic
 local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
     if not menu_elements or not menu_elements.cast_on_cooldown then
-        return nil
+        return nil, 0, "disabled"
     end
 
     if not menu_elements.cast_on_cooldown:get() then
-        return nil
+        return nil, 0, "disabled"
     end
 
-    -- Check if buff is already active to prevent spamming
+    -- Get spell metadata
     local spell_info = spell_data[spell_name]
+    local RECAST_BUFFER = 0.5  -- Prevent recasting too close to buff expiration
+    local MIN_RECAST_DELAY = 1.0  -- Minimum delay when no buff tracking available
     
-    -- Check actual buff if ID is known
+    -- Check if buff is already active to prevent spamming
+    local buff_active = false
+    
+    -- Priority 1: Check actual buff if ID is known
     if spell_info and spell_info.buff_id then
         local local_player = get_local_player()
         if local_player then
@@ -121,35 +128,58 @@ local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
             if buffs then
                 for _, buff in ipairs(buffs) do
                     if buff.name_hash == spell_info.buff_id then
-                        return false, 0
+                        buff_active = true
+                        break
                     end
                 end
             end
         end
     end
-
-    -- Fallback to timer-based approach if buff ID is not known or not found (and duration is set)
-    if spell_info and spell_info.duration then
+    
+    -- Priority 2: Fallback to timer-based approach if buff ID is not known or buff not found
+    if not buff_active and spell_info and spell_info.duration then
         local last_cast = get_last_cast_time(spell_name)
         if last_cast > 0 then
             local current_time = get_time_since_inject()
-            -- If we cast it recently and the duration hasn't expired, assume buff is active
-            -- Add a small buffer (e.g. 0.5s) to recast slightly before expiration if desired,
-            -- or just strictly check duration.
-            if current_time < last_cast + spell_info.duration then
-                return false, 0
+            -- Add buffer to recast slightly before expiration for smoother uptime
+            if current_time < last_cast + spell_info.duration - RECAST_BUFFER then
+                buff_active = true
             end
         end
     end
+    
+    -- Priority 3: If no buff_id AND no duration, use conservative timer-based failsafe
+    if not buff_active and spell_info and not spell_info.buff_id and not spell_info.duration then
+        local last_cast = get_last_cast_time(spell_name)
+        if last_cast > 0 then
+            local current_time = get_time_since_inject()
+            -- Use minimum recast delay as failsafe
+            if current_time < last_cast + MIN_RECAST_DELAY then
+                buff_active = true
+            end
+        end
+    end
+    
+    -- If buff is active, skip cast (no spam logging for normal operation)
+    if buff_active then
+        if menu_elements.debug_mode and menu_elements.debug_mode:get() then
+            debug_print("[" .. spell_name:upper() .. "] Buff active, but attempting cast (Cast on Cooldown enabled)")
+        end
+        -- Proceed to cast even if buff is active, to fix false positives or ensure uptime
+        -- return false, 0, "buff_active" 
+    end
 
-    -- If utility exists, check readiness; otherwise be permissive and attempt cast
+    -- Check if spell is ready
     if type(utility) == "table" and not utility.is_spell_ready(spell_id) then
-        return false, 0
+        if menu_elements.debug_mode and menu_elements.debug_mode:get() then
+            debug_print("[" .. spell_name:upper() .. "] Spell on cooldown, waiting...")
+        end
+        return false, 0, "cooldown"
     end
 
     -- Guard against environment without cast_spell
     if type(cast_spell) ~= "table" or type(cast_spell.self) ~= "function" then
-        return false, 0
+        return false, 0, "cast_failed"
     end
 
     local cast_delay = 0
@@ -158,13 +188,19 @@ local function try_maintain_buff(spell_name, spell_id, menu_elements, min_delay)
     end
 
     if cast_spell.self(spell_id, cast_delay) then
-        -- record and return a small delay to avoid spam
+        -- Record cast and return delay
         record_spell_cast(spell_name)
         local delay = min_delay or 0.1
-        return true, delay
+        if menu_elements.debug_mode and menu_elements.debug_mode:get() then
+            debug_print("[" .. spell_name:upper() .. "] Successfully cast on cooldown")
+        end
+        return true, delay, "success"
     end
 
-    return false, 0
+    if menu_elements.debug_mode and menu_elements.debug_mode:get() then
+        debug_print("[" .. spell_name:upper() .. "] Cast failed")
+    end
+    return false, 0, "cast_failed"
 end
 
 -- Helper: compute total cooldown reduction from equipped items (percentage, e.g., 25 = 25%)

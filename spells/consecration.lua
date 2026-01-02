@@ -63,15 +63,10 @@ local function logics()
         -- cast_on_cooldown is enabled; if we successfully cast, set delay and return
         if maintained then
             local current_time = get_time_since_inject();
-            next_time_allowed_cast = current_time + mdelay;
+            local cd = menu_elements.use_custom_cooldown:get() and menu_elements.custom_cooldown_sec:get() or mdelay
+            next_time_allowed_cast = current_time + cd;
             my_utility.debug_print("Cast Consecration (On Cooldown)");
-            if menu_elements.use_custom_cooldown:get() then
-                return true, menu_elements.custom_cooldown_sec:get()
-            end
-            return true, mdelay;
-        end
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[CONSECRATION DEBUG] Cast on cooldown failed")
+            return true, cd;
         end
         return false
     end

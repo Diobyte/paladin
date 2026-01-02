@@ -119,7 +119,8 @@ local spell_data = {
         buff_name_patterns = { "fanatic", "fanaticism" },
         category = "aura",
         cast_type = "self",
-        duration = 12.0,
+        cooldown = 25.0,
+        duration = 15.0,
         cast_delay = 0.1,
     },
     holy_light_aura = {
@@ -144,10 +145,12 @@ local spell_data = {
     },
     rally = {
         spell_id = 2303677,
+        buff_id = 2303677,
         category = "valor",
         cast_type = "self",
         charges = 3,
         cooldown = 16.0,
+        duration = 8.0,
         faith_gen = 22,
         cast_delay = 0.1,
     },
@@ -181,6 +184,7 @@ local spell_data = {
     },
     consecration = {
         spell_id = 2283781,
+        buff_id = 2283781,
         category = "justice",
         cast_type = "self",
         damage_type = "holy",

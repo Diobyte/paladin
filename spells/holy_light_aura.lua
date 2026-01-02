@@ -61,15 +61,6 @@ local function logics()
         return false
     end;
 
-    -- Check if there are enemies within the specified range
-    local enemy_count = my_utility.enemy_count_simple(menu_elements.max_cast_range:get());
-    if enemy_count == 0 then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[HOLY LIGHT AURA DEBUG] No enemies within range")
-        end
-        return false
-    end;
-
     -- Check cast on cooldown option via helper
     local maintained, mdelay = my_utility.try_maintain_buff("holy_light_aura", spell_data.holy_light_aura.spell_id,
         menu_elements)
@@ -81,11 +72,17 @@ local function logics()
             my_utility.debug_print("Cast Holy Light Aura (On Cooldown)");
             return true, cd;
         end
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[HOLY LIGHT AURA DEBUG] Cast on cooldown failed")
-        end
         return false
     end
+
+    -- Check if there are enemies within the specified range (for normal casting only)
+    local enemy_count = my_utility.enemy_count_simple(menu_elements.max_cast_range:get());
+    if enemy_count == 0 then
+        if menu_elements.debug_mode:get() then
+            my_utility.debug_print("[HOLY LIGHT AURA DEBUG] No enemies within range")
+        end
+        return false
+    end;
 
     local cast_ok, delay = my_utility.try_cast_spell("holy_light_aura", spell_data.holy_light_aura.spell_id, menu_boolean,
         next_time_allowed_cast,
@@ -100,6 +97,7 @@ local function logics()
             cooldown = menu_elements.custom_cooldown_sec:get()
         end
 
+        next_time_allowed_cast = current_time + cooldown;
         my_utility.debug_print("Cast Holy Light Aura");
         return true, cooldown;
     end;
