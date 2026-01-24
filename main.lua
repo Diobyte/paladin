@@ -272,6 +272,17 @@ local target_unit_map = {
 }
 
 on_render_menu(function()
+    -- Only show menu for Paladin (class_id 9)
+    local local_player = get_local_player()
+    if not local_player then
+        return
+    end
+
+    local character_id = local_player:get_character_class_id()
+    if character_id ~= 9 then
+        return
+    end
+
     -- Refresh equipped lookup at start of menu render to ensure GUI is in sync
     refresh_equipped_lookup()
 
