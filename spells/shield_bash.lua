@@ -4,7 +4,7 @@ local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
 
-local max_spell_range = 15.0 -- Charge range
+local max_spell_range = 6.0 -- Charge range
 local targeting_type = "ranged"
 local menu_elements =
 {
@@ -78,8 +78,6 @@ end
 
 local next_time_allowed_cast = 0;
 
-local shield_bash_data = spell_data.shield_bash.data
-
 local function logics(best_target, target_selector_data)
     -- Shield Bash requires a target to charge at
     local menu_boolean = menu_elements.main_boolean:get();
@@ -88,14 +86,6 @@ local function logics(best_target, target_selector_data)
     if not is_logic_allowed then
         if menu_elements.debug_mode:get() then
             my_utility.debug_print("[SHIELD BASH DEBUG] Logic not allowed - spell conditions not met")
-        end
-        return false
-    end;
-
-    -- Precondition: requires a shield to be equipped
-    if spell_data.shield_bash.requires_shield and not my_utility.has_shield() then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[SHIELD BASH DEBUG] Requires shield but no shield equipped")
         end
         return false
     end;

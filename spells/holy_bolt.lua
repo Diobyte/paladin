@@ -24,8 +24,6 @@ local menu_elements =
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "holy_bolt_debug_mode")),
 }
 
-local holy_bolt_data = spell_data.holy_bolt.data
-
 local function menu()
     if menu_elements.tree_tab:push("Holy Bolt") then
         menu_elements.main_boolean:render("Enable Holy Bolt", "")
@@ -80,9 +78,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[HOLY BOLT DEBUG] Elites only mode - target is not elite or boss")
+            my_utility.debug_print("[HOLY BOLT DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end

@@ -2,7 +2,7 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
-local max_spell_range = 10.0
+local max_spell_range = 5.0
 local targeting_type = "both"
 local menu_elements =
 {
@@ -13,7 +13,7 @@ local menu_elements =
         get_hash(my_utility.plugin_label .. "paladin_evade_targeting_mode")),
 
     advanced_tree       = my_utility.safe_tree_tab(2),
-    min_target_range    = my_utility.safe_slider_float(3, max_spell_range - 1, 5,
+    min_target_range    = my_utility.safe_slider_float(0, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "paladin_evade_min_target_range")),
     use_smart_aoe       = my_utility.safe_checkbox(true,
         get_hash(my_utility.plugin_label .. "paladin_evade_use_smart_aoe")),

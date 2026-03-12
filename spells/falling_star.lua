@@ -103,9 +103,9 @@ local function logics(target, target_selector_data)
             tostring(maintain_arbiter) .. " (Active: " .. tostring(is_arbiter_active) .. ")")
     end
 
-    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) and not maintain_arbiter then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) and not maintain_arbiter then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[FALLING STAR DEBUG] Elites only mode - target is not elite or boss")
+            my_utility.debug_print("[FALLING STAR DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end

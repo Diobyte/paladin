@@ -3,7 +3,7 @@ local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
 
-local max_spell_range = 5.0
+local max_spell_range = 2.5
 local targeting_type = "melee"
 local menu_elements =
 {
@@ -61,8 +61,6 @@ end
 
 local next_time_allowed_cast = 0;
 
-local clash_data = spell_data.clash.data
-
 local function logics(target, target_selector_data)
     if not target then
         if menu_elements.debug_mode:get() then
@@ -87,9 +85,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[CLASH DEBUG] Elites only mode - target is not elite or boss")
+            my_utility.debug_print("[CLASH DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end
@@ -103,14 +101,6 @@ local function logics(target, target_selector_data)
     if not is_logic_allowed then
         if menu_elements.debug_mode:get() then
             my_utility.debug_print("[CLASH DEBUG] Logic not allowed - spell conditions not met")
-        end
-        return false
-    end;
-
-    -- Precondition: requires a shield to be equipped
-    if spell_data.clash.requires_shield and not my_utility.has_shield() then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[CLASH DEBUG] Requires shield but no shield equipped")
         end
         return false
     end;

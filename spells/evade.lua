@@ -2,7 +2,7 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
-local max_spell_range = 10.0
+local max_spell_range = 5.0
 -- NOTE: Evade uses a dynamic minimum delay to improve manual responsiveness:
 --       when player-controlled (non auto-play) a smaller minimum delay is used
 --       to allow quicker responsive evades; when auto-play is active a larger
@@ -18,7 +18,7 @@ local menu_elements =
     -- Advanced Settings Tree
     advanced_tree       = my_utility.safe_tree_tab(2),
     mobility_only       = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_mobility_only")),
-    min_target_range    = my_utility.safe_slider_float(3, max_spell_range - 1, 5,
+    min_target_range    = my_utility.safe_slider_float(0, max_spell_range - 1, 3,
         get_hash(my_utility.plugin_label .. "evade_min_target_range")),
     elites_only         = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "evade_elites_only")),
     min_travel_range    = my_utility.safe_slider_float(2.5, 5, 3,
@@ -139,9 +139,9 @@ local function logics(target)
         return false -- Can't cast without a target in combat mode
     end
 
-    if target and menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
+    if target and menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[EVADE DEBUG] Elites only mode - target is not elite or boss")
+            my_utility.debug_print("[EVADE DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end

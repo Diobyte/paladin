@@ -3,7 +3,7 @@ local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
 
-local max_spell_range = 8.0
+local max_spell_range = 5.0
 local targeting_type = "melee"
 local menu_elements =
 {
@@ -87,9 +87,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[BLESSED HAMMER DEBUG] Elites only mode - target is not elite or boss")
+            my_utility.debug_print("[BLESSED HAMMER DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end
@@ -106,17 +106,6 @@ local function logics(target, target_selector_data)
         end
         return false
     end;
-
-    -- Check Faith cost
-    local local_player = get_local_player();
-    local current_faith = local_player:get_primary_resource_current();
-    if current_faith < spell_data.blessed_hammer.faith_cost then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[BLESSED HAMMER DEBUG] Not enough Faith - required: " ..
-                spell_data.blessed_hammer.faith_cost .. ", current: " .. current_faith)
-        end
-        return false
-    end
 
     -- Hysteresis Logic:
     -- If we are already casting (streak), allow casting up to max_spell_range (8.0).

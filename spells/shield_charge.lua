@@ -3,7 +3,7 @@ local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
 
-local max_spell_range = 12.0
+local max_spell_range = 8.0
 local targeting_type = "ranged"
 local menu_elements =
 {
@@ -86,17 +86,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[SHIELD CHARGE DEBUG] Elites only mode - target is not elite or boss")
-        end
-        return false
-    end
-
-    -- Precondition: requires a shield to be equipped
-    if spell_data.shield_charge.requires_shield and not my_utility.has_shield() then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[SHIELD CHARGE DEBUG] Requires shield but none equipped")
+            my_utility.debug_print("[SHIELD CHARGE DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end

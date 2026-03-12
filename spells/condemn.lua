@@ -3,7 +3,7 @@ local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 local my_target_selector = require("my_utility/my_target_selector")
 
-local max_spell_range = 15.0
+local max_spell_range = 8.0
 local targeting_type = "melee"
 local menu_elements =
 {
@@ -78,9 +78,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[CONDEMN DEBUG] Elites only mode - target is not elite or boss")
+            my_utility.debug_print("[CONDEMN DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end
