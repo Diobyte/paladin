@@ -94,10 +94,7 @@ local function logics(target)
         return false
     end
 
-    -- Precondition: requires a shield to be equipped
-    if spell_data.blessed_shield.requires_shield and not my_utility.has_shield() then
-        return false
-    end;
+
 
     if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         return false
