@@ -373,27 +373,6 @@ local function get_target_selector_data(source, list)
     }
 end
 
-        best_target = target_selector_data.closest_champion
-        target_type = "Champion"
-        return best_target, target_type
-    end
-
-    -- Then check for elite targets
-    if target_selector_data and target_selector_data.has_elite then
-        best_target = target_selector_data.closest_elite
-        target_type = "Elite"
-        return best_target, target_type
-    end
-
-    -- Finally, use any available target
-    if target_selector_data and target_selector_data.closest_unit then
-        best_target = target_selector_data.closest_unit
-        target_type = "Regular"
-        return best_target, target_type
-    end
-
-    return nil, "none"
-end
 local function dot2D(v1, v2)
     return v1.x * v2.x + v1.y * v2.y
 end
