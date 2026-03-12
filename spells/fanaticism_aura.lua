@@ -2,7 +2,6 @@
 local my_utility = require("my_utility/my_utility")
 local spell_data = require("my_utility/spell_data")
 
-local max_spell_range = 0.0
 local menu_elements =
 {
     tree_tab            = my_utility.safe_tree_tab(1),

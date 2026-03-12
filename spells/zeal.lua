@@ -23,8 +23,6 @@ local menu_elements =
     debug_mode          = my_utility.safe_checkbox(false, get_hash(my_utility.plugin_label .. "zeal_debug_mode")),
 }
 
-local zeal_data = spell_data.zeal.data
-
 local function menu()
     if menu_elements.tree_tab:push("Zeal") then
         menu_elements.main_boolean:render("Enable Zeal", "")
@@ -79,9 +77,9 @@ local function logics(target, target_selector_data)
         end
     end
 
-    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_boss()) then
+    if menu_elements.elites_only:get() and not (target:is_elite() or target:is_champion() or target:is_boss()) then
         if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[ZEAL DEBUG] Elites only mode - target is not elite or boss")
+            my_utility.debug_print("[ZEAL DEBUG] Elites only mode - target is not elite, champion, or boss")
         end
         return false
     end
@@ -98,17 +96,6 @@ local function logics(target, target_selector_data)
         end
         return false
     end;
-
-    -- Check Faith cost
-    local local_player = get_local_player();
-    local current_faith = local_player:get_primary_resource_current();
-    if current_faith < spell_data.zeal.faith_cost then
-        if menu_elements.debug_mode:get() then
-            my_utility.debug_print("[ZEAL DEBUG] Not enough Faith - required: " ..
-                spell_data.zeal.faith_cost .. ", current: " .. current_faith)
-        end
-        return false
-    end
 
     if not my_utility.is_in_range(target, max_spell_range) or my_utility.is_in_range(target, menu_elements.min_target_range:get()) then
         if menu_elements.debug_mode:get() then

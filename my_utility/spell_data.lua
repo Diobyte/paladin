@@ -1,9 +1,9 @@
 local spell_data_class = _G.spell_data
 local spell_data_module = {}
 function spell_data_module.create_spell_data(radius, range, cast_delay, projectile_speed, has_wall_collision, spell_id,
-                                             geometry_type, targeting_type)
+                                             geometry_type, target_type)
     return spell_data_class:new(radius, range, cast_delay, projectile_speed, has_wall_collision, spell_id,
-        geometry_type or spell_geometry.rectangular, targeting_type or targeting_type.skillshot)
+        geometry_type or spell_geometry.rectangular, target_type or targeting_type.skillshot)
 end
 
 local spell_data = {

@@ -267,12 +267,7 @@ local function is_auto_play_enabled()
     return is_auto_play_active and is_auto_play_fighting
 end
 
-local mount_buff_name = "Generic_SetCannotBeAddedToAITargetList";
-local mount_buff_name_hash = mount_buff_name;
 local mount_buff_name_hash_c = 1923;
-
-local shrine_conduit_buff_name = "Shine_Conduit";
-local shrine_conduit_buff_name_hash = shrine_conduit_buff_name;
 local shrine_conduit_buff_name_hash_c = 421661;
 
 local function is_spell_active(spell_id)
@@ -353,7 +348,6 @@ local function is_action_allowed()
     end
 
     local is_mounted = false;
-    local is_blood_mist = false;
     local is_shrine_conduit = false;
     local local_player_buffs = local_player:get_buffs();
     if local_player_buffs then
@@ -370,9 +364,7 @@ local function is_action_allowed()
         end
     end
 
-    -- do not make any actions while in blood mist
-    if is_blood_mist or is_mounted or is_shrine_conduit then
-        -- console.print("Blocking Actions for Some Buff");
+    if is_mounted or is_shrine_conduit then
         return false;
     end
 
@@ -489,7 +481,7 @@ local function get_best_point(target_position, circle_radius, current_hit_list)
     return { point = target_position, hits = current_hit_list_amount, victim_list = current_hit_list };
 end
 
-function is_target_within_angle(origin, reference, target, max_angle)
+local function is_target_within_angle(origin, reference, target, max_angle)
     local to_reference = (reference - origin):normalize();
     local to_target = (target - origin):normalize();
     local dot_product = to_reference:dot(to_target);
@@ -583,7 +575,7 @@ end
 
 local function enemy_count_in_range(evaluation_range, source_position)
     -- set default source position to player position
-    local source_position = source_position or get_player_position();
+    source_position = source_position or get_player_position();
     local enemies = target_selector.get_near_target_list(source_position, evaluation_range);
     local all_units_count = 0;
     local normal_units_count = 0;
