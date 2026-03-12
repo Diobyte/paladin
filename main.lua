@@ -324,8 +324,9 @@ on_render_menu(function()
             "Always prioritize Elites/Champions regardless of other scores")
 
         menu.menu_elements.build_selector:render("Build Selector",
-            { "Default", "Judgement Nuke", "Hammerkuna", "Arbiter", "Captain America", "Shield Bash", "Wing Strikes",
-                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "Spear", "Zenith Tank", "Auradin", "Auradin Maxroll", "SotH Judgement" },
+            { "Default", "Judgement Nuke", "Hammerdin (Rob)", "Arbiter", "Cpt. America (Rob)", "Shield Bash", "Wing Strike (Rob)",
+                "Evade Hammer", "Arbiter Evade", "Heaven's Fury", "SotH (Rob)", "Zenith Tank", "Auradin (Rob)", "Auradin Maxroll", "SotH Judgement",
+                "Brandish (Rob)", "Zealot (Rob)", "Support zPala (Rob)", "Support PTR (Rob)" },
             "Select a build to optimize spell priorities and timings for max DPS.")
 
         -- Spell priority is now updated in on_update for real-time adjustments

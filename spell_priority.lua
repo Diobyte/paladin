@@ -167,39 +167,70 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
         end
 
         -- 5. Build Specific Overrides
-        if build_index == 1 then -- Judgement Nuke
-            if spell_name == "arbiter_of_justice" then score = score + 150 end
-            if spell_name == "brandish" then score = score + 50 end
-        elseif build_index == 2 then                                       -- Hammerkuna
-            if spell_name == "blessed_hammer" then score = score + 250 end -- Main spam
-        elseif build_index == 3 then                                       -- Arbiter
+        if build_index == 1 then -- Judgement Nuke → Rob's "Judgement Paladin"
+            -- Skills: Arbiter of Justice, Fanaticism Aura, Blessed Hammer, Defiance Aura, Condemn, Spear of the Heavens
+            if spell_name == "arbiter_of_justice" then score = score + 1000 end -- Transform first, never drop form
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "condemn" then score = score + 700 end            -- Grouping + Judgement procs
+            if spell_name == "spear_of_the_heavens" then score = score + 800 end -- Primary nuke
+            if spell_name == "blessed_hammer" then score = score + 600 end     -- Filler in Arbiter form
+        elseif build_index == 2 then                                           -- Hammerdin (Rob)
+            -- Skills: Blessed Hammer, Fanaticism Aura, Defiance Aura, Consecration, Condemn, Falling Star
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "falling_star" then score = score + 700 end       -- Mobility + engage
+            if spell_name == "consecration" then score = score + 600 end       -- Ground damage
+            if spell_name == "condemn" then score = score + 500 end            -- Grouping
+            if spell_name == "blessed_hammer" then score = score + 800 end     -- Main damage spam
+        elseif build_index == 3 then                                           -- Arbiter
             if spell_name == "arbiter_of_justice" then score = score + 300 end
-            if spell_name == "zeal" then score = score + 100 end           -- Wrath builder
-            if spell_name == "consecration" then score = score + 500 end   -- Ensure Consecration casts
-        elseif build_index == 4 then                                       -- Captain America
-            if spell_name == "blessed_shield" then score = score + 250 end
-        elseif build_index == 5 then                                       -- Shield Bash
+            if spell_name == "zeal" then score = score + 100 end
+            if spell_name == "consecration" then score = score + 500 end
+        elseif build_index == 4 then                                           -- Cpt. America (Rob)
+            -- Skills: Aegis, Defiance Aura, Fanaticism Aura, Arbiter of Justice, Clash, Blessed Shield
+            if spell_name == "arbiter_of_justice" then score = score + 1000 end -- Transform first
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "aegis" then score = score + 700 end              -- Defensive ultimate
+            if spell_name == "clash" then score = score + 600 end              -- Generator
+            if spell_name == "blessed_shield" then score = score + 800 end     -- Main damage
+        elseif build_index == 5 then                                           -- Shield Bash
             if spell_name == "shield_bash" then score = score + 250 end
-        elseif build_index == 6 then                                       -- Wing Strikes
-            if spell_name == "falling_star" then score = score + 200 end
-        elseif build_index == 7 then                                       -- Evade Hammer
+        elseif build_index == 6 then                                           -- Wing Strike (Rob)
+            -- Skills: Aegis, Fanaticism Aura, Condemn, Defiance Aura, Arbiter of Justice, Falling Star
+            if spell_name == "arbiter_of_justice" then score = score + 1000 end -- Transform first, Wing Strike form
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "falling_star" then score = score + 800 end       -- Wing strike mobility + big damage
+            if spell_name == "condemn" then score = score + 700 end            -- Grouping
+            if spell_name == "aegis" then score = score + 600 end              -- Defensive
+        elseif build_index == 7 then                                           -- Evade Hammer
             if spell_name == "blessed_hammer" then score = score + 250 end
             if spell_name == "evade" then score = score + 100 end
         elseif build_index == 8 then  -- Arbiter Evade
             if spell_name == "arbiter_of_justice" then score = score + 250 end
         elseif build_index == 9 then  -- Heaven's Fury
             if spell_name == "heavens_fury" then score = score + 250 end
-        elseif build_index == 10 then -- Spear
-            if spell_name == "spear_of_the_heavens" then score = score + 250 end
+        elseif build_index == 10 then -- SotH (Rob) - Spear of the Heavens Paladin
+            -- Skills: Falling Star, Fanaticism Aura, Condemn, Defiance Aura, Rally, Spear of the Heavens
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "rally" then score = score + 800 end              -- Buff charges + faith gen
+            if spell_name == "falling_star" then score = score + 700 end       -- Mobility engage
+            if spell_name == "condemn" then score = score + 600 end            -- Grouping
+            if spell_name == "spear_of_the_heavens" then score = score + 1000 end -- Primary nuke, hold down
         elseif build_index == 11 then -- Zenith Tank
             if spell_name == "zenith" then score = score + 250 end
             if spell_name == "aegis" then score = score + 100 end
-        elseif build_index == 12 then                                          -- Auradin
-            if spell_name == "holy_light_aura" then score = score + 300 end    -- Critical
-            if spell_name == "condemn" then score = score + 100 end            -- Pull
-            if spell_name == "blessed_hammer" then score = score + 100 end     -- Proc
-            if spell_name == "consecration" then score = score + 500 end       -- Ensure Consecration casts
-            if spell_name == "arbiter_of_justice" then score = score + 500 end -- Ensure Arbiter casts
+        elseif build_index == 12 then                                          -- Auradin (Rob)
+            -- Skills: Blessed Hammer, Fanaticism Aura, Holy Light Aura, Defiance Aura, Condemn, Arbiter of Justice
+            if spell_name == "arbiter_of_justice" then score = score + 1000 end -- Transform first
+            if spell_name == "holy_light_aura" then score = score + 900 end    -- Critical aura for build
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "condemn" then score = score + 700 end            -- Grouping
+            if spell_name == "blessed_hammer" then score = score + 600 end     -- Filler/proc
         elseif build_index == 13 then                                          -- Auradin Maxroll
             -- 1. Auras - Critical for the build, always activate
             if spell_name == "holy_light_aura" then score = score + 1000 end
@@ -270,6 +301,38 @@ local function apply_dynamic_adjustments(base_priorities, build_index)
             if has_boss and spell_name == "spear_of_the_heavens" then
                 score = score + 200 -- Extra priority on bosses
             end
+        elseif build_index == 15 then -- Brandish (Rob)
+            -- Skills: Falling Star, Fanaticism Aura, Holy Light Aura, Defiance Aura, Rally, Brandish
+            if spell_name == "fanaticism_aura" then score = score + 1000 end
+            if spell_name == "holy_light_aura" then score = score + 1000 end   -- Critical aura for Brandish build
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "rally" then score = score + 800 end              -- Buff charges + faith gen
+            if spell_name == "falling_star" then score = score + 700 end       -- Mobility engage
+            if spell_name == "brandish" then score = score + 900 end           -- Main attack generator
+        elseif build_index == 16 then -- Zealot (Rob)
+            -- Skills: Zeal, Fanaticism Aura, Condemn, Defiance Aura, Rally, Arbiter of Justice
+            if spell_name == "arbiter_of_justice" then score = score + 1000 end -- Transform first
+            if spell_name == "fanaticism_aura" then score = score + 900 end
+            if spell_name == "defiance_aura" then score = score + 900 end
+            if spell_name == "rally" then score = score + 800 end              -- Buff + faith gen
+            if spell_name == "condemn" then score = score + 700 end            -- Grouping
+            if spell_name == "zeal" then score = score + 850 end               -- Primary melee damage
+        elseif build_index == 17 then -- Support zPala (Rob)
+            -- Skills: Arbiter of Justice, Fanaticism Aura, Purify, Defiance Aura, Spear of the Heavens, Blessed Hammer
+            if spell_name == "arbiter_of_justice" then score = score + 1000 end -- Transform
+            if spell_name == "fanaticism_aura" then score = score + 900 end    -- Group buff
+            if spell_name == "defiance_aura" then score = score + 900 end      -- Group defense
+            if spell_name == "purify" then score = score + 800 end             -- Cleanse allies
+            if spell_name == "spear_of_the_heavens" then score = score + 700 end -- Utility damage
+            if spell_name == "blessed_hammer" then score = score + 600 end     -- Filler
+        elseif build_index == 18 then -- Support PTR (Rob)
+            -- Skills: Fortress, Fanaticism Aura, Purify, Defiance Aura, Consecration, Aegis
+            if spell_name == "fanaticism_aura" then score = score + 1000 end   -- Group attack speed
+            if spell_name == "defiance_aura" then score = score + 1000 end     -- Group defense
+            if spell_name == "fortress" then score = score + 900 end           -- Shield allies
+            if spell_name == "aegis" then score = score + 800 end              -- Defensive ultimate
+            if spell_name == "purify" then score = score + 700 end             -- Cleanse allies
+            if spell_name == "consecration" then score = score + 600 end       -- Healing zone
         end
 
         -- 6. AOE Logic
